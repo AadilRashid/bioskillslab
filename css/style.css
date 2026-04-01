@@ -225,11 +225,11 @@ a:hover { color: var(--accent-hover); }
   margin-bottom: .75rem;
 }
 .hero-deco .deco-icon {
-  font-size: 3rem;
-  line-height: 1;
+  width: 48px;
+  height: 48px;
   display: inline-block;
-  animation: spinY 8s linear infinite;
-  filter: drop-shadow(0 0 12px rgba(74,222,128,.4));
+  animation: spinY 10s linear infinite;
+  filter: drop-shadow(0 0 8px rgba(56,189,248,.3));
 }
 @keyframes spinY {
   0% { transform: rotateY(0deg); }

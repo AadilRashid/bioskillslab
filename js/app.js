@@ -119,7 +119,7 @@ function renderHome(el) {
 
   el.innerHTML = `
     <div class="hero">
-      <div class="hero-deco"><span class="deco-icon">🧬</span></div>
+      <div class="hero-deco"><svg class="deco-icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M32 4C20 4 14 16 14 32s6 28 18 28" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" opacity=".7"/><path d="M32 4c12 0 18 12 18 28s-6 28-18 28" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" opacity=".7"/><line x1="16" y1="16" x2="48" y2="16" stroke="var(--accent)" stroke-width="1.5" opacity=".4"/><line x1="14" y1="24" x2="50" y2="24" stroke="var(--green)" stroke-width="1.5" opacity=".4"/><line x1="14" y1="32" x2="50" y2="32" stroke="var(--purple)" stroke-width="1.5" opacity=".4"/><line x1="14" y1="40" x2="50" y2="40" stroke="var(--green)" stroke-width="1.5" opacity=".4"/><line x1="16" y1="48" x2="48" y2="48" stroke="var(--accent)" stroke-width="1.5" opacity=".4"/></svg></div>
       <h1>Welcome to <span class="brand-bio">BioSkills</span> <span class="brand-rest">Lab</span></h1>
       <p>Learn bioinformatics from scratch through interactive lessons, a built-in Linux terminal simulator, and hands-on quizzes on real genomic data.</p>
       <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
