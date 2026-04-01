@@ -1,7 +1,7 @@
-const FREE_QUIZ_LIMIT = 5;
+const FREE_QUIZ_LIMIT = 999;
 
 function isUnlocked() {
-  return localStorage.getItem('bsl_premium') === 'true';
+  return true;
 }
 
 function unlockPremium(key) {
