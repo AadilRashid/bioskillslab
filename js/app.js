@@ -120,7 +120,7 @@ function renderHome(el) {
   el.innerHTML = `
     <div class="hero">
       <div style="margin-bottom:1.5rem;"><i data-lucide="dna" style="width:56px;height:56px;color:var(--accent);"></i></div>
-      <h1>Welcome to <span>BioSkills Lab</span></h1>
+      <h1>Welcome to <span class="brand-bio">BioSkills</span> <span class="brand-rest">Lab</span></h1>
       <p>Learn bioinformatics from scratch through interactive lessons, a built-in Linux terminal simulator, and hands-on quizzes on real genomic data.</p>
       <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
         <button class="hero-btn" onclick="navigate('ch1')"><i data-lucide="play" style="width:18px;height:18px;"></i> Start Learning</button>
