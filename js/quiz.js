@@ -142,7 +142,7 @@ function initQuiz(container, chId) {
         <p style="color:var(--text-muted);font-size:.9rem;margin-bottom:1rem;">Get 10+ additional hands-on questions per chapter, covering real bioinformatics scenarios.</p>
         <div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;align-items:center;">
           <a href="https://rzp.io/rzp/2fExpSH" target="_blank" class="hero-btn" style="font-size:.85rem;padding:.6rem 1.5rem;text-decoration:none;">
-            Unlock All Quizzes — ₹2,499
+            Unlock All Quizzes — $25
           </a>
           <span style="color:var(--text-muted);font-size:.8rem;">or</span>
           <div style="display:flex;gap:.5rem;align-items:center;">

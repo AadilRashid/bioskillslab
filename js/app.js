@@ -121,7 +121,7 @@ function renderHome(el) {
     <div class="hero">
       <div style="margin-bottom:1.5rem;"><i data-lucide="dna" style="width:56px;height:56px;color:var(--accent);"></i></div>
       <h1>Welcome to <span>BioSkills Lab</span></h1>
-      <p>A free, self-paced, hands-on course to master bioinformatics from scratch. Learn Unix, Python, R, genomics tools, and real-world data analysis through interactive lessons, a built-in terminal simulator, and practical quizzes.</p>
+      <p>Learn bioinformatics from scratch through interactive lessons, a built-in Linux terminal simulator, and hands-on quizzes on real genomic data.</p>
       <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
         <button class="hero-btn" onclick="navigate('ch1')"><i data-lucide="play" style="width:18px;height:18px;"></i> Start Learning</button>
         <button class="hero-btn" onclick="navigate('resources')" style="background:var(--bg-card);color:var(--text);border:1px solid var(--border);"><i data-lucide="library" style="width:18px;height:18px;"></i> Resources</button>
@@ -193,6 +193,46 @@ function renderHome(el) {
         <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="check-circle" style="width:18px;height:18px;color:var(--green);flex-shrink:0;margin-top:2px;"></i> Align reads with BWA/STAR and manipulate BAM files with samtools</div>
         <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="check-circle" style="width:18px;height:18px;color:var(--green);flex-shrink:0;margin-top:2px;"></i> Call variants with GATK and annotate VCF files</div>
         <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="check-circle" style="width:18px;height:18px;color:var(--green);flex-shrink:0;margin-top:2px;"></i> Build reproducible pipelines with Snakemake, Git, and Docker</div>
+      </div>
+    </div>
+
+    <!-- LEARNING ROADMAP -->
+    <div style="margin-top:2rem;padding:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;">
+      <h3 style="margin-bottom:1rem;display:flex;align-items:center;gap:.5rem;"><i data-lucide="map" style="width:20px;height:20px;color:var(--accent);"></i> Learning Roadmap</h3>
+      <div style="position:relative;padding-left:2rem;">
+        <div style="position:absolute;left:.55rem;top:0;bottom:0;width:2px;background:var(--border);"></div>
+        <div style="margin-bottom:1.25rem;position:relative;"><div style="position:absolute;left:-1.65rem;top:.15rem;width:12px;height:12px;border-radius:50%;background:var(--accent);"></div><div style="font-weight:700;font-size:.9rem;color:var(--accent);">Phase 1: Foundations</div><div style="font-size:.8rem;color:var(--text-muted);">Unix command line → Shell scripting → Git version control → Project setup</div></div>
+        <div style="margin-bottom:1.25rem;position:relative;"><div style="position:absolute;left:-1.65rem;top:.15rem;width:12px;height:12px;border-radius:50%;background:var(--purple);"></div><div style="font-weight:700;font-size:.9rem;color:var(--purple);">Phase 2: Programming</div><div style="font-size:.8rem;color:var(--text-muted);">Python + Biopython → R + ggplot2 + Bioconductor</div></div>
+        <div style="margin-bottom:1.25rem;position:relative;"><div style="position:absolute;left:-1.65rem;top:.15rem;width:12px;height:12px;border-radius:50%;background:var(--green);"></div><div style="font-weight:700;font-size:.9rem;color:var(--green);">Phase 3: Data &amp; Formats</div><div style="font-size:.8rem;color:var(--text-muted);">FASTA/FASTQ → Quality control → Alignment (SAM/BAM) → Genomic ranges (BED)</div></div>
+        <div style="position:relative;"><div style="position:absolute;left:-1.65rem;top:.15rem;width:12px;height:12px;border-radius:50%;background:var(--orange);"></div><div style="font-weight:700;font-size:.9rem;color:var(--orange);">Phase 4: Real Analysis</div><div style="font-size:.8rem;color:var(--text-muted);">RNA-Seq differential expression → Variant calling → Reproducible pipelines</div></div>
+      </div>
+    </div>
+
+    <!-- COMMON BEGINNER MISTAKES -->
+    <div style="margin-top:2rem;padding:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;">
+      <h3 style="margin-bottom:1rem;display:flex;align-items:center;gap:.5rem;"><i data-lucide="alert-triangle" style="width:20px;height:20px;color:var(--orange);"></i> Common Beginner Mistakes We Help You Avoid</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:.75rem;">
+        <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="x-circle" style="width:18px;height:18px;color:var(--red);flex-shrink:0;margin-top:2px;"></i> Confusing FASTA and FASTQ formats</div>
+        <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="x-circle" style="width:18px;height:18px;color:var(--red);flex-shrink:0;margin-top:2px;"></i> Using the wrong reference genome build (hg19 vs hg38)</div>
+        <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="x-circle" style="width:18px;height:18px;color:var(--red);flex-shrink:0;margin-top:2px;"></i> Mixing up 0-based (BED) and 1-based (VCF/GFF) coordinates</div>
+        <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="x-circle" style="width:18px;height:18px;color:var(--red);flex-shrink:0;margin-top:2px;"></i> Using raw p-values instead of adjusted p-values (FDR)</div>
+        <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="x-circle" style="width:18px;height:18px;color:var(--red);flex-shrink:0;margin-top:2px;"></i> Feeding normalized counts to DESeq2 (it needs raw counts)</div>
+        <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="x-circle" style="width:18px;height:18px;color:var(--red);flex-shrink:0;margin-top:2px;"></i> Modifying raw data files instead of treating them as read-only</div>
+        <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="x-circle" style="width:18px;height:18px;color:var(--red);flex-shrink:0;margin-top:2px;"></i> Confusing samtools -f and -F flags (include vs exclude)</div>
+        <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="x-circle" style="width:18px;height:18px;color:var(--red);flex-shrink:0;margin-top:2px;"></i> Running RNA-Seq alignment with BWA instead of a splice-aware aligner</div>
+      </div>
+    </div>
+
+    <!-- BUILT BY -->
+    <div style="margin-top:2rem;padding:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;display:flex;gap:1.5rem;align-items:center;flex-wrap:wrap;">
+      <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--purple));display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:800;color:#fff;flex-shrink:0;">AB</div>
+      <div style="flex:1;min-width:200px;">
+        <h3 style="font-size:1rem;margin-bottom:.25rem;">Built by Aadil Bhat</h3>
+        <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:.5rem;">Bioinformatics developer and educator. Passionate about making genomics accessible to everyone.</p>
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;">
+          <a href="https://github.com/AadilRashid" target="_blank" style="font-size:.8rem;display:flex;align-items:center;gap:.3rem;"><i data-lucide="github" style="width:14px;height:14px;"></i> GitHub</a>
+          <a href="https://linkedin.com/in/" target="_blank" style="font-size:.8rem;display:flex;align-items:center;gap:.3rem;"><i data-lucide="linkedin" style="width:14px;height:14px;"></i> LinkedIn</a>
+        </div>
       </div>
     </div>
   `;
