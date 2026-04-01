@@ -1,0 +1,326 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="dna" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 12: RNA-Seq Analysis</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~90 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Advanced</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> STAR, featureCounts, DESeq2, edgeR, Pathway Analysis</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>What is RNA-Seq?</h2>
+      <p>RNA-Seq measures gene expression by sequencing the RNA (transcriptome) in a sample. The core question: <strong>which genes are turned on/off, and by how much, between conditions?</strong></p>
+      <p>Applications: differential expression, alternative splicing, novel transcript discovery, allele-specific expression, single-cell transcriptomics.</p>
+
+      <h2>Experimental Design — Get This Right First</h2>
+      <ul>
+        <li><strong>Biological replicates</strong> — Minimum 3 per condition, ideally 5+. More replicates = more statistical power</li>
+        <li><strong>Sequencing depth</strong> — 20-30 million reads per sample for most DE analyses. More for rare transcripts or splicing</li>
+        <li><strong>Read length</strong> — 75-150 bp paired-end is standard. Longer reads help with isoform detection</li>
+        <li><strong>Batch effects</strong> — Process all samples together. If batching is unavoidable, balance conditions across batches</li>
+        <li><strong>Controls</strong> — Include appropriate biological controls. Consider spike-ins (ERCC) for normalization validation</li>
+      </ul>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> The Most Common RNA-Seq Mistake</strong>
+        <p>Running 1-2 replicates per condition. With only 2 replicates, you have almost no statistical power to detect DE genes. The money spent on deeper sequencing of 2 samples is better spent on shallower sequencing of 4+ samples.</p>
+      </div>
+
+      <h2>The Complete RNA-Seq Pipeline</h2>
+      <pre><code>┌──────────────────────────────────────────────────┐
+│ 1. QC — FastQC / MultiQC                          │
+│    Assess raw read quality, adapter content        │
+└────────────────────┬─────────────────────────────┘
+                     ▼
+┌──────────────────────────────────────────────────┐
+│ 2. TRIMMING — fastp / Trimmomatic                  │
+│    Remove adapters, low-quality bases              │
+└────────────────────┬─────────────────────────────┘
+                     ▼
+┌──────────────────────────────────────────────────┐
+│ 3. ALIGNMENT — STAR / HISAT2 (splice-aware)        │
+│    Map reads to reference genome                   │
+│    Output: sorted BAM files                        │
+└────────────────────┬─────────────────────────────┘
+                     ▼
+┌──────────────────────────────────────────────────┐
+│ 4. COUNTING — featureCounts / htseq-count          │
+│    Count reads per gene using GTF annotation       │
+│    Output: count matrix (genes × samples)          │
+└────────────────────┬─────────────────────────────┘
+                     ▼
+┌──────────────────────────────────────────────────┐
+│ 5. DIFFERENTIAL EXPRESSION — DESeq2 / edgeR        │
+│    Statistical testing: which genes differ?        │
+│    Output: log2FC, p-values, adjusted p-values     │
+└────────────────────┬─────────────────────────────┘
+                     ▼
+┌──────────────────────────────────────────────────┐
+│ 6. VISUALIZATION — ggplot2, pheatmap, IGV          │
+│    Volcano plots, MA plots, PCA, heatmaps          │
+└────────────────────┬─────────────────────────────┘
+                     ▼
+┌──────────────────────────────────────────────────┐
+│ 7. PATHWAY ANALYSIS — clusterProfiler, GSEA        │
+│    Gene Ontology, KEGG pathways, gene set testing  │
+└──────────────────────────────────────────────────┘</code></pre>
+
+      <h2>Step 3: Alignment with STAR</h2>
+      <p>STAR is the most widely used RNA-Seq aligner. It's splice-aware — it can align reads that span exon-exon junctions across introns.</p>
+      <pre><code># Generate genome index (once per genome — needs ~30 GB RAM for human)
+STAR --runMode genomeGenerate \
+     --genomeDir star_index/ \
+     --genomeFastaFiles Homo_sapiens.GRCh38.dna.primary_assembly.fa \
+     --sjdbGTFfile Homo_sapiens.GRCh38.110.gtf \
+     --sjdbOverhang 149 \
+     --runThreadN 8
+
+# Align reads (per sample)
+STAR --genomeDir star_index/ \
+     --readFilesIn sample_R1.fastq.gz sample_R2.fastq.gz \
+     --readFilesCommand zcat \
+     --outSAMtype BAM SortedByCoordinate \
+     --quantMode GeneCounts \
+     --outFileNamePrefix results/star/sample_ \
+     --runThreadN 8
+
+# Index the output BAM
+samtools index results/star/sample_Aligned.sortedByCoord.out.bam</code></pre>
+
+      <h2>Step 4: Counting with featureCounts</h2>
+      <pre><code># Count reads per gene for all samples at once
+featureCounts \
+    -a Homo_sapiens.GRCh38.110.gtf \
+    -o results/counts/gene_counts.txt \
+    -T 4 \
+    -p --countReadPairs \
+    -s 2 \
+    results/star/*_Aligned.sortedByCoord.out.bam
+
+# -a: annotation GTF
+# -p --countReadPairs: count fragments, not individual reads (paired-end)
+# -s 2: strand-specific (2 = reverse, most common for Illumina dUTP protocol)
+# -T: threads</code></pre>
+
+      <h2>Step 5: Differential Expression with DESeq2</h2>
+      <pre><code>library(DESeq2)
+library(dplyr)
+
+# Load count matrix (skip featureCounts metadata columns)
+raw &lt;- read.delim("results/counts/gene_counts.txt", comment.char="#")
+counts &lt;- raw[, 7:ncol(raw)]  # Columns 7+ are the sample counts
+rownames(counts) &lt;- raw$Geneid
+colnames(counts) &lt;- gsub(".*star\\.|\\.Aligned.*", "", colnames(counts))
+
+# Sample metadata
+coldata &lt;- data.frame(
+  condition = factor(c("control","control","control","treatment","treatment","treatment")),
+  row.names = colnames(counts)
+)
+
+# Create DESeq2 object
+dds &lt;- DESeqDataSetFromMatrix(countData=counts, colData=coldata, design=~condition)
+
+# Pre-filter: remove genes with very low counts
+keep &lt;- rowSums(counts(dds)) &gt;= 10
+dds &lt;- dds[keep, ]
+cat("Genes after filtering:", nrow(dds), "\n")
+
+# Run DESeq2
+dds &lt;- DESeq(dds)
+
+# Extract results
+res &lt;- results(dds, contrast=c("condition","treatment","control"), alpha=0.05)
+res &lt;- res[order(res$padj), ]
+
+# Summary
+summary(res)
+sig &lt;- subset(res, padj &lt; 0.05 &amp; abs(log2FoldChange) &gt; 1)
+cat(nrow(sig), "significant DE genes\n")
+cat(sum(sig$log2FoldChange &gt; 0), "upregulated,", sum(sig$log2FoldChange &lt; 0), "downregulated\n")</code></pre>
+
+      <h2>Step 6: Visualization</h2>
+      <pre><code>library(ggplot2)
+
+# Volcano plot
+df &lt;- as.data.frame(res) %&gt;% mutate(sig = !is.na(padj) &amp; padj &lt; 0.05 &amp; abs(log2FoldChange) &gt; 1)
+ggplot(df, aes(log2FoldChange, -log10(padj), color=sig)) +
+  geom_point(size=0.5, alpha=0.5) +
+  scale_color_manual(values=c("grey70","red3")) +
+  geom_hline(yintercept=-log10(0.05), linetype="dashed") +
+  geom_vline(xintercept=c(-1,1), linetype="dashed") +
+  theme_minimal() + labs(title="Volcano Plot")
+
+# PCA — do samples cluster by condition?
+vsd &lt;- vst(dds)
+plotPCA(vsd, intgroup="condition") + theme_minimal()
+
+# Heatmap of top 50 DE genes
+library(pheatmap)
+top50 &lt;- head(rownames(res[order(res$padj),]), 50)
+mat &lt;- assay(vsd)[top50, ]
+pheatmap(mat, scale="row", annotation_col=coldata,
+         color=colorRampPalette(c("navy","white","firebrick3"))(100))</code></pre>
+
+      <h2>Step 7: Pathway Analysis</h2>
+      <pre><code>library(clusterProfiler)
+library(org.Hs.eg.db)
+
+# Gene Ontology enrichment
+gene_list &lt;- rownames(sig)
+ego &lt;- enrichGO(gene=gene_list, OrgDb=org.Hs.eg.db,
+                keyType="ENSEMBL", ont="BP", pAdjustMethod="BH",
+                pvalueCutoff=0.05)
+dotplot(ego, showCategory=20) + ggtitle("GO Biological Process")
+
+# KEGG pathway enrichment
+# First convert gene IDs to Entrez
+gene_entrez &lt;- bitr(gene_list, fromType="ENSEMBL", toType="ENTREZID", OrgDb=org.Hs.eg.db)
+ekegg &lt;- enrichKEGG(gene=gene_entrez$ENTREZID, organism="hsa", pvalueCutoff=0.05)
+dotplot(ekegg, showCategory=15)</code></pre>
+
+      <h2>Alternative: Pseudo-alignment with Salmon</h2>
+      <p>Salmon skips traditional alignment entirely — it quantifies transcript abundance directly from FASTQ files. It's 10-100x faster than STAR + featureCounts.</p>
+      <pre><code># Build index (once)
+salmon index -t transcripts.fa -i salmon_index
+
+# Quantify (per sample)
+salmon quant -i salmon_index \
+    -l A \
+    -1 sample_R1.fastq.gz -2 sample_R2.fastq.gz \
+    -o results/salmon/sample/ \
+    --threads 8
+
+# Import into R with tximeta (for DESeq2)
+library(tximeta)
+coldata$files &lt;- file.path("results/salmon", coldata$sample, "quant.sf")
+se &lt;- tximeta(coldata)
+dds &lt;- DESeqDataSet(se, design=~condition)</code></pre>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">RNA-Seq Quiz — 5 Free + 10 Premium</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">1</span> What is the correct order of an RNA-Seq pipeline?</h4>
+        <button class="quiz-option" data-value="a">Alignment → QC → Counting → DE</button>
+        <button class="quiz-option" data-value="b">QC → Trimming → Alignment → Counting → DE → Visualization</button>
+        <button class="quiz-option" data-value="c">DE → Counting → Alignment → QC</button>
+        <button class="quiz-option" data-value="d">Counting → Alignment → DE → QC</button>
+        <div class="quiz-explanation" data-text="Always QC first, then trim bad bases/adapters, align to reference, count reads per gene, test for differential expression, then visualize and interpret."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">2</span> In DESeq2, what does <code>padj &lt; 0.05</code> mean?</h4>
+        <button class="quiz-option" data-value="a">The raw p-value is less than 0.05</button>
+        <button class="quiz-option" data-value="b">The fold change is greater than 0.05</button>
+        <button class="quiz-option" data-value="c">The gene is expressed in 5% of samples</button>
+        <button class="quiz-option" data-value="d">The Benjamini-Hochberg adjusted p-value (FDR) is less than 0.05</button>
+        <div class="quiz-explanation" data-text="padj corrects for multiple testing. When testing 20,000 genes, you'd expect 1,000 false positives at p<0.05. FDR correction controls this. Always use padj, never raw pvalue."></div>
+      </div>
+
+      <div class="quiz-question" data-type="fillin" data-answer="volcano||volcano plot">
+        <h4><span class="q-num">3</span> What plot shows log2 fold change on x-axis and -log10(p-value) on y-axis?</h4>
+        <input type="text" class="quiz-fill-input" placeholder="Plot type..." style="width:100%;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-explanation" data-text="Volcano plots are the standard DE visualization. Genes in the upper corners (large fold change + high significance) are the most interesting."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">4</span> Why filter out low-count genes before DESeq2?</h4>
+        <button class="quiz-option" data-value="a">Low-count genes have unreliable estimates and hurt multiple testing correction</button>
+        <button class="quiz-option" data-value="b">DESeq2 crashes on zeros</button>
+        <button class="quiz-option" data-value="c">It makes heatmaps look better</button>
+        <button class="quiz-option" data-value="d">Low-count genes are always non-coding</button>
+        <div class="quiz-explanation" data-text="Genes with very few reads have high variance and unreliable fold change estimates. Removing them reduces the number of tests, improving the adjusted p-values for the remaining genes."></div>
+      </div>
+
+      <!-- PREMIUM -->
+      <div class="quiz-question premium" data-type="choice" data-answer="c">
+        <h4><span class="q-num">5</span> Why use STAR instead of BWA for RNA-Seq alignment?</h4>
+        <button class="quiz-option" data-value="a">STAR is faster</button>
+        <button class="quiz-option" data-value="b">BWA doesn't work with FASTQ files</button>
+        <button class="quiz-option" data-value="c">STAR is splice-aware — it can align reads across exon-exon junctions spanning introns</button>
+        <button class="quiz-option" data-value="d">BWA only works with protein sequences</button>
+        <div class="quiz-explanation" data-text="RNA-Seq reads come from mRNA, which has introns removed. A read can span an exon junction. BWA would fail to align it because it expects contiguous matches. STAR handles the gap (N in CIGAR)."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="b">
+        <h4><span class="q-num">6</span> What is the minimum recommended number of biological replicates per condition?</h4>
+        <button class="quiz-option" data-value="a">1</button>
+        <button class="quiz-option" data-value="b">3 (ideally more)</button>
+        <button class="quiz-option" data-value="c">10</button>
+        <button class="quiz-option" data-value="d">2</button>
+        <div class="quiz-explanation" data-text="3 is the absolute minimum for reliable DE analysis. With 2 replicates you have almost no power. More replicates are always better than deeper sequencing of fewer samples."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="a">
+        <h4><span class="q-num">7</span> What type of counts does DESeq2 require as input?</h4>
+        <button class="quiz-option" data-value="a">Raw, unnormalized integer counts</button>
+        <button class="quiz-option" data-value="b">FPKM values</button>
+        <button class="quiz-option" data-value="c">TPM values</button>
+        <button class="quiz-option" data-value="d">Log2-transformed counts</button>
+        <div class="quiz-explanation" data-text="DESeq2 performs its own normalization (size factors). Feeding it pre-normalized data (FPKM, TPM) breaks the statistical model. Always use raw integer counts."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="fillin" data-answer="featureCounts||featurecounts||htseq-count">
+        <h4><span class="q-num">8</span> Name a tool that counts reads per gene from BAM files using a GTF annotation.</h4>
+        <input type="text" class="quiz-fill-input" placeholder="Tool name..." style="width:100%;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-explanation" data-text="featureCounts (from Subread) and htseq-count are the two standard tools. featureCounts is faster and can process multiple BAMs at once."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="d">
+        <h4><span class="q-num">9</span> What does PCA of RNA-Seq samples tell you?</h4>
+        <button class="quiz-option" data-value="a">Which genes are differentially expressed</button>
+        <button class="quiz-option" data-value="b">The sequencing depth of each sample</button>
+        <button class="quiz-option" data-value="c">The GC content of each sample</button>
+        <button class="quiz-option" data-value="d">Whether samples cluster by condition (and reveals batch effects or outliers)</button>
+        <div class="quiz-explanation" data-text="PCA reduces thousands of gene expression values to 2 dimensions. Samples should cluster by biological condition. If they cluster by batch or have outliers, you have a problem to address."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="c">
+        <h4><span class="q-num">10</span> What is the advantage of Salmon over STAR + featureCounts?</h4>
+        <button class="quiz-option" data-value="a">Better accuracy</button>
+        <button class="quiz-option" data-value="b">It produces BAM files</button>
+        <button class="quiz-option" data-value="c">It's 10-100x faster because it skips full alignment (pseudo-alignment)</button>
+        <button class="quiz-option" data-value="d">It doesn't need a reference</button>
+        <div class="quiz-explanation" data-text="Salmon uses pseudo-alignment — it determines which transcript a read came from without computing a full base-by-base alignment. This is much faster while maintaining comparable accuracy for gene-level quantification."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Join the Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your thoughts... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+
+  <div class="module-nav">
+    <button class="nav-btn" onclick="navigate('ch11')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+    <button class="nav-btn" onclick="navigate('ch13')">Next: Variant Calling <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+  </div>
+  <div style="text-align:center;margin-top:1rem;">
+    <button class="hero-btn" id="markComplete" style="font-size:.85rem;padding:.5rem 1.5rem;">Mark as Complete ✓</button>
+  </div>
+</div>

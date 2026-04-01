@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BioSkills Lab — Learn Bioinformatics Free</title>
+  <meta name="description" content="Free, self-paced, hands-on bioinformatics course. Master Unix, Python, R, genomics tools, SAM/BAM, RNA-Seq, variant calling with interactive terminal simulator and quizzes.">
+  <meta name="keywords" content="bioinformatics, learn bioinformatics, unix bioinformatics, RNA-Seq, genomics, FASTQ, SAM BAM, samtools, BWA, BLAST, DESeq2, free course, interactive">
+  <meta name="author" content="BioSkills Lab">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://bioskillslab.dev/">
+
+  <!-- Open Graph (Facebook, LinkedIn) -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="BioSkills Lab — Learn Bioinformatics From Scratch">
+  <meta property="og:description" content="Free interactive course: Unix, Python, R, genomics tools, RNA-Seq, variant calling. Hands-on terminal simulator, 150+ quiz questions, self-paced.">
+  <meta property="og:url" content="https://bioskillslab.dev/">
+  <meta property="og:image" content="https://bioskillslab.dev/img/og-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="BioSkills Lab">
+  <meta property="og:locale" content="en_US">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="BioSkills Lab — Learn Bioinformatics From Scratch">
+  <meta name="twitter:description" content="Free interactive bioinformatics course with built-in terminal simulator, 150+ hands-on quizzes, and 14 chapters from Unix to RNA-Seq.">
+  <meta name="twitter:image" content="https://bioskillslab.dev/img/og-card.png">
+
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo"><i data-lucide="dna" style="width:28px;height:28px;color:var(--accent)"></i></div>
+      <h2>BioSkills <span>Lab</span></h2>
+    </div>
+    <nav class="sidebar-nav" id="sidebarNav">
+      <a href="#" data-page="home" class="active"><i data-lucide="home"></i> Home</a>
+
+      <div class="nav-section" data-part="1">Part I — Foundations</div>
+      <a href="#" data-page="ch1" data-part="1"><i data-lucide="book-open"></i> 1. What is Bioinformatics?</a>
+      <a href="#" data-page="ch2" data-part="1"><i data-lucide="settings"></i> 2. Setting Up Your Environment</a>
+      <a href="#" data-page="ch3" data-part="1"><i data-lucide="terminal"></i> 3. Unix Fundamentals</a>
+      <a href="#" data-page="ch4" data-part="1"><i data-lucide="file-code-2"></i> 4. Advanced Shell &amp; Scripting</a>
+      <a href="#" data-page="ch5" data-part="1"><i data-lucide="git-branch"></i> 5. Version Control with Git</a>
+
+      <div class="nav-section" data-part="2">Part II — Programming</div>
+      <a href="#" data-page="ch6" data-part="2"><i data-lucide="code-2"></i> 6. Python for Bioinformatics</a>
+      <a href="#" data-page="ch7" data-part="2"><i data-lucide="bar-chart-3"></i> 7. R &amp; Bioconductor</a>
+
+      <div class="nav-section" data-part="3">Part III — Data &amp; Formats</div>
+      <a href="#" data-page="ch8" data-part="3"><i data-lucide="database"></i> 8. Biological Databases</a>
+      <a href="#" data-page="ch9" data-part="3"><i data-lucide="flask-conical"></i> 9. Sequence Formats &amp; QC</a>
+      <a href="#" data-page="ch10" data-part="3"><i data-lucide="crosshair"></i> 10. Sequence Alignment</a>
+      <a href="#" data-page="ch11" data-part="3"><i data-lucide="ruler"></i> 11. Genomic Ranges &amp; BEDTools</a>
+
+      <div class="nav-section" data-part="4">Part IV — Analysis</div>
+      <a href="#" data-page="ch12" data-part="4"><i data-lucide="dna"></i> 12. RNA-Seq Analysis</a>
+      <a href="#" data-page="ch13" data-part="4"><i data-lucide="microscope"></i> 13. Variant Calling</a>
+      <a href="#" data-page="ch14" data-part="4"><i data-lucide="package"></i> 14. Reproducibility &amp; Pipelines</a>
+
+      <div class="nav-section" data-part="extras">Extras</div>
+      <a href="#" data-page="resources" data-part="extras"><i data-lucide="library"></i> Resource Library</a>
+      <a href="#" data-page="glossary" data-part="extras"><i data-lucide="scroll-text"></i> Glossary</a>
+      <a href="#" data-page="cheatsheets" data-part="extras"><i data-lucide="clipboard-list"></i> Cheat Sheets</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="menu-btn" id="menuBtn"><i data-lucide="menu"></i></button>
+        <div class="breadcrumb" id="breadcrumb">Home</div>
+      </div>
+      <div class="topbar-right">
+        <div class="progress-ring">
+          <span id="progressText">0%</span>
+          <div class="bar"><div class="bar-fill" id="progressBar" style="width:0%"></div></div>
+        </div>
+        <button class="theme-toggle" id="themeToggle"><i data-lucide="moon"></i></button>
+      </div>
+    </header>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/terminal.js"></script>
+<script src="js/quiz.js"></script>
+<script src="js/forum.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

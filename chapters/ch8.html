@@ -1,0 +1,288 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="database" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 8: Biological Databases</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~50 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Beginner</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> NCBI, Ensembl, UniProt, UCSC, SRA, Data Integrity</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>The Big Four Databases</h2>
+      <p>Bioinformatics revolves around public databases. Knowing which database to use — and how to query it — is a core skill.</p>
+
+      <h3>1. NCBI — National Center for Biotechnology Information</h3>
+      <p>The US hub for biological data. NCBI hosts dozens of interconnected databases:</p>
+      <ul>
+        <li><strong>GenBank</strong> — Nucleotide sequences (genes, genomes, mRNA). Over 2 billion sequences</li>
+        <li><strong>SRA</strong> (Sequence Read Archive) — Raw sequencing reads. Over 70 petabytes. This is where you download FASTQ files from published studies</li>
+        <li><strong>GEO</strong> (Gene Expression Omnibus) — Processed expression datasets (microarray, RNA-Seq)</li>
+        <li><strong>PubMed</strong> — 35+ million biomedical literature citations</li>
+        <li><strong>dbSNP</strong> — Known genetic variants (SNPs, indels)</li>
+        <li><strong>ClinVar</strong> — Clinically relevant variants and their disease associations</li>
+        <li><strong>RefSeq</strong> — Curated reference sequences (higher quality than GenBank)</li>
+        <li><strong>Gene</strong> — Gene-centric information aggregated from multiple sources</li>
+      </ul>
+
+      <h3>2. Ensembl (EMBL-EBI)</h3>
+      <p>The European genome annotation resource. Best for:</p>
+      <ul>
+        <li>Downloading reference genomes (FASTA) and gene annotations (GTF/GFF)</li>
+        <li>Comparative genomics across species</li>
+        <li>Variant Effect Predictor (VEP) for annotating variants</li>
+        <li>BioMart for bulk data queries</li>
+      </ul>
+      <pre><code># Ensembl FTP structure (well-organized, predictable URLs)
+ftp://ftp.ensembl.org/pub/release-110/
+├── fasta/
+│   └── homo_sapiens/
+│       └── dna/
+│           └── Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+├── gtf/
+│   └── homo_sapiens/
+│       └── Homo_sapiens.GRCh38.110.gtf.gz
+└── variation/
+    └── vcf/</code></pre>
+
+      <h3>3. UniProt</h3>
+      <p>The definitive protein database. Two sections:</p>
+      <ul>
+        <li><strong>Swiss-Prot</strong> — Manually curated, high quality (~570,000 entries)</li>
+        <li><strong>TrEMBL</strong> — Automatically annotated, much larger (~250 million entries)</li>
+      </ul>
+      <p>Use UniProt for protein function, domains, structure, interactions, and disease associations.</p>
+
+      <h3>4. UCSC Genome Browser</h3>
+      <p>A visual genome exploration tool with hundreds of annotation tracks. Excellent for:</p>
+      <ul>
+        <li>Visually inspecting a genomic region</li>
+        <li>Viewing conservation across species</li>
+        <li>Downloading annotation tables via Table Browser</li>
+        <li>Custom tracks (upload your own BED/BAM files)</li>
+      </ul>
+
+      <h2>Downloading Data</h2>
+
+      <h3>wget and curl</h3>
+      <pre><code># Download a file with wget
+wget https://ftp.ensembl.org/pub/release-110/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+
+# Resume interrupted download
+wget -c https://example.com/large_file.gz
+
+# Download with curl
+curl -O https://example.com/file.gz
+
+# Download multiple files listed in a text file
+wget -i urls.txt</code></pre>
+
+      <h3>Downloading from SRA</h3>
+      <pre><code># Install SRA Toolkit
+conda install -c bioconda sra-tools
+
+# Method 1: prefetch + fastq-dump (traditional)
+prefetch SRR1234567
+fastq-dump --split-files --gzip SRR1234567
+
+# Method 2: fasterq-dump (much faster, recommended)
+fasterq-dump SRR1234567 --threads 4 --split-files
+# Then compress (fasterq-dump doesn't output gzip)
+gzip SRR1234567_1.fastq SRR1234567_2.fastq
+
+# Download multiple accessions
+while read acc; do
+    fasterq-dump "$acc" --threads 4 --split-files
+done &lt; accession_list.txt</code></pre>
+
+      <h3>rsync and scp</h3>
+      <pre><code># rsync — efficient for large transfers (only copies differences)
+rsync -avz --progress user@server:/data/results/ local_results/
+
+# scp — simple secure copy
+scp user@server:/data/sample.bam ./
+scp -r user@server:/data/project/ ./local_project/</code></pre>
+
+      <h2>Data Integrity — Verify Everything</h2>
+      <p>Downloaded files can be corrupted by network errors, disk issues, or incomplete transfers. Always verify with checksums.</p>
+      <pre><code># Generate checksums
+md5sum file.fa.gz                    # MD5 hash
+sha256sum file.fa.gz                 # SHA-256 hash (more secure)
+
+# Verify against a published checksum
+echo "abc123def456  file.fa.gz" | md5sum -c
+# Output: file.fa.gz: OK
+
+# Ensembl provides CHECKSUMS files — always use them
+wget https://ftp.ensembl.org/pub/release-110/fasta/homo_sapiens/dna/CHECKSUMS
+md5sum -c CHECKSUMS</code></pre>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Corrupted Data = Corrupted Results</strong>
+        <p>A truncated FASTQ file will silently produce fewer alignments. A corrupted reference genome will cause wrong variant calls. Always verify checksums after downloading. It takes seconds and can save weeks of wasted analysis.</p>
+      </div>
+
+      <h2>Programmatic Access with Biopython Entrez</h2>
+      <pre><code>from Bio import Entrez, SeqIO
+
+Entrez.email = "your@email.com"  # Required by NCBI
+
+# Search for BRCA1 sequences in human
+handle = Entrez.esearch(db="nucleotide", 
+                        term="BRCA1[Gene] AND Homo sapiens[Organism] AND RefSeq[Filter]",
+                        retmax=5)
+record = Entrez.read(handle)
+print(f"Found {record['Count']} results")
+
+# Fetch a specific sequence by accession
+handle = Entrez.efetch(db="nucleotide", id="NM_007294", rettype="fasta", retmode="text")
+seq_record = SeqIO.read(handle, "fasta")
+print(f"{seq_record.id}: {len(seq_record.seq)} bp")
+
+# Search PubMed
+handle = Entrez.esearch(db="pubmed", term="CRISPR AND 2024[pdat]", retmax=10)
+results = Entrez.read(handle)
+print(f"Found {results['Count']} CRISPR papers from 2024")</code></pre>
+
+      <h2>Compressed Data</h2>
+      <pre><code># gzip — standard compression for bioinformatics
+gzip file.fastq                  # Compress → file.fastq.gz (original deleted)
+gzip -k file.fastq               # Keep original
+gunzip file.fastq.gz             # Decompress
+
+# View compressed files without decompressing
+zcat file.fastq.gz | head -20    # Linux
+gzcat file.fastq.gz | head -20   # macOS
+
+# Many tools read gzipped files directly
+bwa mem ref.fa reads_R1.fastq.gz reads_R2.fastq.gz > aligned.sam
+grep -c "^>" &lt;(zcat sequences.fasta.gz)</code></pre>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Storage Tip</strong>
+        <p>FASTQ files compress ~3-4x with gzip. A 50 GB FASTQ becomes ~15 GB. Always store compressed. Most bioinformatics tools accept .gz input directly.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Databases &amp; Data Quiz — 5 Free + 10 Premium</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">1</span> Where would you download raw FASTQ files from a published sequencing study?</h4>
+        <button class="quiz-option" data-value="a">GenBank</button>
+        <button class="quiz-option" data-value="b">SRA (Sequence Read Archive)</button>
+        <button class="quiz-option" data-value="c">UniProt</button>
+        <button class="quiz-option" data-value="d">PDB</button>
+        <div class="quiz-explanation" data-text="SRA stores raw sequencing data. Use fasterq-dump or fastq-dump from the SRA Toolkit to download FASTQ files by accession number (e.g., SRR1234567)."></div>
+      </div>
+
+      <div class="quiz-question" data-type="fillin" data-answer="ensembl||Ensembl">
+        <h4><span class="q-num">2</span> Which database is the best source for downloading reference genome FASTA and GTF annotation files?</h4>
+        <input type="text" class="quiz-fill-input" placeholder="Database name..." style="width:100%;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-explanation" data-text="Ensembl provides well-organized FTP access to reference genomes and gene annotations for hundreds of species."></div>
+      </div>
+
+      <div class="quiz-question" data-type="terminal" data-answer="md5sum downloaded_file.fa.gz||sha256sum downloaded_file.fa.gz">
+        <h4><span class="q-num">3</span> Write a command to verify the integrity of <code>downloaded_file.fa.gz</code></h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="md5sum or sha256sum computes a hash. Compare it with the published checksum to verify the file wasn't corrupted during download."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">4</span> What is the difference between Swiss-Prot and TrEMBL in UniProt?</h4>
+        <button class="quiz-option" data-value="a">Swiss-Prot is manually curated; TrEMBL is automatically annotated</button>
+        <button class="quiz-option" data-value="b">Swiss-Prot is for DNA; TrEMBL is for protein</button>
+        <button class="quiz-option" data-value="c">Swiss-Prot is free; TrEMBL requires a license</button>
+        <button class="quiz-option" data-value="d">Swiss-Prot is newer; TrEMBL is the legacy version</button>
+        <div class="quiz-explanation" data-text="Swiss-Prot entries are reviewed by human curators — higher quality but smaller (~570K entries). TrEMBL is computationally annotated — much larger (~250M) but less reliable."></div>
+      </div>
+
+      <div class="quiz-question" data-type="terminal" data-answer="fasterq-dump SRR1234567 --split-files||fastq-dump --split-files SRR1234567">
+        <h4><span class="q-num">5</span> Download paired-end FASTQ files for SRA accession SRR1234567</h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="--split-files separates paired-end reads into _1.fastq and _2.fastq files. fasterq-dump is the faster modern alternative to fastq-dump."></div>
+      </div>
+
+      <!-- PREMIUM -->
+      <div class="quiz-question premium" data-type="choice" data-answer="c">
+        <h4><span class="q-num">6</span> What NCBI database stores clinically relevant genetic variants and their disease associations?</h4>
+        <button class="quiz-option" data-value="a">GenBank</button>
+        <button class="quiz-option" data-value="b">GEO</button>
+        <button class="quiz-option" data-value="c">ClinVar</button>
+        <button class="quiz-option" data-value="d">SRA</button>
+        <div class="quiz-explanation" data-text="ClinVar aggregates information about genomic variation and its relationship to human health. It's essential for clinical genomics and variant interpretation."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="terminal" data-answer="wget -c https://example.com/large_file.gz">
+        <h4><span class="q-num">7</span> Resume an interrupted download of <code>https://example.com/large_file.gz</code></h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="wget -c (continue) resumes a partially downloaded file. Essential for large genome downloads that may be interrupted."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="d">
+        <h4><span class="q-num">8</span> What does <code>zcat file.fastq.gz | head -20</code> do?</h4>
+        <button class="quiz-option" data-value="a">Compresses the file and shows the first 20 lines</button>
+        <button class="quiz-option" data-value="b">Deletes the first 20 lines from the compressed file</button>
+        <button class="quiz-option" data-value="c">Downloads 20 lines from a remote file</button>
+        <button class="quiz-option" data-value="d">Decompresses to stdout and shows the first 20 lines without creating an uncompressed file</button>
+        <div class="quiz-explanation" data-text="zcat decompresses to stdout (doesn't create a file). Piping to head shows just the first 20 lines. This lets you peek at huge compressed files without decompressing them."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="fillin" data-answer="GEO||Gene Expression Omnibus">
+        <h4><span class="q-num">9</span> What NCBI database stores processed gene expression datasets (microarray, RNA-Seq)?</h4>
+        <input type="text" class="quiz-fill-input" placeholder="Database name..." style="width:100%;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-explanation" data-text="GEO (Gene Expression Omnibus) stores processed expression data, experimental metadata, and analysis results. SRA stores the raw reads; GEO stores the processed results."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="b">
+        <h4><span class="q-num">10</span> What is the approximate compression ratio of gzip on FASTQ files?</h4>
+        <button class="quiz-option" data-value="a">1.5x (50 GB → 33 GB)</button>
+        <button class="quiz-option" data-value="b">3-4x (50 GB → 13-17 GB)</button>
+        <button class="quiz-option" data-value="c">10x (50 GB → 5 GB)</button>
+        <button class="quiz-option" data-value="d">No compression benefit for text files</button>
+        <div class="quiz-explanation" data-text="FASTQ files typically compress 3-4x with gzip due to their repetitive text structure. Always store compressed — most tools read .gz directly."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Join the Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your thoughts... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+
+  <div class="module-nav">
+    <button class="nav-btn" onclick="navigate('ch7')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+    <button class="nav-btn" onclick="navigate('ch9')">Next: Sequence Formats <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+  </div>
+  <div style="text-align:center;margin-top:1rem;">
+    <button class="hero-btn" id="markComplete" style="font-size:.85rem;padding:.5rem 1.5rem;">Mark as Complete ✓</button>
+  </div>
+</div>

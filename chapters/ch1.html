@@ -1,0 +1,341 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="book-open" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 1: What is Bioinformatics?</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~40 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Beginner</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Biology, Data, History, Genomics</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <!-- LESSON -->
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>What is Bioinformatics?</h2>
+      <p>Bioinformatics is the science of collecting, storing, analyzing, and interpreting biological data using computational methods. It emerged from the collision of two revolutions: the molecular biology revolution (understanding DNA, RNA, and proteins) and the computing revolution (cheap, fast processors and massive storage).</p>
+      <p>Modern bioinformatics encompasses a wide range of activities:</p>
+      <ul>
+        <li><strong>Genome assembly</strong> — Piecing together millions of short DNA reads into a complete genome</li>
+        <li><strong>Gene prediction &amp; annotation</strong> — Finding genes in a genome and assigning functions</li>
+        <li><strong>Sequence alignment</strong> — Comparing sequences to find similarities and differences</li>
+        <li><strong>Phylogenetics</strong> — Reconstructing evolutionary relationships between organisms</li>
+        <li><strong>Structural biology</strong> — Predicting 3D protein structures (e.g., AlphaFold)</li>
+        <li><strong>Systems biology</strong> — Modeling entire biological networks and pathways</li>
+        <li><strong>Clinical genomics</strong> — Using genomic data for diagnosis and treatment decisions</li>
+      </ul>
+
+      <h2>The Central Dogma of Molecular Biology</h2>
+      <p>Before you can analyze biological data, you need to understand what that data represents. The central dogma describes the flow of genetic information in cells:</p>
+      <pre><code>        Replication
+        ┌───────┐
+        ▼       │
+       DNA ────────→ RNA ────────→ Protein
+           Transcription    Translation</code></pre>
+
+      <h3>DNA — The Blueprint</h3>
+      <p>DNA (deoxyribonucleic acid) is a double-stranded molecule made of four nucleotide bases:</p>
+      <ul>
+        <li><strong>A</strong> (Adenine) pairs with <strong>T</strong> (Thymine)</li>
+        <li><strong>C</strong> (Cytosine) pairs with <strong>G</strong> (Guanine)</li>
+      </ul>
+      <p>The two strands run in opposite directions (5'→3' and 3'→5'). This is called <strong>antiparallel</strong> orientation and is critical for understanding sequencing data.</p>
+      <pre><code>5' ─── A T C G G C T A A T ─── 3'   (forward strand)
+       | | | | | | | | | |
+3' ─── T A G C C G A T T A ─── 5'   (reverse strand / reverse complement)</code></pre>
+
+      <h3>RNA — The Working Copy</h3>
+      <p>RNA is single-stranded and uses <strong>Uracil (U)</strong> instead of Thymine (T). Messenger RNA (mRNA) carries the genetic code from DNA to ribosomes. Other types include:</p>
+      <ul>
+        <li><strong>mRNA</strong> — Carries protein-coding information</li>
+        <li><strong>tRNA</strong> — Transfers amino acids during translation</li>
+        <li><strong>rRNA</strong> — Structural component of ribosomes</li>
+        <li><strong>miRNA, lncRNA, etc.</strong> — Regulatory non-coding RNAs (a hot research area)</li>
+      </ul>
+
+      <h3>Protein — The Machinery</h3>
+      <p>Proteins are chains of amino acids encoded by triplets of nucleotides called <strong>codons</strong>. There are 20 standard amino acids, and the genetic code maps 64 possible codons to these 20 amino acids (plus stop signals).</p>
+      <pre><code>DNA:     ATG  GCC  ATT  GTA  ATG  TAG
+mRNA:    AUG  GCC  AUU  GUA  AUG  UAG
+Protein: Met  Ala  Ile  Val  Met  STOP</code></pre>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Key Numbers to Remember</strong>
+        <ul>
+          <li>Human genome: ~3.2 billion base pairs</li>
+          <li>~20,000 protein-coding genes (only ~1.5% of the genome)</li>
+          <li>~98.5% is non-coding (regulatory regions, introns, repetitive elements, etc.)</li>
+          <li>Any two humans share ~99.9% of their DNA</li>
+        </ul>
+      </div>
+
+      <h2>The Sequencing Revolution</h2>
+      <p>The ability to read DNA sequences has transformed biology. Here's how the technology evolved:</p>
+
+      <h3>First Generation — Sanger Sequencing (1977)</h3>
+      <p>Developed by Frederick Sanger. Reads ~800 bp at a time. Used to sequence the first human genome (Human Genome Project, 1990–2003, $3 billion).</p>
+
+      <h3>Second Generation — Next-Generation Sequencing (2005+)</h3>
+      <p>Illumina dominates this space. Produces millions of short reads (75–300 bp) in parallel. A human genome now costs under $200 and takes ~24 hours.</p>
+
+      <h3>Third Generation — Long-Read Sequencing</h3>
+      <ul>
+        <li><strong>PacBio HiFi</strong> — Reads of 10–25 kb with high accuracy (~99.9%)</li>
+        <li><strong>Oxford Nanopore</strong> — Reads of 10 kb to >1 Mb, portable (MinION fits in your hand)</li>
+      </ul>
+      <p>Long reads are revolutionizing genome assembly, structural variant detection, and direct RNA sequencing.</p>
+
+      <h3>The Data Explosion</h3>
+      <p>The NCBI Sequence Read Archive (SRA) stores over 70 petabytes of sequencing data and doubles roughly every 18 months. A single RNA-Seq experiment can produce 50–200 GB of raw data. This is why bioinformatics skills are essential — you simply cannot analyze this data by hand.</p>
+
+      <h2>A Typical Bioinformatics Workflow</h2>
+      <p>Most genomics analyses follow a similar pattern. Understanding this pipeline is the backbone of this entire course:</p>
+      <pre><code>┌─────────────────────────────────────────────────────┐
+│  1. EXPERIMENTAL DESIGN                              │
+│     Define question, controls, replicates            │
+└──────────────────────┬──────────────────────────────┘
+                       ▼
+┌─────────────────────────────────────────────────────┐
+│  2. SEQUENCING                                       │
+│     Illumina / PacBio / Nanopore → Raw FASTQ files   │
+└──────────────────────┬──────────────────────────────┘
+                       ▼
+┌─────────────────────────────────────────────────────┐
+│  3. QUALITY CONTROL                                  │
+│     FastQC → assess quality                          │
+│     fastp/Trimmomatic → trim adapters, low-quality   │
+└──────────────────────┬──────────────────────────────┘
+                       ▼
+┌─────────────────────────────────────────────────────┐
+│  4. ALIGNMENT                                        │
+│     BWA/STAR/Bowtie2 → map reads to reference        │
+│     Output: SAM/BAM files                            │
+└──────────────────────┬──────────────────────────────┘
+                       ▼
+┌─────────────────────────────────────────────────────┐
+│  5. POST-PROCESSING                                  │
+│     samtools sort/index, mark duplicates             │
+└──────────────────────┬──────────────────────────────┘
+                       ▼
+┌─────────────────────────────────────────────────────┐
+│  6. ANALYSIS (depends on experiment type)             │
+│     RNA-Seq → DESeq2 (differential expression)       │
+│     WGS/WES → GATK (variant calling)                 │
+│     ChIP-Seq → MACS2 (peak calling)                  │
+│     Metagenomics → Kraken2 (taxonomic classification)│
+└──────────────────────┬──────────────────────────────┘
+                       ▼
+┌─────────────────────────────────────────────────────┐
+│  7. VISUALIZATION & INTERPRETATION                   │
+│     R/ggplot2, IGV, pathway analysis                 │
+│     Publish figures, tables, reproducible code       │
+└─────────────────────────────────────────────────────┘</code></pre>
+
+      <h2>Reproducibility — The Golden Rule</h2>
+      <p>In bioinformatics, <strong>if it's not reproducible, it's not science</strong>. A 2016 Nature survey found that 70% of researchers failed to reproduce another scientist's experiments. Computational work should be easier to reproduce than wet-lab work — but only if you follow good practices.</p>
+
+      <h3>The Reproducibility Checklist</h3>
+      <ul>
+        <li><strong>Version control everything</strong> — Use Git for all code and scripts</li>
+        <li><strong>Document your environment</strong> — Conda environment.yml or Docker containers</li>
+        <li><strong>Automate your pipeline</strong> — Snakemake, Nextflow, or at minimum a Makefile</li>
+        <li><strong>Never modify raw data</strong> — Treat original files as read-only</li>
+        <li><strong>Script your figures</strong> — Every plot should be generated by code, not manual editing</li>
+        <li><strong>Record software versions</strong> — <code>samtools --version</code>, <code>R --version</code>, etc.</li>
+        <li><strong>Use checksums</strong> — Verify data integrity with md5sum/sha256sum</li>
+      </ul>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> The Cardinal Sin of Bioinformatics</strong>
+        <p>Never modify your raw data files. Never open a FASTQ in Excel and "fix" something. Always write processed results to new files and keep a clear trail from raw → processed → results.</p>
+      </div>
+
+      <h2>Key Databases You'll Use Throughout This Course</h2>
+      <ul>
+        <li><strong>NCBI</strong> — The US hub. GenBank (sequences), PubMed (literature), SRA (raw reads), GEO (expression data), dbSNP (variants)</li>
+        <li><strong>Ensembl</strong> — European genome annotation. Best for downloading reference genomes and GTF files</li>
+        <li><strong>UniProt</strong> — Protein sequences and functional annotation. Swiss-Prot (curated) vs TrEMBL (automated)</li>
+        <li><strong>UCSC Genome Browser</strong> — Visual genome exploration with hundreds of annotation tracks</li>
+        <li><strong>PDB</strong> — Protein Data Bank. 3D structures of proteins</li>
+        <li><strong>KEGG / Reactome</strong> — Biological pathway databases</li>
+      </ul>
+
+      <h2>What You'll Learn in This Course</h2>
+      <p>This course is structured as a progressive journey from zero to competent bioinformatician:</p>
+      <ol>
+        <li><strong>Chapters 1–5 (Foundations)</strong> — Unix, shell scripting, Git, environment setup</li>
+        <li><strong>Chapters 6–7 (Programming)</strong> — Python with Biopython, R with Bioconductor</li>
+        <li><strong>Chapters 8–11 (Data &amp; Formats)</strong> — Databases, FASTA/FASTQ, SAM/BAM, BED, alignment, genomic ranges</li>
+        <li><strong>Chapters 12–14 (Analysis)</strong> — RNA-Seq, variant calling, reproducible pipelines</li>
+      </ol>
+      <p>Each chapter includes interactive lessons, a terminal simulator for hands-on practice, practical quizzes with real bioinformatics commands, and a discussion forum.</p>
+
+    </div>
+  </div>
+
+  <!-- QUIZ -->
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Test Your Understanding — 5 Free + 10 Premium</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">1</span> In the central dogma, what is the process of converting DNA to RNA called?</h4>
+        <button class="quiz-option" data-value="a">Translation</button>
+        <button class="quiz-option" data-value="b">Replication</button>
+        <button class="quiz-option" data-value="c">Transcription</button>
+        <button class="quiz-option" data-value="d">Reverse transcription</button>
+        <div class="quiz-explanation" data-text="DNA → RNA is transcription (carried out by RNA polymerase). RNA → Protein is translation. DNA → DNA is replication."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">2</span> Which nucleotide base is found in RNA but NOT in DNA?</h4>
+        <button class="quiz-option" data-value="a">Adenine (A)</button>
+        <button class="quiz-option" data-value="b">Uracil (U)</button>
+        <button class="quiz-option" data-value="c">Cytosine (C)</button>
+        <button class="quiz-option" data-value="d">Guanine (G)</button>
+        <div class="quiz-explanation" data-text="RNA uses Uracil (U) instead of Thymine (T). A pairs with U in RNA, and A pairs with T in DNA."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">3</span> What is the reverse complement of the DNA sequence 5'-ATCG-3'?</h4>
+        <button class="quiz-option" data-value="a">5'-CGAT-3'</button>
+        <button class="quiz-option" data-value="b">5'-TAGC-3'</button>
+        <button class="quiz-option" data-value="c">5'-GCTA-3'</button>
+        <button class="quiz-option" data-value="d">5'-UAGC-3'</button>
+        <div class="quiz-explanation" data-text="Step 1: Complement (A→T, T→A, C→G, G→C) = TAGC. Step 2: Reverse = CGAT. Understanding reverse complement is essential for working with sequencing data."></div>
+      </div>
+
+      <div class="quiz-question" data-type="fillin" data-answer="fasta||FASTA">
+        <h4><span class="q-num">4</span> What file format uses a '>' character to mark sequence headers?</h4>
+        <input type="text" class="quiz-fill-input" placeholder="Type your answer..." style="width:100%;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check Answer</button>
+        <div class="quiz-explanation" data-text="FASTA format uses > to denote header lines, followed by the sequence on subsequent lines. FASTQ uses @ for headers."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">5</span> Approximately how many protein-coding genes does the human genome contain?</h4>
+        <button class="quiz-option" data-value="a">~2,000</button>
+        <button class="quiz-option" data-value="b">~200,000</button>
+        <button class="quiz-option" data-value="c">~2,000,000</button>
+        <button class="quiz-option" data-value="d">~20,000</button>
+        <div class="quiz-explanation" data-text="The human genome contains approximately 20,000 protein-coding genes — surprisingly similar to a roundworm (~19,000). Complexity comes from regulation, splicing, and non-coding elements."></div>
+      </div>
+
+      <!-- PREMIUM -->
+      <div class="quiz-question premium" data-type="choice" data-answer="a">
+        <h4><span class="q-num">6</span> Why should raw data files be treated as read-only in bioinformatics?</h4>
+        <button class="quiz-option" data-value="a">To ensure reproducibility — you can always re-run analysis from the original data</button>
+        <button class="quiz-option" data-value="b">Because they are too large to edit</button>
+        <button class="quiz-option" data-value="c">Because Linux doesn't allow file editing</button>
+        <button class="quiz-option" data-value="d">To save disk space</button>
+        <div class="quiz-explanation" data-text="If you modify raw data and your analysis has a bug, you can never go back. Treating raw data as immutable is a cornerstone of reproducible research."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="c">
+        <h4><span class="q-num">7</span> Which sequencing technology produces the longest reads (potentially >1 Mb)?</h4>
+        <button class="quiz-option" data-value="a">Illumina</button>
+        <button class="quiz-option" data-value="b">Sanger sequencing</button>
+        <button class="quiz-option" data-value="c">Oxford Nanopore</button>
+        <button class="quiz-option" data-value="d">Ion Torrent</button>
+        <div class="quiz-explanation" data-text="Oxford Nanopore can produce ultra-long reads (>1 Mb). PacBio HiFi produces 10-25 kb reads. Illumina produces short reads (75-300 bp)."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="fillin" data-answer="codon||codons">
+        <h4><span class="q-num">8</span> A triplet of three nucleotides that encodes a single amino acid is called a ___?</h4>
+        <input type="text" class="quiz-fill-input" placeholder="Type your answer..." style="width:100%;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check Answer</button>
+        <div class="quiz-explanation" data-text="A codon is a sequence of three nucleotides (e.g., ATG = Methionine/start codon, TAA/TAG/TGA = stop codons). There are 64 possible codons encoding 20 amino acids."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="b">
+        <h4><span class="q-num">9</span> What percentage of the human genome is protein-coding?</h4>
+        <button class="quiz-option" data-value="a">~50%</button>
+        <button class="quiz-option" data-value="b">~1.5%</button>
+        <button class="quiz-option" data-value="c">~25%</button>
+        <button class="quiz-option" data-value="d">~10%</button>
+        <div class="quiz-explanation" data-text="Only about 1.5% of the human genome codes for proteins. The rest includes regulatory regions, introns, repetitive elements, and sequences of unknown function."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="d">
+        <h4><span class="q-num">10</span> In a typical bioinformatics workflow, what step comes immediately AFTER alignment?</h4>
+        <button class="quiz-option" data-value="a">Quality control with FastQC</button>
+        <button class="quiz-option" data-value="b">Downloading data from NCBI</button>
+        <button class="quiz-option" data-value="c">Trimming adapters</button>
+        <button class="quiz-option" data-value="d">Sorting and indexing the BAM file</button>
+        <div class="quiz-explanation" data-text="After alignment produces a SAM/BAM file, you sort it by coordinate and create an index (.bai). Most downstream tools require sorted, indexed BAM files."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="b">
+        <h4><span class="q-num">11</span> What does the term "transcriptome" refer to?</h4>
+        <button class="quiz-option" data-value="a">The complete set of DNA in an organism</button>
+        <button class="quiz-option" data-value="b">The complete set of RNA transcripts produced by the genome at a given time</button>
+        <button class="quiz-option" data-value="c">The complete set of proteins in a cell</button>
+        <button class="quiz-option" data-value="d">The complete set of metabolites</button>
+        <div class="quiz-explanation" data-text="The transcriptome is all RNA molecules in a cell at a specific time. It changes between cell types and conditions — which is exactly what RNA-Seq measures."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="c">
+        <h4><span class="q-num">12</span> What is the difference between an ortholog and a paralog?</h4>
+        <button class="quiz-option" data-value="a">Orthologs are in the same species; paralogs are in different species</button>
+        <button class="quiz-option" data-value="b">Orthologs are coding; paralogs are non-coding</button>
+        <button class="quiz-option" data-value="c">Orthologs arose by speciation; paralogs arose by gene duplication</button>
+        <button class="quiz-option" data-value="d">There is no difference</button>
+        <div class="quiz-explanation" data-text="Orthologs: same gene in different species (e.g., human BRCA1 vs mouse Brca1). Paralogs: related genes within the same genome from duplication (e.g., hemoglobin alpha vs beta)."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="fillin" data-answer="SAM||sam||BAM||bam">
+        <h4><span class="q-num">13</span> What file format stores the results of aligning sequencing reads to a reference genome?</h4>
+        <input type="text" class="quiz-fill-input" placeholder="Format..." style="width:100%;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-explanation" data-text="SAM (text) and BAM (binary compressed) store read alignments. BAM is the standard working format — sorted and indexed for fast access."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="d">
+        <h4><span class="q-num">14</span> Which sequencing platform is known for producing ultra-long reads using nanopore technology?</h4>
+        <button class="quiz-option" data-value="a">Illumina</button>
+        <button class="quiz-option" data-value="b">Sanger</button>
+        <button class="quiz-option" data-value="c">Ion Torrent</button>
+        <button class="quiz-option" data-value="d">Oxford Nanopore</button>
+        <div class="quiz-explanation" data-text="Oxford Nanopore passes DNA through a protein pore and measures electrical current changes. It can produce reads >1 Mb and the MinION device fits in your hand."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="a">
+        <h4><span class="q-num">15</span> A bioinformatics analysis should be reproducible. Which practice violates this principle?</h4>
+        <button class="quiz-option" data-value="a">Manually editing a VCF file in Excel to remove unwanted variants</button>
+        <button class="quiz-option" data-value="b">Using a Snakemake pipeline to automate all steps</button>
+        <button class="quiz-option" data-value="c">Recording software versions in a conda environment.yml</button>
+        <button class="quiz-option" data-value="d">Generating all figures from R scripts</button>
+        <div class="quiz-explanation" data-text="Manual edits are not recorded, not reproducible, and Excel can corrupt genomic data (e.g., converting gene names like MARCH1 to dates). Always use scripted filtering."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <!-- DISCUSSION -->
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Join the Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your thoughts, ask a question, or help others... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+
+  <div class="module-nav">
+    <div></div>
+    <button class="nav-btn" onclick="navigate('ch2')">Next: Setting Up Your Environment <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+  </div>
+  <div style="text-align:center;margin-top:1rem;">
+    <button class="hero-btn" id="markComplete" style="font-size:.85rem;padding:.5rem 1.5rem;">Mark as Complete ✓</button>
+  </div>
+</div>

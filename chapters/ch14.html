@@ -1,0 +1,377 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="package" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 14: Reproducibility &amp; Pipelines</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~75 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Advanced</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Snakemake, Nextflow, Docker, Singularity, SQLite</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>Why Reproducibility Matters</h2>
+      <p>A 2016 Nature survey found 70% of researchers failed to reproduce others' experiments. Computational work should be the easiest to reproduce — but only if you follow good practices. The goal: <strong>anyone should be able to re-run your entire analysis from raw data to final figures with a single command.</strong></p>
+
+      <h2>The Reproducibility Stack</h2>
+      <pre><code>Level 1: Code in version control (Git)
+Level 2: Environment captured (Conda / Docker)
+Level 3: Pipeline automated (Snakemake / Nextflow)
+Level 4: Data archived (SRA / Zenodo / checksums)
+Level 5: Documentation complete (README, methods)</code></pre>
+
+      <h2>Snakemake — Python-Based Workflows</h2>
+      <p>Snakemake is the most popular workflow manager in bioinformatics. It uses Python syntax, tracks file dependencies, and only re-runs steps whose inputs changed.</p>
+
+      <h3>Basic Snakefile</h3>
+      <pre><code># Snakefile
+SAMPLES = ["sample1", "sample2", "sample3"]
+
+rule all:
+    input:
+        expand("results/counts/{sample}_counts.txt", sample=SAMPLES),
+        "results/multiqc_report.html"
+
+rule fastqc:
+    input: "data/raw/{sample}_R1.fastq.gz"
+    output: "results/qc/{sample}_R1_fastqc.html"
+    threads: 2
+    shell: "fastqc {input} -o results/qc/ -t {threads}"
+
+rule trim:
+    input:
+        r1="data/raw/{sample}_R1.fastq.gz",
+        r2="data/raw/{sample}_R2.fastq.gz"
+    output:
+        r1="results/trimmed/{sample}_R1.fastq.gz",
+        r2="results/trimmed/{sample}_R2.fastq.gz",
+        html="results/trimmed/{sample}_fastp.html"
+    threads: 4
+    shell:
+        "fastp -i {input.r1} -I {input.r2} "
+        "-o {output.r1} -O {output.r2} "
+        "--html {output.html} --thread {threads} "
+        "--qualified_quality_phred 20 --length_required 50"
+
+rule align:
+    input:
+        r1="results/trimmed/{sample}_R1.fastq.gz",
+        r2="results/trimmed/{sample}_R2.fastq.gz",
+        idx="data/reference/genome.fa"
+    output: "results/aligned/{sample}.bam"
+    threads: 8
+    shell:
+        "bwa mem -t {threads} {input.idx} {input.r1} {input.r2} | "
+        "samtools sort -@ 4 -o {output} && "
+        "samtools index {output}"
+
+rule count:
+    input:
+        bam="results/aligned/{sample}.bam",
+        gtf="data/reference/genes.gtf"
+    output: "results/counts/{sample}_counts.txt"
+    threads: 4
+    shell:
+        "featureCounts -a {input.gtf} -o {output} -T {threads} "
+        "-p --countReadPairs {input.bam}"
+
+rule multiqc:
+    input: expand("results/qc/{sample}_R1_fastqc.html", sample=SAMPLES)
+    output: "results/multiqc_report.html"
+    shell: "multiqc results/ -o results/ --force"</code></pre>
+
+      <h3>Running Snakemake</h3>
+      <pre><code># Dry run — see what would execute
+snakemake -n
+
+# Run with 8 cores
+snakemake --cores 8
+
+# Generate workflow DAG visualization
+snakemake --dag | dot -Tpng > workflow.png
+
+# Run on a cluster (SLURM)
+snakemake --cores 100 --cluster "sbatch -p normal -n {threads} -t 4:00:00"
+
+# Use conda environments per rule
+snakemake --cores 8 --use-conda
+
+# Force re-run of a specific rule
+snakemake --cores 8 --forcerun align</code></pre>
+
+      <h3>Conda Integration</h3>
+      <pre><code># In Snakefile, specify per-rule environments:
+rule align:
+    input: ...
+    output: ...
+    conda: "envs/alignment.yml"   # Snakemake creates this env automatically
+    shell: "bwa mem ..."
+
+# envs/alignment.yml
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - bwa=0.7.17
+  - samtools=1.17</code></pre>
+
+      <h2>Nextflow</h2>
+      <p>Nextflow is another popular workflow manager, especially in large-scale production pipelines (nf-core).</p>
+      <pre><code>// main.nf
+params.reads = "data/raw/*_{R1,R2}.fastq.gz"
+params.ref = "data/reference/genome.fa"
+params.outdir = "results"
+
+process TRIM {
+    publishDir "${params.outdir}/trimmed"
+    input: tuple val(sample), path(reads)
+    output: tuple val(sample), path("${sample}_trimmed_{1,2}.fastq.gz")
+    script:
+    """
+    fastp -i ${reads[0]} -I ${reads[1]} \
+          -o ${sample}_trimmed_1.fastq.gz -O ${sample}_trimmed_2.fastq.gz \
+          --qualified_quality_phred 20
+    """
+}
+
+process ALIGN {
+    publishDir "${params.outdir}/aligned"
+    input: tuple val(sample), path(reads)
+    output: tuple val(sample), path("${sample}.bam")
+    script:
+    """
+    bwa mem -t ${task.cpus} ${params.ref} ${reads} | samtools sort -o ${sample}.bam
+    samtools index ${sample}.bam
+    """
+}
+
+workflow {
+    reads_ch = Channel.fromFilePairs(params.reads)
+    trimmed = TRIM(reads_ch)
+    ALIGN(trimmed)
+}</code></pre>
+      <pre><code># Run Nextflow
+nextflow run main.nf --reads 'data/*_{R1,R2}.fastq.gz' -profile docker
+
+# nf-core: community-curated production pipelines
+nextflow run nf-core/rnaseq --input samplesheet.csv --genome GRCh38 -profile docker</code></pre>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Snakemake vs Nextflow</strong>
+        <p><strong>Snakemake</strong>: Python-based, easier to learn, great for custom pipelines, strong in academia.<br>
+        <strong>Nextflow</strong>: Groovy-based, better cloud/container support, nf-core has production-ready pipelines, strong in industry.<br>
+        Both are excellent. Pick one and learn it well.</p>
+      </div>
+
+      <h2>Containers — Freeze Your Environment</h2>
+      <p>Conda captures package versions, but containers capture the entire operating system. This is the gold standard for reproducibility.</p>
+
+      <h3>Docker</h3>
+      <pre><code># Dockerfile
+FROM continuumio/miniconda3:latest
+
+# Install tools
+RUN conda install -y -c bioconda -c conda-forge \
+    samtools=1.17 bwa=0.7.17 fastqc=0.12.1 \
+    star=2.7.11a subread=2.0.6 \
+    snakemake=7.32 multiqc=1.17
+
+WORKDIR /workspace
+COPY Snakefile .
+COPY envs/ envs/
+
+CMD ["snakemake", "--cores", "all"]</code></pre>
+      <pre><code># Build
+docker build -t rnaseq-pipeline:v1.0 .
+
+# Run (mount data directory)
+docker run -v $(pwd)/data:/workspace/data \
+           -v $(pwd)/results:/workspace/results \
+           rnaseq-pipeline:v1.0</code></pre>
+
+      <h3>Singularity (for HPC clusters)</h3>
+      <pre><code># Most HPC clusters don't allow Docker (security). Use Singularity instead:
+singularity pull docker://biocontainers/samtools:v1.17
+singularity exec samtools_v1.17.sif samtools --version
+
+# Run a container
+singularity exec samtools_v1.17.sif samtools sort input.bam -o sorted.bam</code></pre>
+
+      <h2>Data Management with SQLite</h2>
+      <p>For large result sets (millions of variants, expression values), SQLite provides fast querying without a server.</p>
+      <pre><code>import sqlite3
+
+# Create database
+conn = sqlite3.connect("results/variants.db")
+conn.execute("""
+    CREATE TABLE IF NOT EXISTS variants (
+        chrom TEXT, pos INTEGER, ref TEXT, alt TEXT,
+        qual REAL, filter TEXT, genotype TEXT, gene TEXT, impact TEXT
+    )
+""")
+
+# Load variants from VCF
+with open("annotated.vcf") as f:
+    for line in f:
+        if line.startswith("#"): continue
+        fields = line.strip().split("\t")
+        conn.execute(
+            "INSERT INTO variants (chrom,pos,ref,alt,qual,filter) VALUES (?,?,?,?,?,?)",
+            (fields[0], int(fields[1]), fields[3], fields[4], float(fields[5]), fields[6])
+        )
+conn.commit()
+
+# Query: high-quality variants on chromosome 1
+for row in conn.execute(
+    "SELECT chrom, pos, ref, alt, qual FROM variants WHERE qual > 50 AND chrom='chr1' LIMIT 10"
+):
+    print(row)
+
+# Aggregate: count variants per chromosome
+for row in conn.execute(
+    "SELECT chrom, COUNT(*) as n FROM variants GROUP BY chrom ORDER BY n DESC"
+):
+    print(f"{row[0]}: {row[1]} variants")</code></pre>
+
+      <h2>The Complete Reproducibility Checklist</h2>
+      <div class="callout tip">
+        <strong><i data-lucide="check-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Before Publishing Your Analysis</strong>
+        <ul>
+          <li>☐ All code in Git with meaningful commit messages</li>
+          <li>☐ Environment captured: conda environment.yml AND/OR Dockerfile</li>
+          <li>☐ Pipeline automated: Snakemake/Nextflow/Makefile</li>
+          <li>☐ Raw data archived with accession numbers (SRA, GEO)</li>
+          <li>☐ Checksums for all downloaded files</li>
+          <li>☐ README documents every step, tool version, and parameter</li>
+          <li>☐ All figures generated by scripts (not manually edited)</li>
+          <li>☐ Software versions recorded in methods section</li>
+          <li>☐ Can be re-run from scratch with a single command</li>
+          <li>☐ Code and data deposited in a public repository (GitHub + Zenodo)</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Reproducibility Quiz — 5 Free + 10 Premium</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">1</span> What is the main advantage of Snakemake over a plain Bash script?</h4>
+        <button class="quiz-option" data-value="a">It runs faster</button>
+        <button class="quiz-option" data-value="b">It uses less memory</button>
+        <button class="quiz-option" data-value="c">It tracks file dependencies and only re-runs steps whose inputs changed</button>
+        <button class="quiz-option" data-value="d">It doesn't require Python</button>
+        <div class="quiz-explanation" data-text="Snakemake builds a DAG of dependencies. If sample1.bam is up-to-date but sample2.fastq was modified, it only re-runs sample2's pipeline. This saves hours on large projects."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">2</span> Why use Docker/Singularity containers?</h4>
+        <button class="quiz-option" data-value="a">They make code run faster</button>
+        <button class="quiz-option" data-value="b">They ensure the exact same software versions and OS run on any machine</button>
+        <button class="quiz-option" data-value="c">They compress data files</button>
+        <button class="quiz-option" data-value="d">They replace version control</button>
+        <div class="quiz-explanation" data-text="Containers package the OS, libraries, and tools together. Your pipeline runs identically on your laptop, a cluster, or the cloud — even years later."></div>
+      </div>
+
+      <div class="quiz-question" data-type="terminal" data-answer="snakemake -n||snakemake --dryrun||snakemake --dry-run">
+        <h4><span class="q-num">3</span> What Snakemake command shows what would run without executing?</h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="-n (dry run) shows the execution plan without running anything. Always do this first to verify your workflow logic before committing compute resources."></div>
+      </div>
+
+      <!-- PREMIUM -->
+      <div class="quiz-question premium" data-type="choice" data-answer="a">
+        <h4><span class="q-num">4</span> Why use Singularity instead of Docker on HPC clusters?</h4>
+        <button class="quiz-option" data-value="a">Docker requires root privileges, which is a security risk on shared systems</button>
+        <button class="quiz-option" data-value="b">Singularity is faster</button>
+        <button class="quiz-option" data-value="c">Docker doesn't work on Linux</button>
+        <button class="quiz-option" data-value="d">Singularity has more packages</button>
+        <div class="quiz-explanation" data-text="Docker runs as root by default, which is unacceptable on shared HPC systems. Singularity runs as the current user and can pull Docker images, making it the standard for HPC."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="terminal" data-answer="snakemake --dag | dot -Tpng > workflow.png||snakemake --dag | dot -Tpng > dag.png">
+        <h4><span class="q-num">5</span> Generate a PNG visualization of the Snakemake workflow DAG</h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="--dag outputs a DOT graph description. Piping to dot -Tpng renders it as an image. This is great for methods sections and documentation."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="d">
+        <h4><span class="q-num">6</span> What does <code>expand("results/{sample}.bam", sample=SAMPLES)</code> do in Snakemake?</h4>
+        <button class="quiz-option" data-value="a">Decompresses BAM files</button>
+        <button class="quiz-option" data-value="b">Downloads samples from SRA</button>
+        <button class="quiz-option" data-value="c">Creates empty BAM files</button>
+        <button class="quiz-option" data-value="d">Generates a list of file paths by substituting each sample name into the pattern</button>
+        <div class="quiz-explanation" data-text="expand() is Snakemake's way of generating file lists from patterns. If SAMPLES=['s1','s2','s3'], it produces ['results/s1.bam','results/s2.bam','results/s3.bam']."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="c">
+        <h4><span class="q-num">7</span> What is nf-core?</h4>
+        <button class="quiz-option" data-value="a">A Python package for bioinformatics</button>
+        <button class="quiz-option" data-value="b">A database of genomic sequences</button>
+        <button class="quiz-option" data-value="c">A community collection of production-ready Nextflow pipelines for common analyses</button>
+        <button class="quiz-option" data-value="d">A container registry</button>
+        <div class="quiz-explanation" data-text="nf-core provides curated, tested, documented Nextflow pipelines for RNA-Seq, variant calling, metagenomics, and more. They follow best practices and are ready to use."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="fillin" data-answer="conda env export||conda env export > environment.yml">
+        <h4><span class="q-num">8</span> What command captures your current Conda environment for reproducibility?</h4>
+        <input type="text" class="quiz-fill-input" placeholder="Command..." style="width:100%;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-explanation" data-text="conda env export captures every package and version. Redirect to environment.yml and commit to Git. Anyone can recreate your environment with conda env create -f environment.yml."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="b">
+        <h4><span class="q-num">9</span> Which is NOT a good reproducibility practice?</h4>
+        <button class="quiz-option" data-value="a">Recording software versions in your methods</button>
+        <button class="quiz-option" data-value="b">Manually editing figures in PowerPoint after generating them with code</button>
+        <button class="quiz-option" data-value="c">Using checksums to verify downloaded data</button>
+        <button class="quiz-option" data-value="d">Automating your pipeline with Snakemake</button>
+        <div class="quiz-explanation" data-text="If you manually edit figures, they can't be regenerated from code. Every figure should be produced entirely by a script. If you need to adjust aesthetics, do it in the plotting code."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="a">
+        <h4><span class="q-num">10</span> What is the ultimate test of reproducibility?</h4>
+        <button class="quiz-option" data-value="a">Someone else can re-run your entire analysis from raw data to final figures with a single command</button>
+        <button class="quiz-option" data-value="b">Your code compiles without errors</button>
+        <button class="quiz-option" data-value="c">You can remember what you did</button>
+        <button class="quiz-option" data-value="d">Your results look reasonable</button>
+        <div class="quiz-explanation" data-text="True reproducibility means: clone the repo, download the data, run one command, get identical results. This requires version control + environment capture + automated pipeline + documentation."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Join the Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your thoughts... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+
+  <div class="module-nav">
+    <button class="nav-btn" onclick="navigate('ch13')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+    <button class="nav-btn" onclick="navigate('resources')"><i data-lucide="library" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Resource Library</button>
+  </div>
+  <div style="text-align:center;margin-top:1rem;">
+    <button class="hero-btn" id="markComplete" style="font-size:.85rem;padding:.5rem 1.5rem;">Mark as Complete ✓</button>
+  </div>
+</div>

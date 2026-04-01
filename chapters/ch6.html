@@ -1,0 +1,327 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="code-2" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 6: Python for Bioinformatics</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~90 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Intermediate</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Biopython, Parsing, SeqIO, Automation, BLAST</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>Why Python in Bioinformatics?</h2>
+      <p>Python is the glue language of bioinformatics. While you'll use specialized tools (samtools, BWA, GATK) for heavy lifting, Python ties everything together:</p>
+      <ul>
+        <li><strong>Parsing</strong> — Read and write FASTA, FASTQ, GFF, VCF, and custom formats</li>
+        <li><strong>Automation</strong> — Batch process hundreds of files, generate reports</li>
+        <li><strong>API access</strong> — Query NCBI, Ensembl, UniProt programmatically</li>
+        <li><strong>Custom analysis</strong> — When no existing tool does exactly what you need</li>
+        <li><strong>Pysam, pybedtools</strong> — Python wrappers for samtools and BEDTools</li>
+      </ul>
+      <pre><code># Install Biopython
+conda install -c conda-forge biopython
+# or
+pip install biopython</code></pre>
+
+      <h2>Parsing FASTA Files</h2>
+      <h3>Manual Parsing (understand the format)</h3>
+      <pre><code>def parse_fasta(filepath):
+    """Parse a FASTA file into a dict of {id: sequence}."""
+    sequences = {}
+    current_id = None
+    with open(filepath) as f:
+        for line in f:
+            line = line.strip()
+            if line.startswith('>'):
+                current_id = line[1:].split()[0]  # ID = first word after >
+                sequences[current_id] = ''
+            elif current_id:
+                sequences[current_id] += line
+    return sequences
+
+seqs = parse_fasta('sequences.fasta')
+for name, seq in seqs.items():
+    print(f"{name}: {len(seq)} bp, GC={100*(seq.count('G')+seq.count('C'))/len(seq):.1f}%")</code></pre>
+
+      <h3>Biopython SeqIO (the right way)</h3>
+      <pre><code>from Bio import SeqIO
+
+# Parse FASTA — returns SeqRecord objects
+for record in SeqIO.parse("sequences.fasta", "fasta"):
+    seq = str(record.seq)
+    gc = (seq.count('G') + seq.count('C')) / len(seq) * 100
+    print(f"{record.id}: {len(seq)} bp, GC={gc:.1f}%")
+    print(f"  Description: {record.description}")
+
+# Load all sequences into a list
+records = list(SeqIO.parse("sequences.fasta", "fasta"))
+print(f"Total sequences: {len(records)}")
+
+# Convert to dictionary for random access
+seq_dict = SeqIO.to_dict(SeqIO.parse("sequences.fasta", "fasta"))
+print(seq_dict["seq1"].seq[:50])  # First 50 bases of seq1</code></pre>
+
+      <h2>Parsing FASTQ Files</h2>
+      <pre><code>from Bio import SeqIO
+
+# Parse FASTQ — includes quality scores
+for record in SeqIO.parse("reads.fastq", "fastq"):
+    quals = record.letter_annotations["phred_quality"]
+    avg_qual = sum(quals) / len(quals)
+    print(f"{record.id}: len={len(record.seq)}, avg_Q={avg_qual:.1f}")
+
+# Filter reads by average quality
+def filter_reads(input_fq, output_fq, min_qual=30):
+    good = (r for r in SeqIO.parse(input_fq, "fastq")
+            if sum(r.letter_annotations["phred_quality"]) / len(r) >= min_qual)
+    count = SeqIO.write(good, output_fq, "fastq")
+    print(f"Kept {count} reads with avg quality >= Q{min_qual}")
+
+filter_reads("reads.fastq", "filtered.fastq", min_qual=30)
+
+# Summary statistics
+lengths = []
+qualities = []
+for record in SeqIO.parse("reads.fastq", "fastq"):
+    lengths.append(len(record.seq))
+    qualities.append(sum(record.letter_annotations["phred_quality"]) / len(record))
+
+print(f"Reads: {len(lengths)}")
+print(f"Length: min={min(lengths)}, max={max(lengths)}, mean={sum(lengths)/len(lengths):.0f}")
+print(f"Quality: min={min(qualities):.1f}, max={max(qualities):.1f}, mean={sum(qualities)/len(qualities):.1f}")</code></pre>
+
+      <h2>Working with Sequences</h2>
+      <pre><code>from Bio.Seq import Seq
+
+dna = Seq("ATGGCCATTGTAATGGGCCGCTGAAAGGGTGCCCGATAG")
+
+# Transformations
+print(f"Original:    {dna}")
+print(f"Complement:  {dna.complement()}")
+print(f"Rev comp:    {dna.reverse_complement()}")
+print(f"Transcribed: {dna.transcribe()}")        # DNA → RNA (T→U)
+print(f"Translated:  {dna.translate()}")          # DNA → Protein
+print(f"Translated:  {dna.translate(to_stop=True)}")  # Stop at first stop codon
+
+# GC content
+from Bio.SeqUtils import gc_fraction
+print(f"GC content:  {gc_fraction(dna)*100:.1f}%")
+
+# Find motifs
+pos = str(dna).find("ATG")  # Find start codon
+print(f"First ATG at position: {pos}")</code></pre>
+
+      <h2>BLAST from Python</h2>
+      <pre><code># Run BLAST locally (requires BLAST+ installed)
+import subprocess
+
+# Make database
+subprocess.run(["makeblastdb", "-in", "ref.fa", "-dbtype", "nucl", "-out", "ref_db"])
+
+# Run BLAST
+subprocess.run([
+    "blastn", "-query", "query.fa", "-db", "ref_db",
+    "-outfmt", "6", "-evalue", "1e-5", "-out", "blast_results.txt"
+])
+
+# Parse tabular BLAST output
+with open("blast_results.txt") as f:
+    for line in f:
+        fields = line.strip().split("\t")
+        query, subject, pident, length, evalue = fields[0], fields[1], fields[2], fields[3], fields[10]
+        print(f"{query} → {subject}: {pident}% identity, length={length}, E={evalue}")
+
+# BLAST via NCBI web (slower, no local install needed)
+from Bio.Blast import NCBIWWW, NCBIXML
+
+result = NCBIWWW.qblast("blastn", "nt", "ATGCGATCGATCGATCG")
+for record in NCBIXML.parse(result):
+    for alignment in record.alignments[:5]:
+        print(f"Hit: {alignment.title[:80]}")
+        hsp = alignment.hsps[0]
+        print(f"  Score={hsp.score}, E-value={hsp.expect}, Identity={hsp.identities}/{hsp.align_length}")</code></pre>
+
+      <h2>Automating File Processing</h2>
+      <pre><code>from pathlib import Path
+from Bio import SeqIO
+import subprocess
+
+data_dir = Path("data/raw")
+results_dir = Path("results/qc")
+results_dir.mkdir(parents=True, exist_ok=True)
+
+# Process all FASTQ files
+for fq in sorted(data_dir.glob("*.fastq")):
+    print(f"Processing {fq.name}...")
+    
+    # Run FastQC
+    subprocess.run(["fastqc", str(fq), "-o", str(results_dir)], check=True)
+    
+    # Generate summary stats
+    count, total_len, total_qual = 0, 0, 0
+    for rec in SeqIO.parse(str(fq), "fastq"):
+        count += 1
+        total_len += len(rec.seq)
+        total_qual += sum(rec.letter_annotations["phred_quality"]) / len(rec)
+    
+    avg_len = total_len / count if count else 0
+    avg_qual = total_qual / count if count else 0
+    print(f"  Reads: {count}, Avg length: {avg_len:.0f}, Avg quality: {avg_qual:.1f}")</code></pre>
+
+      <h2>Working with Pysam (SAM/BAM from Python)</h2>
+      <pre><code>import pysam
+
+# Open a BAM file
+bam = pysam.AlignmentFile("sorted.bam", "rb")
+
+# Count mapped vs unmapped
+mapped = 0
+unmapped = 0
+for read in bam:
+    if read.is_unmapped:
+        unmapped += 1
+    else:
+        mapped += 1
+print(f"Mapped: {mapped}, Unmapped: {unmapped}")
+
+# Fetch reads from a specific region
+for read in bam.fetch("chr1", 1000, 2000):
+    print(f"{read.query_name}: pos={read.reference_start}, MAPQ={read.mapping_quality}")
+
+# Calculate coverage at each position
+coverage = bam.count_coverage("chr1", 1000, 2000)
+# Returns 4 arrays (A, C, G, T counts at each position)
+
+bam.close()</code></pre>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Python vs R in Bioinformatics</strong>
+        <p><strong>Use Python for:</strong> file parsing, automation, pipeline scripting, API queries, custom tools, pysam/pybedtools<br>
+        <strong>Use R for:</strong> statistics, visualization (ggplot2), Bioconductor packages (DESeq2, GenomicRanges), exploratory data analysis<br>
+        Most bioinformaticians use both daily.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Python Bioinformatics Quiz — 5 Free + 10 Premium</h3>
+
+      <div class="quiz-question" data-type="fillin" data-answer="SeqIO.parse||Bio.SeqIO.parse">
+        <h4><span class="q-num">1</span> What Biopython function reads sequences from FASTA/FASTQ files?</h4>
+        <input type="text" class="quiz-fill-input" placeholder="module.function..." style="width:100%;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-explanation" data-text="SeqIO.parse() is the universal Biopython parser. It returns an iterator of SeqRecord objects. Works with FASTA, FASTQ, GenBank, and 20+ other formats."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">2</span> What does <code>seq.reverse_complement()</code> return for "ATCG"?</h4>
+        <button class="quiz-option" data-value="a">GCTA</button>
+        <button class="quiz-option" data-value="b">CGAT</button>
+        <button class="quiz-option" data-value="c">TAGC</button>
+        <button class="quiz-option" data-value="d">UAGC</button>
+        <div class="quiz-explanation" data-text="Step 1: Complement A→T, T→A, C→G, G→C = TAGC. Step 2: Reverse = CGAT. This is essential for working with double-stranded DNA data."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">3</span> Where are quality scores stored in a Biopython FASTQ SeqRecord?</h4>
+        <button class="quiz-option" data-value="a">record.quality</button>
+        <button class="quiz-option" data-value="b">record.seq_quality</button>
+        <button class="quiz-option" data-value="c">record.letter_annotations["phred_quality"]</button>
+        <button class="quiz-option" data-value="d">record.annotations["quality"]</button>
+        <div class="quiz-explanation" data-text="letter_annotations stores per-residue data. 'phred_quality' is a list of integers (one per base). This is Biopython's standard location for quality scores."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">4</span> What is the GC content of "ATGCGCTA"?</h4>
+        <button class="quiz-option" data-value="a">50%</button>
+        <button class="quiz-option" data-value="b">37.5%</button>
+        <button class="quiz-option" data-value="c">62.5%</button>
+        <button class="quiz-option" data-value="d">25%</button>
+        <div class="quiz-explanation" data-text="G=2, C=2, total bases=8. GC = 4/8 = 50%. GC content affects melting temperature, sequencing bias, and is characteristic of different organisms."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">5</span> What does <code>seq.transcribe()</code> do?</h4>
+        <button class="quiz-option" data-value="a">Converts RNA to DNA</button>
+        <button class="quiz-option" data-value="b">Converts DNA to protein</button>
+        <button class="quiz-option" data-value="c">Reverses the sequence</button>
+        <button class="quiz-option" data-value="d">Converts DNA to RNA (replaces T with U)</button>
+        <div class="quiz-explanation" data-text="Transcription converts DNA to RNA by replacing Thymine (T) with Uracil (U). ATGC → AUGC."></div>
+      </div>
+
+      <!-- PREMIUM -->
+      <div class="quiz-question premium" data-type="fillin" data-answer="pysam||Pysam">
+        <h4><span class="q-num">6</span> What Python library provides a wrapper for reading and manipulating BAM files?</h4>
+        <input type="text" class="quiz-fill-input" placeholder="Library name..." style="width:100%;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-explanation" data-text="pysam is a Python wrapper around htslib/samtools. It lets you open BAM files, fetch reads from regions, and access alignment properties from Python."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="b">
+        <h4><span class="q-num">7</span> What does <code>SeqIO.to_dict(SeqIO.parse("seqs.fa", "fasta"))</code> return?</h4>
+        <button class="quiz-option" data-value="a">A list of sequences</button>
+        <button class="quiz-option" data-value="b">A dictionary mapping sequence IDs to SeqRecord objects</button>
+        <button class="quiz-option" data-value="c">A FASTA-formatted string</button>
+        <button class="quiz-option" data-value="d">The number of sequences</button>
+        <div class="quiz-explanation" data-text="SeqIO.to_dict() creates a dictionary keyed by record.id, allowing O(1) random access to any sequence by name."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="c">
+        <h4><span class="q-num">8</span> What does <code>seq.translate(to_stop=True)</code> do differently from <code>seq.translate()</code>?</h4>
+        <button class="quiz-option" data-value="a">It translates in all 6 reading frames</button>
+        <button class="quiz-option" data-value="b">It skips the start codon</button>
+        <button class="quiz-option" data-value="c">It stops translation at the first stop codon instead of translating through it</button>
+        <button class="quiz-option" data-value="d">It uses a different genetic code</button>
+        <div class="quiz-explanation" data-text="Without to_stop=True, translate() marks stop codons with * but continues. With to_stop=True, it stops at the first stop codon, giving you the actual protein sequence."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="a">
+        <h4><span class="q-num">9</span> Which approach is better for processing 100 million FASTQ reads?</h4>
+        <button class="quiz-option" data-value="a">Iterate with SeqIO.parse() (lazy, one record at a time)</button>
+        <button class="quiz-option" data-value="b">Load all into a list with list(SeqIO.parse())</button>
+        <button class="quiz-option" data-value="c">Read the entire file into a string first</button>
+        <button class="quiz-option" data-value="d">Use SeqIO.to_dict()</button>
+        <div class="quiz-explanation" data-text="SeqIO.parse() returns an iterator — it reads one record at a time, using minimal memory. Loading 100M reads into a list would require hundreds of GB of RAM."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="fillin" data-answer="pathlib||Path||pathlib.Path">
+        <h4><span class="q-num">10</span> What Python module provides the Path class for modern, cross-platform file path handling?</h4>
+        <input type="text" class="quiz-fill-input" placeholder="Module name..." style="width:100%;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-explanation" data-text="pathlib.Path is the modern way to handle file paths in Python. Use Path.glob('*.fastq') to find files, Path.mkdir(parents=True) to create directories, etc."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Join the Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your thoughts... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+
+  <div class="module-nav">
+    <button class="nav-btn" onclick="navigate('ch5')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+    <button class="nav-btn" onclick="navigate('ch7')">Next: R &amp; Bioconductor <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+  </div>
+  <div style="text-align:center;margin-top:1rem;">
+    <button class="hero-btn" id="markComplete" style="font-size:.85rem;padding:.5rem 1.5rem;">Mark as Complete ✓</button>
+  </div>
+</div>

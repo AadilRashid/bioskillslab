@@ -1,0 +1,326 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="settings" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 2: Setting Up Your Environment</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~50 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Beginner</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Linux, WSL, Conda, Project Structure, Markdown</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>Why Linux?</h2>
+      <p>Almost all bioinformatics tools are built for Unix/Linux. The reasons are historical and practical:</p>
+      <ul>
+        <li>Servers and HPC clusters run Linux (you'll SSH into them)</li>
+        <li>Cloud instances (AWS, GCP) default to Linux</li>
+        <li>Most tools (samtools, BWA, GATK) are command-line only</li>
+        <li>Unix pipes and text processing are ideal for bioinformatics data</li>
+        <li>Package managers (Conda, apt) make installing tools easy</li>
+      </ul>
+
+      <h3>Getting a Linux Environment</h3>
+      <p><strong>Windows users → WSL2</strong> (Windows Subsystem for Linux). This gives you a full Ubuntu installation inside Windows with near-native performance.</p>
+      <pre><code># Open PowerShell as Administrator:
+wsl --install
+
+# This installs Ubuntu by default. Restart your computer.
+# Open "Ubuntu" from Start menu → set username and password.
+
+# Verify it works:
+lsb_release -a     # Should show Ubuntu
+uname -r            # Should show a Linux kernel version</code></pre>
+
+      <p><strong>macOS users</strong> — Your terminal is already Unix-based. Install Homebrew for package management:</p>
+      <pre><code>/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+brew install wget samtools</code></pre>
+
+      <p><strong>Native Linux</strong> — You're already set. Ubuntu or CentOS are most common in bioinformatics.</p>
+
+      <h2>Package Management with Conda</h2>
+      <p>Conda solves the biggest headache in bioinformatics: <strong>dependency hell</strong>. Tool A needs Python 3.8, Tool B needs Python 3.11, Tool C needs a specific version of libhts. Conda manages all of this with isolated environments.</p>
+
+      <h3>Installing Miniconda</h3>
+      <pre><code># Download Miniconda (lightweight — recommended over full Anaconda)
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+bash Miniconda3-latest-Linux-x86_64.sh
+# Follow prompts, say "yes" to init. Restart terminal.
+
+# Verify
+conda --version</code></pre>
+
+      <h3>Setting Up Bioconda</h3>
+      <p>Bioconda is a Conda channel with 8000+ bioinformatics packages. Set it up once:</p>
+      <pre><code>conda config --add channels defaults
+conda config --add channels bioconda
+conda config --add channels conda-forge
+conda config --set channel_priority strict</code></pre>
+
+      <h3>Creating and Managing Environments</h3>
+      <pre><code># Create a new environment
+conda create -n rnaseq python=3.11
+conda activate rnaseq
+
+# Install tools into the active environment
+conda install -c bioconda samtools=1.17 bwa fastqc star subread
+
+# See what's installed
+conda list
+
+# Deactivate (go back to base)
+conda deactivate
+
+# List all environments
+conda env list
+
+# Remove an environment
+conda env remove -n old_project</code></pre>
+
+      <h3>Reproducibility: Exporting Environments</h3>
+      <pre><code># Export exact environment (for reproducing on same OS)
+conda env export > environment.yml
+
+# Export cross-platform (just package names)
+conda env export --from-history > environment_portable.yml
+
+# Recreate from file
+conda env create -f environment.yml</code></pre>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Mamba — Faster Conda</strong>
+        <p>Conda can be slow at resolving dependencies. Mamba is a drop-in replacement that's 10-100x faster:</p>
+      </div>
+      <pre><code>conda install -n base -c conda-forge mamba
+mamba create -n myenv samtools bwa    # Same syntax, much faster</code></pre>
+
+      <h2>Project Directory Structure</h2>
+      <p>A well-organized project is a reproducible project. Before you write a single line of code, set up your directory structure:</p>
+      <pre><code>my_rnaseq_project/
+├── README.md              # What this project is, how to run it
+├── data/
+│   ├── raw/               # Original FASTQ files (NEVER modify these)
+│   ├── processed/         # Trimmed reads, filtered data
+│   └── reference/         # Reference genome, GTF annotation
+├── results/
+│   ├── qc/                # FastQC reports
+│   ├── alignments/        # BAM files
+│   ├── counts/            # Gene count matrices
+│   ├── de/                # Differential expression results
+│   ├── figures/           # Publication-ready plots
+│   └── tables/            # Summary tables
+├── scripts/
+│   ├── 01_qc.sh           # Quality control
+│   ├── 02_trim.sh         # Adapter trimming
+│   ├── 03_align.sh        # Read alignment
+│   ├── 04_count.sh        # Gene counting
+│   └── 05_de_analysis.R   # Differential expression
+├── envs/
+│   └── environment.yml    # Conda environment specification
+├── docs/
+│   └── analysis_notes.md  # Lab notebook / analysis decisions
+├── Snakefile              # Workflow definition (optional but recommended)
+└── .gitignore             # Files Git should ignore</code></pre>
+
+      <h3>Create It in One Command</h3>
+      <pre><code>mkdir -p my_project/{data/{raw,processed,reference},results/{qc,alignments,counts,de,figures,tables},scripts,envs,docs}</code></pre>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> The data/raw/ Rule</strong>
+        <p>Files in <code>data/raw/</code> are sacred. Never modify them. Never write to that directory. If you need to change something, write the output to <code>data/processed/</code>. This ensures you can always re-run your entire analysis from scratch.</p>
+      </div>
+
+      <h2>Numbering Your Scripts</h2>
+      <p>Prefix scripts with numbers (<code>01_</code>, <code>02_</code>, etc.) to indicate execution order. Anyone looking at your project immediately knows the workflow:</p>
+      <pre><code>scripts/
+├── 01_download_data.sh     # Step 1
+├── 02_qc.sh                # Step 2
+├── 03_trim.sh              # Step 3
+├── 04_align.sh             # Step 4
+├── 05_count.sh             # Step 5
+└── 06_de_analysis.R        # Step 6</code></pre>
+
+      <h2>Text Editors</h2>
+      <ul>
+        <li><strong>nano</strong> — Simple, beginner-friendly. <code>nano file.txt</code> → edit → Ctrl+O save → Ctrl+X exit</li>
+        <li><strong>vim</strong> — Powerful, steep learning curve. Press <code>i</code> to type, <code>Esc</code> then <code>:wq</code> to save and quit</li>
+        <li><strong>VS Code + Remote SSH</strong> — Best of both worlds. GUI editor on your laptop, files on the server</li>
+      </ul>
+
+      <h2>Documenting with Markdown</h2>
+      <p>Every project needs a README.md. Markdown is simple, readable as plain text, and renders beautifully on GitHub:</p>
+      <pre><code># RNA-Seq Analysis of Drug Treatment
+
+## Overview
+Differential expression analysis comparing treated vs control samples
+in HeLa cells. 3 biological replicates per condition.
+
+## Data
+- Raw reads: `data/raw/` (downloaded from SRA, accession PRJNA123456)
+- Reference: GRCh38 from Ensembl release 110
+
+## Methods
+1. QC: FastQC v0.12.1
+2. Trimming: fastp v0.23.4 (min quality 20, min length 50)
+3. Alignment: STAR v2.7.11a (2-pass mode)
+4. Counting: featureCounts (Subread v2.0.6)
+5. DE: DESeq2 v1.40.2 (padj &lt; 0.05, |log2FC| > 1)
+
+## How to Reproduce
+```bash
+conda env create -f envs/environment.yml
+conda activate rnaseq
+snakemake --cores 8
+```
+
+## Results
+- 342 upregulated, 287 downregulated genes
+- See `results/figures/volcano_plot.pdf`</code></pre>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Environment Setup Quiz — 5 Free + 8 Premium</h3>
+
+      <div class="quiz-question" data-type="terminal" data-answer="mkdir -p project/{data/{raw,processed},results,scripts}||mkdir -p project/{data/raw,data/processed,results,scripts}">
+        <h4><span class="q-num">1</span> Write a single command to create: <code>project/data/raw/</code>, <code>project/data/processed/</code>, <code>project/results/</code>, <code>project/scripts/</code></h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="mkdir -p creates parent directories as needed. Brace expansion {a,b} creates multiple directories in one shot."></div>
+      </div>
+
+      <div class="quiz-question" data-type="terminal" data-answer="conda create -n bioinfo python=3.11||conda create --name bioinfo python=3.11">
+        <h4><span class="q-num">2</span> Create a Conda environment called "bioinfo" with Python 3.11</h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="conda create -n names the environment. Always specify the Python version for reproducibility."></div>
+      </div>
+
+      <div class="quiz-question" data-type="terminal" data-answer="conda env export > environment.yml||conda env export >environment.yml">
+        <h4><span class="q-num">3</span> Export your current Conda environment to <code>environment.yml</code></h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="This captures every package and version so anyone can recreate your exact environment with conda env create -f environment.yml."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">4</span> Where should raw sequencing data be stored?</h4>
+        <button class="quiz-option" data-value="a">In scripts/ alongside analysis code</button>
+        <button class="quiz-option" data-value="b">In results/</button>
+        <button class="quiz-option" data-value="c">In data/raw/ and treated as read-only</button>
+        <button class="quiz-option" data-value="d">In the home directory</button>
+        <div class="quiz-explanation" data-text="Raw data goes in data/raw/ and must NEVER be modified. Processed outputs go in data/processed/ or results/."></div>
+      </div>
+
+      <!-- PREMIUM -->
+      <div class="quiz-question premium" data-type="choice" data-answer="b">
+        <h4><span class="q-num">5</span> What problem does Conda solve in bioinformatics?</h4>
+        <button class="quiz-option" data-value="a">It makes code run faster</button>
+        <button class="quiz-option" data-value="b">It manages software dependencies and isolated environments so tools don't conflict</button>
+        <button class="quiz-option" data-value="c">It compresses sequencing data</button>
+        <button class="quiz-option" data-value="d">It replaces Git for version control</button>
+        <div class="quiz-explanation" data-text="Different tools need different versions of the same libraries. Conda creates isolated environments so Tool A's Python 3.8 doesn't conflict with Tool B's Python 3.11."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="terminal" data-answer="conda activate rnaseq">
+        <h4><span class="q-num">6</span> Activate a Conda environment called "rnaseq"</h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="conda activate switches to the named environment. Your prompt will change to show (rnaseq) at the beginning."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="a">
+        <h4><span class="q-num">7</span> Why number your scripts (01_qc.sh, 02_trim.sh, etc.)?</h4>
+        <button class="quiz-option" data-value="a">It shows the execution order so anyone can understand the workflow</button>
+        <button class="quiz-option" data-value="b">Linux requires numbered filenames</button>
+        <button class="quiz-option" data-value="c">It makes them run faster</button>
+        <button class="quiz-option" data-value="d">Conda needs numbered scripts</button>
+        <div class="quiz-explanation" data-text="Numbered prefixes make the workflow self-documenting. Anyone looking at your scripts/ directory immediately knows the order of operations."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="fillin" data-answer="bioconda||Bioconda">
+        <h4><span class="q-num">8</span> What Conda channel provides 8000+ bioinformatics packages?</h4>
+        <input type="text" class="quiz-fill-input" placeholder="Channel name..." style="width:100%;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-explanation" data-text="Bioconda is the community-maintained Conda channel for bioinformatics. It includes samtools, BWA, STAR, GATK, and thousands more."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="terminal" data-answer="conda env create -f environment.yml||conda env create --file environment.yml">
+        <h4><span class="q-num">9</span> Recreate a conda environment from an <code>environment.yml</code> file</h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="conda env create -f reads the YAML file and installs all packages at the exact versions specified. This is how collaborators reproduce your environment."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="c">
+        <h4><span class="q-num">10</span> What is Mamba?</h4>
+        <button class="quiz-option" data-value="a">A Python IDE for bioinformatics</button>
+        <button class="quiz-option" data-value="b">A sequencing platform</button>
+        <button class="quiz-option" data-value="c">A faster drop-in replacement for conda that resolves dependencies 10-100x faster</button>
+        <button class="quiz-option" data-value="d">A genome assembler</button>
+        <div class="quiz-explanation" data-text="Mamba is written in C++ and uses the same syntax as conda but resolves dependencies much faster. Install with: conda install -n base -c conda-forge mamba"></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="terminal" data-answer="conda env list||conda info --envs">
+        <h4><span class="q-num">11</span> List all conda environments on your system</h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="conda env list shows all environments and their paths. The active one is marked with *."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="b">
+        <h4><span class="q-num">12</span> Why should you set <code>channel_priority: strict</code> in conda config?</h4>
+        <button class="quiz-option" data-value="a">It makes installations faster</button>
+        <button class="quiz-option" data-value="b">It ensures packages come from the highest-priority channel, preventing version conflicts</button>
+        <button class="quiz-option" data-value="c">It blocks internet access</button>
+        <button class="quiz-option" data-value="d">It's required by bioconda license</button>
+        <div class="quiz-explanation" data-text="Without strict priority, conda might mix packages from different channels causing incompatibilities. Strict mode ensures bioconda packages come from bioconda, not defaults."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="terminal" data-answer="conda env remove -n old_project||conda env remove --name old_project">
+        <h4><span class="q-num">13</span> Remove a conda environment called "old_project"</h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="conda env remove -n deletes the environment and all its packages. Make sure you're not currently in that environment first (conda deactivate)."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Join the Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your thoughts, ask a question... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+
+  <div class="module-nav">
+    <button class="nav-btn" onclick="navigate('ch1')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+    <button class="nav-btn" onclick="navigate('ch3')">Next: Unix Fundamentals <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+  </div>
+  <div style="text-align:center;margin-top:1rem;">
+    <button class="hero-btn" id="markComplete" style="font-size:.85rem;padding:.5rem 1.5rem;">Mark as Complete ✓</button>
+  </div>
+</div>

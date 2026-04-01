@@ -1,0 +1,300 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="flask-conical" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 9: Sequence Formats &amp; QC</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~75 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Intermediate</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> FASTA, FASTQ, Phred, FastQC, Trimming</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="terminal"><i data-lucide="terminal" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Terminal</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>FASTA Format</h2>
+      <p>The simplest and most universal sequence format. Used for reference genomes, protein sequences, assembled contigs, and more.</p>
+      <pre><code>&gt;seq1 Homo sapiens BRCA1 mRNA
+ATGGATTTTATCTGCTCTTCGCGTTGAAGAAGTACAAAATGTCATTAATGCTATGCAGAA
+AATCTTAGAGTGTCCCATCTGTAAGTGGAGAAAGCTTCTGTGAATGATATTCCTGTGCTT
+&gt;seq2 Mus musculus TP53
+ATGACTGCCATGGAGGAGTCACAGTCGGATATCAGCCTCGAGCTCCCTCTGAGCCAGGAG</code></pre>
+      <p>Rules:</p>
+      <ul>
+        <li>Header line starts with <code>&gt;</code> followed by ID and optional description</li>
+        <li>Sequence can span multiple lines (typically 60-80 characters per line)</li>
+        <li>No quality information — just the sequence</li>
+        <li>Can contain nucleotides (ATCGN) or amino acids (ACDEFGHIKLMNPQRSTVWY)</li>
+      </ul>
+
+      <h3>IUPAC Ambiguity Codes</h3>
+      <pre><code>N = any base (A, C, G, or T)
+R = purine (A or G)
+Y = pyrimidine (C or T)
+S = strong (G or C)
+W = weak (A or T)
+K = keto (G or T)
+M = amino (A or C)</code></pre>
+
+      <h2>FASTQ Format</h2>
+      <p>The standard output of sequencing machines. Like FASTA but with quality scores for every base.</p>
+      <pre><code>@SRR1234567.1 HWI-ST999:100:C0JHTACXX:1:1101:1235:2026 1:N:0:ATCACG
+ATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCG
++
+IIIIIIIIIHIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII</code></pre>
+      <p>Four lines per read, always:</p>
+      <ol>
+        <li><code>@</code> — Header with read ID and instrument info</li>
+        <li>Sequence — The actual bases (ATCGN)</li>
+        <li><code>+</code> — Separator (sometimes repeats the header)</li>
+        <li>Quality — One ASCII character per base, encoding error probability</li>
+      </ol>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> FASTQ ≠ 4 × number of reads in wc -l</strong>
+        <p>While FASTQ normally has 4 lines per read, quality strings can contain <code>@</code> characters. Never use <code>grep -c "^@"</code> to count FASTQ reads — it can overcount. Use <code>echo $(($(wc -l &lt; file.fastq) / 4))</code> or dedicated tools.</p>
+      </div>
+
+      <h2>Phred Quality Scores — Understanding Base Quality</h2>
+      <p>Each character in the quality string encodes the probability that the base call is wrong:</p>
+      <pre><code>Q = -10 × log₁₀(P_error)
+
+Score  Error Rate   Accuracy   Meaning
+─────  ──────────   ────────   ───────
+Q10    1 in 10      90.0%      Poor
+Q20    1 in 100     99.0%      Acceptable
+Q30    1 in 1,000   99.9%      Good (typical threshold)
+Q40    1 in 10,000  99.99%     Excellent</code></pre>
+
+      <h3>ASCII Encoding (Phred+33, Illumina 1.8+)</h3>
+      <pre><code>Quality character → ASCII value → subtract 33 → Phred score
+
+Character:  !  "  #  $  %  &amp;  ...  5  ...  ?  ...  I  ...
+ASCII:      33 34 35 36 37 38     53     63     73
+Q score:    0  1  2  3  4  5      20     30     40
+
+Example quality string: IIIIIHHHFF
+Scores:                 40 40 40 40 40 39 39 39 37 37</code></pre>
+
+      <h2>Quality Control with FastQC</h2>
+      <pre><code># Run FastQC on a single file
+fastqc reads.fastq -o results/qc/
+
+# Run on multiple files with 4 threads
+fastqc data/raw/*.fastq -o results/qc/ -t 4
+
+# Aggregate all FastQC reports into one summary
+multiqc results/qc/ -o results/multiqc/</code></pre>
+
+      <h3>Key FastQC Metrics</h3>
+      <ul>
+        <li><strong>Per Base Sequence Quality</strong> — Should be &gt;Q20 across most positions. Quality typically drops at the 3' end of reads</li>
+        <li><strong>Per Sequence Quality Scores</strong> — Most reads should have average quality &gt;Q30</li>
+        <li><strong>Per Base Sequence Content</strong> — Should be roughly equal A≈T and G≈C. Bias at the start is normal (random hexamer priming)</li>
+        <li><strong>GC Content</strong> — Should match expected distribution for your organism (~40% for human). A second peak suggests contamination</li>
+        <li><strong>Sequence Duplication</strong> — High duplication may indicate PCR amplification bias or low library complexity</li>
+        <li><strong>Adapter Content</strong> — Should be minimal. High adapter content means reads are longer than the DNA fragments</li>
+        <li><strong>Overrepresented Sequences</strong> — May indicate adapter contamination or rRNA contamination</li>
+      </ul>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Don't Panic About FastQC Warnings</strong>
+        <p>FastQC was designed for whole-genome sequencing. RNA-Seq data will often show "failures" for GC content and duplication — this is expected because highly expressed genes produce many identical reads. Context matters.</p>
+      </div>
+
+      <h2>Trimming — Cleaning Your Reads</h2>
+
+      <h3>fastp (Recommended — fast, modern, all-in-one)</h3>
+      <pre><code>fastp \
+  -i reads_R1.fastq.gz -I reads_R2.fastq.gz \
+  -o trimmed_R1.fastq.gz -O trimmed_R2.fastq.gz \
+  --qualified_quality_phred 20 \
+  --length_required 50 \
+  --detect_adapter_for_pe \
+  --thread 4 \
+  --html results/fastp_report.html \
+  --json results/fastp_report.json</code></pre>
+
+      <h3>Trimmomatic</h3>
+      <pre><code>trimmomatic PE \
+  reads_R1.fastq.gz reads_R2.fastq.gz \
+  trimmed_R1.fastq.gz unpaired_R1.fastq.gz \
+  trimmed_R2.fastq.gz unpaired_R2.fastq.gz \
+  ILLUMINACLIP:TruSeq3-PE.fa:2:30:10 \
+  LEADING:3 TRAILING:3 \
+  SLIDINGWINDOW:4:20 \
+  MINLEN:50</code></pre>
+      <p>Trimmomatic steps explained:</p>
+      <ul>
+        <li><strong>ILLUMINACLIP</strong> — Remove adapter sequences</li>
+        <li><strong>LEADING:3</strong> — Remove leading bases below quality 3</li>
+        <li><strong>TRAILING:3</strong> — Remove trailing bases below quality 3</li>
+        <li><strong>SLIDINGWINDOW:4:20</strong> — Scan with 4-base window, cut when average drops below Q20</li>
+        <li><strong>MINLEN:50</strong> — Drop reads shorter than 50 bp after trimming</li>
+      </ul>
+
+      <h2>Practical Workflow: QC → Trim → Re-QC</h2>
+      <pre><code>#!/bin/bash
+set -euo pipefail
+
+SAMPLE=$1
+mkdir -p results/{qc_raw,qc_trimmed,trimmed}
+
+# Step 1: QC raw reads
+fastqc data/raw/${SAMPLE}_R{1,2}.fastq.gz -o results/qc_raw/
+
+# Step 2: Trim
+fastp -i data/raw/${SAMPLE}_R1.fastq.gz -I data/raw/${SAMPLE}_R2.fastq.gz \
+      -o results/trimmed/${SAMPLE}_R1.fastq.gz -O results/trimmed/${SAMPLE}_R2.fastq.gz \
+      --qualified_quality_phred 20 --length_required 50 \
+      --html results/trimmed/${SAMPLE}_fastp.html
+
+# Step 3: QC trimmed reads (verify improvement)
+fastqc results/trimmed/${SAMPLE}_R{1,2}.fastq.gz -o results/qc_trimmed/
+
+echo "Done! Compare results/qc_raw/ vs results/qc_trimmed/"</code></pre>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="terminal">
+    <div class="lesson"><p>Explore FASTA and FASTQ files. Try the exercises below.</p></div>
+    <div class="terminal">
+      <div class="terminal-bar"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div><span class="title">biolab — bash</span></div>
+      <div class="terminal-body">
+        <div class="line output">Files: sequences.fasta, reads.fastq</div>
+        <div class="line output">────────────────────────────────────</div>
+        <div class="terminal-input-line"><span class="prompt">user@biolab:~$</span><input type="text" class="terminal-input" autofocus></div>
+      </div>
+    </div>
+    <div class="lesson">
+      <h3>Exercises:</h3>
+      <ol>
+        <li><code>head -n 4 reads.fastq</code> — View one complete FASTQ read</li>
+        <li><code>grep -c "^>" sequences.fasta</code> — Count FASTA sequences</li>
+        <li><code>awk 'NR%4==2{print length($0)}' reads.fastq</code> — Print read lengths</li>
+        <li><code>wc -l reads.fastq</code> — Count lines (÷4 = reads)</li>
+        <li><code>awk 'NR%4==2' reads.fastq</code> — Extract just the sequences</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Sequence Formats Quiz — 5 Free + 10 Premium</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">1</span> A Phred quality score of Q30 means the base call has what accuracy?</h4>
+        <button class="quiz-option" data-value="a">90%</button>
+        <button class="quiz-option" data-value="b">99%</button>
+        <button class="quiz-option" data-value="c">99.9%</button>
+        <button class="quiz-option" data-value="d">99.99%</button>
+        <div class="quiz-explanation" data-text="Q = -10 × log₁₀(P). Q30 means P = 0.001 = 1 in 1,000 error rate = 99.9% accuracy. Q30 is the standard quality threshold."></div>
+      </div>
+
+      <div class="quiz-question" data-type="fillin" data-answer="4||four">
+        <h4><span class="q-num">2</span> How many lines does each read occupy in a FASTQ file?</h4>
+        <input type="text" class="quiz-fill-input" placeholder="Number..." style="width:100%;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-explanation" data-text="Line 1: @header, Line 2: sequence, Line 3: +, Line 4: quality scores. Always exactly 4 lines per read."></div>
+      </div>
+
+      <div class="quiz-question" data-type="terminal" data-answer="awk NR%4==2{print length($0)} reads.fastq||awk 'NR%4==2{print length($0)}' reads.fastq">
+        <h4><span class="q-num">3</span> Write an awk command to print the length of each read in <code>reads.fastq</code></h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="NR%4==2 selects every sequence line (line 2 of each 4-line block). length($0) returns the string length = read length."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">4</span> What should you check FIRST after receiving sequencing data?</h4>
+        <button class="quiz-option" data-value="a">Run alignment immediately</button>
+        <button class="quiz-option" data-value="b">Count the number of genes</button>
+        <button class="quiz-option" data-value="c">Upload to GitHub</button>
+        <button class="quiz-option" data-value="d">Run FastQC to assess quality</button>
+        <div class="quiz-explanation" data-text="Always QC first! FastQC reveals adapter contamination, quality drops, GC bias, and other issues before you waste time aligning bad data."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">5</span> What does the Trimmomatic step <code>SLIDINGWINDOW:4:20</code> do?</h4>
+        <button class="quiz-option" data-value="a">Removes the first 4 bases if quality is below 20</button>
+        <button class="quiz-option" data-value="b">Scans with a 4-base window and cuts when average quality drops below Q20</button>
+        <button class="quiz-option" data-value="c">Keeps only reads longer than 20 bases</button>
+        <button class="quiz-option" data-value="d">Removes every 4th base with quality below 20</button>
+        <div class="quiz-explanation" data-text="SLIDINGWINDOW slides a window of 4 bases along the read. When the average quality in the window drops below Q20, it trims everything from that point to the 3' end."></div>
+      </div>
+
+      <!-- PREMIUM -->
+      <div class="quiz-question premium" data-type="choice" data-answer="a">
+        <h4><span class="q-num">6</span> In FastQC, high sequence duplication in RNA-Seq data is:</h4>
+        <button class="quiz-option" data-value="a">Often expected — highly expressed genes produce many identical reads</button>
+        <button class="quiz-option" data-value="b">Always a sign of contamination</button>
+        <button class="quiz-option" data-value="c">Caused by sequencing errors</button>
+        <button class="quiz-option" data-value="d">A reason to discard the data</button>
+        <div class="quiz-explanation" data-text="FastQC was designed for WGS where duplication indicates PCR bias. In RNA-Seq, abundant transcripts naturally produce many identical reads. Context matters when interpreting FastQC."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="fillin" data-answer="N">
+        <h4><span class="q-num">7</span> In IUPAC notation, what single character represents "any nucleotide base"?</h4>
+        <input type="text" class="quiz-fill-input" placeholder="Single character..." style="width:100%;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-explanation" data-text="N means any base (A, C, G, or T). Sequencers output N when they can't determine the base. High N content indicates poor quality."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="c">
+        <h4><span class="q-num">8</span> What does <code>MINLEN:50</code> do in Trimmomatic?</h4>
+        <button class="quiz-option" data-value="a">Trims reads to exactly 50 bases</button>
+        <button class="quiz-option" data-value="b">Removes the first 50 bases</button>
+        <button class="quiz-option" data-value="c">Discards reads shorter than 50 bases after trimming</button>
+        <button class="quiz-option" data-value="d">Keeps only the first 50 bases</button>
+        <div class="quiz-explanation" data-text="After quality and adapter trimming, some reads become very short. MINLEN:50 drops reads below 50 bp because very short reads align ambiguously."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="terminal" data-answer="grep -c ^> sequences.fasta||grep -c '>' sequences.fasta||grep -c > sequences.fasta">
+        <h4><span class="q-num">9</span> Count the number of sequences in <code>sequences.fasta</code></h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="Each FASTA sequence starts with a > header line. grep -c counts matching lines."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="b">
+        <h4><span class="q-num">10</span> Why is fastp generally preferred over Trimmomatic for modern workflows?</h4>
+        <button class="quiz-option" data-value="a">It produces better quality scores</button>
+        <button class="quiz-option" data-value="b">It's faster, auto-detects adapters, and generates HTML reports in one step</button>
+        <button class="quiz-option" data-value="c">It's the only tool that works with paired-end data</button>
+        <button class="quiz-option" data-value="d">It doesn't require any parameters</button>
+        <div class="quiz-explanation" data-text="fastp is written in C++ (fast), auto-detects adapters without specifying a file, and produces a comprehensive HTML report — all in a single command. Trimmomatic requires Java and manual adapter specification."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Join the Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your thoughts... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+
+  <div class="module-nav">
+    <button class="nav-btn" onclick="navigate('ch8')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+    <button class="nav-btn" onclick="navigate('ch10')">Next: Sequence Alignment <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+  </div>
+  <div style="text-align:center;margin-top:1rem;">
+    <button class="hero-btn" id="markComplete" style="font-size:.85rem;padding:.5rem 1.5rem;">Mark as Complete ✓</button>
+  </div>
+</div>

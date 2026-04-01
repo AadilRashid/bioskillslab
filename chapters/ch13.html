@@ -1,0 +1,288 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="microscope" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 13: Variant Calling</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~90 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Advanced</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> GATK, VCF, SNPs, Indels, Annotation, bcftools</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>What is Variant Calling?</h2>
+      <p>Variant calling identifies positions where a sample's DNA differs from the reference genome. These differences include:</p>
+      <ul>
+        <li><strong>SNPs</strong> (Single Nucleotide Polymorphisms) — A→G at one position</li>
+        <li><strong>Indels</strong> — Small insertions or deletions (1-50 bp)</li>
+        <li><strong>Structural variants</strong> — Large rearrangements (>50 bp): deletions, duplications, inversions, translocations</li>
+        <li><strong>Copy number variants (CNVs)</strong> — Gains or losses of large genomic segments</li>
+      </ul>
+
+      <h2>The GATK Best Practices Pipeline</h2>
+      <pre><code>Sorted BAM (from BWA alignment)
+  ↓ Mark Duplicates (GATK/Picard)
+Deduped BAM
+  ↓ Base Quality Score Recalibration (BQSR)
+Recalibrated BAM
+  ↓ Variant Calling (HaplotypeCaller)
+Raw gVCF (per sample)
+  ↓ Joint Genotyping (GenomicsDBImport + GenotypeGVCFs)
+Raw VCF (all samples)
+  ↓ Variant Filtering (VQSR or hard filters)
+Filtered VCF
+  ↓ Annotation (SnpEff, VEP)
+Annotated VCF</code></pre>
+
+      <h3>Step 1: Mark Duplicates</h3>
+      <pre><code>gatk MarkDuplicates \
+    -I sorted.bam \
+    -O dedup.bam \
+    -M dedup_metrics.txt \
+    --REMOVE_DUPLICATES false   # Mark, don't remove
+
+samtools index dedup.bam</code></pre>
+      <p>PCR duplicates are copies of the same original DNA molecule. They inflate allele counts and can make heterozygous sites look homozygous. Marking them tells downstream tools to ignore them.</p>
+
+      <h3>Step 2: Base Quality Score Recalibration (BQSR)</h3>
+      <pre><code># Build recalibration model using known variant sites
+gatk BaseRecalibrator \
+    -I dedup.bam \
+    -R reference.fa \
+    --known-sites dbsnp.vcf.gz \
+    --known-sites known_indels.vcf.gz \
+    -O recal_table
+
+# Apply recalibration
+gatk ApplyBQSR \
+    -I dedup.bam \
+    -R reference.fa \
+    --bqsr-recal-file recal_table \
+    -O recal.bam</code></pre>
+
+      <h3>Step 3: Call Variants</h3>
+      <pre><code># Per-sample calling (produces gVCF)
+gatk HaplotypeCaller \
+    -I recal.bam \
+    -R reference.fa \
+    -ERC GVCF \
+    -O sample.g.vcf.gz
+
+# Joint genotyping across all samples
+gatk GenomicsDBImport \
+    -V sample1.g.vcf.gz -V sample2.g.vcf.gz -V sample3.g.vcf.gz \
+    --genomicsdb-workspace-path genomicsdb \
+    -L intervals.list
+
+gatk GenotypeGVCFs \
+    -R reference.fa \
+    -V gendb://genomicsdb \
+    -O raw_variants.vcf.gz</code></pre>
+
+      <h3>Step 4: Filter Variants</h3>
+      <pre><code># Separate SNPs and indels
+gatk SelectVariants -V raw_variants.vcf.gz --select-type-to-include SNP -O raw_snps.vcf.gz
+gatk SelectVariants -V raw_variants.vcf.gz --select-type-to-include INDEL -O raw_indels.vcf.gz
+
+# Hard filtering (when VQSR not possible — e.g., small sample sizes)
+gatk VariantFiltration -V raw_snps.vcf.gz \
+    --filter-expression "QD < 2.0" --filter-name "LowQD" \
+    --filter-expression "MQ < 40.0" --filter-name "LowMQ" \
+    --filter-expression "FS > 60.0" --filter-name "HighFS" \
+    --filter-expression "SOR > 3.0" --filter-name "HighSOR" \
+    --filter-expression "MQRankSum < -12.5" --filter-name "LowMQRS" \
+    --filter-expression "ReadPosRankSum < -8.0" --filter-name "LowRPRS" \
+    -O filtered_snps.vcf.gz</code></pre>
+
+      <h2>VCF Format — In Depth</h2>
+      <pre><code>##fileformat=VCFv4.2
+##INFO=&lt;ID=DP,Number=1,Type=Integer,Description="Total Depth"&gt;
+##INFO=&lt;ID=AF,Number=A,Type=Float,Description="Allele Frequency"&gt;
+##FORMAT=&lt;ID=GT,Number=1,Type=String,Description="Genotype"&gt;
+##FORMAT=&lt;ID=DP,Number=1,Type=Integer,Description="Read Depth"&gt;
+##FORMAT=&lt;ID=AD,Number=R,Type=Integer,Description="Allelic Depths"&gt;
+#CHROM  POS     ID      REF  ALT  QUAL  FILTER  INFO           FORMAT       SAMPLE1     SAMPLE2
+chr1    12345   rs123   A    G    99    PASS    DP=60;AF=0.5   GT:DP:AD    0/1:30:15,15  0/0:28:28,0
+chr1    67890   .       CT   C    50    PASS    DP=40;AF=0.25  GT:DP:AD    0/1:20:15,5   0/0:18:18,0</code></pre>
+
+      <h3>Genotype Field (GT)</h3>
+      <pre><code>0/0  = Homozygous reference (both alleles = REF)
+0/1  = Heterozygous (one REF, one ALT)
+1/1  = Homozygous alternate (both alleles = ALT)
+1/2  = Heterozygous with two different ALT alleles
+./.  = Missing genotype (not enough data)</code></pre>
+
+      <h2>Working with VCF: bcftools</h2>
+      <pre><code># Statistics summary
+bcftools stats filtered.vcf.gz > stats.txt
+
+# Extract specific fields
+bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t%QUAL\t[%GT]\n' filtered.vcf.gz
+
+# Filter: only PASS variants
+bcftools view -f PASS filtered.vcf.gz -o pass_only.vcf.gz
+
+# Filter by quality and depth
+bcftools view -i 'QUAL>30 && INFO/DP>10' filtered.vcf.gz
+
+# Extract a region
+bcftools view filtered.vcf.gz chr1:1000000-2000000
+
+# Count variants
+bcftools view -H filtered.vcf.gz | wc -l
+
+# Merge VCFs from multiple samples
+bcftools merge sample1.vcf.gz sample2.vcf.gz -o merged.vcf.gz</code></pre>
+
+      <h2>Variant Annotation</h2>
+      <pre><code># SnpEff — predict functional effects
+snpEff ann GRCh38.105 filtered_snps.vcf.gz > annotated.vcf
+
+# Categories of variant effects:
+# HIGH:     frameshift, stop gained, splice donor/acceptor
+# MODERATE: missense variant
+# LOW:      synonymous variant
+# MODIFIER: intron, intergenic, UTR
+
+# Ensembl VEP (Variant Effect Predictor) — more comprehensive
+vep --input_file filtered.vcf.gz \
+    --output_file annotated.txt \
+    --cache --species homo_sapiens \
+    --assembly GRCh38 \
+    --everything</code></pre>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Variant Calling Tips</strong>
+        <ul>
+          <li>Always use joint calling (gVCF → GenomicsDBImport → GenotypeGVCFs) for cohort studies</li>
+          <li>VQSR requires ≥30 exomes or ≥1 whole genome. Use hard filters for smaller datasets</li>
+          <li>Validate important variants with IGV visualization</li>
+          <li>For somatic (cancer) variants, use Mutect2 instead of HaplotypeCaller</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Variant Calling Quiz — 5 Free + 10 Premium</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">1</span> What does the VCF genotype <code>0/1</code> mean?</h4>
+        <button class="quiz-option" data-value="a">Homozygous reference</button>
+        <button class="quiz-option" data-value="b">Heterozygous (one reference allele, one alternate allele)</button>
+        <button class="quiz-option" data-value="c">Homozygous alternate</button>
+        <button class="quiz-option" data-value="d">Missing genotype</button>
+        <div class="quiz-explanation" data-text="0 = reference allele, 1 = first alternate allele. 0/1 = one of each = heterozygous. 0/0 = hom ref, 1/1 = hom alt, ./. = missing."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">2</span> Why mark duplicate reads before variant calling?</h4>
+        <button class="quiz-option" data-value="a">PCR duplicates inflate allele counts and can create false variant calls</button>
+        <button class="quiz-option" data-value="b">It reduces file size</button>
+        <button class="quiz-option" data-value="c">GATK requires it for licensing</button>
+        <button class="quiz-option" data-value="d">Duplicates cause alignment errors</button>
+        <div class="quiz-explanation" data-text="PCR duplicates are copies of the same original molecule. They artificially inflate coverage and can make a heterozygous site (0/1) look homozygous (1/1) by over-representing one allele."></div>
+      </div>
+
+      <div class="quiz-question" data-type="fillin" data-answer="VCF||vcf">
+        <h4><span class="q-num">3</span> What file format stores genetic variants with genotype information?</h4>
+        <input type="text" class="quiz-fill-input" placeholder="Format..." style="width:100%;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-explanation" data-text="VCF (Variant Call Format) is the standard. It stores chromosome, position, reference/alternate alleles, quality, filter status, and per-sample genotypes."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">4</span> What does BQSR (Base Quality Score Recalibration) do?</h4>
+        <button class="quiz-option" data-value="a">Removes low-quality reads</button>
+        <button class="quiz-option" data-value="b">Aligns reads to the reference</button>
+        <button class="quiz-option" data-value="c">Corrects systematic errors in base quality scores using known variant sites</button>
+        <button class="quiz-option" data-value="d">Calls variants</button>
+        <div class="quiz-explanation" data-text="Sequencing machines report quality scores that can be systematically biased. BQSR uses known variant sites (dbSNP) to learn the bias pattern and correct the scores, improving variant calling accuracy."></div>
+      </div>
+
+      <!-- PREMIUM -->
+      <div class="quiz-question premium" data-type="terminal" data-answer="bcftools view -f PASS filtered.vcf.gz||bcftools view -f PASS filtered.vcf.gz -o pass.vcf.gz">
+        <h4><span class="q-num">5</span> Use bcftools to extract only PASS variants from <code>filtered.vcf.gz</code></h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="bcftools view -f PASS keeps only variants that passed all filters. This removes low-confidence calls."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="d">
+        <h4><span class="q-num">6</span> What SnpEff impact category is a frameshift mutation?</h4>
+        <button class="quiz-option" data-value="a">MODIFIER</button>
+        <button class="quiz-option" data-value="b">LOW</button>
+        <button class="quiz-option" data-value="c">MODERATE</button>
+        <button class="quiz-option" data-value="d">HIGH</button>
+        <div class="quiz-explanation" data-text="HIGH impact: frameshift, stop gained, splice site. MODERATE: missense. LOW: synonymous. MODIFIER: intron, intergenic, UTR. Frameshifts disrupt the entire downstream protein sequence."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="b">
+        <h4><span class="q-num">7</span> What is the difference between a SNP and an indel?</h4>
+        <button class="quiz-option" data-value="a">SNPs are in coding regions; indels are in non-coding regions</button>
+        <button class="quiz-option" data-value="b">A SNP is a single base substitution; an indel is an insertion or deletion of one or more bases</button>
+        <button class="quiz-option" data-value="c">SNPs are inherited; indels are somatic</button>
+        <button class="quiz-option" data-value="d">SNPs are common; indels are always rare</button>
+        <div class="quiz-explanation" data-text="SNP = one base changed to another (A→G). Indel = bases inserted or deleted. Both can occur anywhere in the genome and can be common or rare."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="a">
+        <h4><span class="q-num">8</span> Why use joint calling (gVCF workflow) instead of calling each sample independently?</h4>
+        <button class="quiz-option" data-value="a">It distinguishes between 'no variant' and 'no data' at each site, improving genotyping accuracy across samples</button>
+        <button class="quiz-option" data-value="b">It's faster</button>
+        <button class="quiz-option" data-value="c">It uses less memory</button>
+        <button class="quiz-option" data-value="d">It doesn't require a reference genome</button>
+        <div class="quiz-explanation" data-text="With single-sample calling, a missing call could mean 'homozygous reference' or 'not enough data'. gVCF records confidence at every position, so joint genotyping can distinguish these cases."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="c">
+        <h4><span class="q-num">9</span> For somatic (cancer) variant calling, which GATK tool should you use?</h4>
+        <button class="quiz-option" data-value="a">HaplotypeCaller</button>
+        <button class="quiz-option" data-value="b">GenotypeGVCFs</button>
+        <button class="quiz-option" data-value="c">Mutect2</button>
+        <button class="quiz-option" data-value="d">SelectVariants</button>
+        <div class="quiz-explanation" data-text="HaplotypeCaller assumes germline variants (diploid). Mutect2 is designed for somatic mutations — it handles tumor heterogeneity, low allele fractions, and tumor-normal pairs."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="terminal" data-answer="bcftools stats filtered.vcf.gz > stats.txt||bcftools stats filtered.vcf.gz">
+        <h4><span class="q-num">10</span> Generate summary statistics for <code>filtered.vcf.gz</code> using bcftools</h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="bcftools stats produces a comprehensive summary: number of SNPs, indels, ts/tv ratio, per-sample stats, and more."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Join the Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your thoughts... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+
+  <div class="module-nav">
+    <button class="nav-btn" onclick="navigate('ch12')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+    <button class="nav-btn" onclick="navigate('ch14')">Next: Reproducibility <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+  </div>
+  <div style="text-align:center;margin-top:1rem;">
+    <button class="hero-btn" id="markComplete" style="font-size:.85rem;padding:.5rem 1.5rem;">Mark as Complete ✓</button>
+  </div>
+</div>

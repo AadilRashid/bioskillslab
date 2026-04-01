@@ -1,0 +1,321 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="crosshair" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 10: Sequence Alignment</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~90 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Intermediate</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> BLAST, BWA, Bowtie2, SAM/BAM, CIGAR, samtools</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>Types of Alignment</h2>
+      <ul>
+        <li><strong>Database search (BLAST)</strong> — "What is this sequence similar to?" Query vs. a large database</li>
+        <li><strong>Short-read mapping (BWA, Bowtie2)</strong> — Map millions of 75-300 bp reads to a reference genome</li>
+        <li><strong>Long-read mapping (minimap2)</strong> — Map PacBio/Nanopore reads (10 kb–1 Mb)</li>
+        <li><strong>Splice-aware alignment (STAR, HISAT2)</strong> — For RNA-Seq reads that span exon-exon junctions</li>
+      </ul>
+
+      <h2>BLAST — Basic Local Alignment Search Tool</h2>
+      <p>BLAST finds regions of local similarity between a query sequence and a database. It's the most-used tool in bioinformatics.</p>
+      <pre><code># BLAST variants:
+# blastn  — nucleotide vs nucleotide
+# blastp  — protein vs protein
+# blastx  — translated nucleotide vs protein
+# tblastn — protein vs translated nucleotide
+# tblastx — translated nucleotide vs translated nucleotide
+
+# Step 1: Create a BLAST database
+makeblastdb -in reference.fa -dbtype nucl -out ref_db
+
+# Step 2: Run BLAST
+blastn -query query.fa -db ref_db \
+       -outfmt 6 \
+       -evalue 1e-5 \
+       -num_threads 4 \
+       -out results.txt
+
+# Output format 6 (tabular) columns:
+# 1.qseqid  2.sseqid  3.pident  4.length  5.mismatch  6.gapopen
+# 7.qstart  8.qend    9.sstart  10.send   11.evalue   12.bitscore</code></pre>
+
+      <h3>Understanding E-values</h3>
+      <p>The E-value is the number of hits you'd expect by chance in a database of that size:</p>
+      <ul>
+        <li><strong>E &lt; 1e-50</strong> — Almost certainly homologous</li>
+        <li><strong>E &lt; 1e-10</strong> — Very likely homologous</li>
+        <li><strong>E &lt; 0.01</strong> — Probably significant</li>
+        <li><strong>E &gt; 1</strong> — Likely a random match</li>
+      </ul>
+
+      <h2>Short-Read Alignment with BWA</h2>
+      <p>BWA-MEM is the standard aligner for Illumina reads against a reference genome.</p>
+      <pre><code># Step 1: Index the reference (once per genome)
+bwa index reference.fa
+# Creates: reference.fa.amb, .ann, .bwt, .pac, .sa
+
+# Step 2: Align paired-end reads
+bwa mem -t 8 -R '@RG\tID:sample1\tSM:sample1\tPL:ILLUMINA' \
+    reference.fa reads_R1.fastq.gz reads_R2.fastq.gz \
+    | samtools sort -@ 4 -o sorted.bam
+
+# Step 3: Index the BAM
+samtools index sorted.bam
+# Creates: sorted.bam.bai</code></pre>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Read Groups (-R flag)</strong>
+        <p>Always add read group information with <code>-R</code>. GATK and other downstream tools require it. The format is: <code>@RG\tID:id\tSM:sample\tPL:platform</code></p>
+      </div>
+
+      <h2>SAM/BAM Format — The Alignment Standard</h2>
+      <p>SAM (Sequence Alignment/Map) is a tab-delimited text format. BAM is its compressed binary equivalent. Every alignment tool outputs SAM/BAM.</p>
+
+      <h3>SAM Header</h3>
+      <pre><code>@HD  VN:1.6  SO:coordinate                    # File metadata
+@SQ  SN:chr1  LN:248956422                     # Reference sequences
+@SQ  SN:chr2  LN:242193529
+@RG  ID:sample1  SM:sample1  PL:ILLUMINA       # Read groups
+@PG  ID:bwa  PN:bwa  VN:0.7.17                 # Programs used</code></pre>
+
+      <h3>SAM Alignment Fields (11 mandatory columns)</h3>
+      <pre><code>Col  Name   Description
+───  ─────  ──────────────────────────────────
+1    QNAME  Read name
+2    FLAG   Bitwise flag (mapped? paired? strand?)
+3    RNAME  Reference chromosome
+4    POS    1-based leftmost position
+5    MAPQ   Mapping quality (0-60)
+6    CIGAR  How the read aligns (matches, insertions, deletions)
+7    RNEXT  Mate's chromosome (* if unpaired)
+8    PNEXT  Mate's position
+9    TLEN   Template length (insert size)
+10   SEQ    Read sequence
+11   QUAL   Base qualities (same as FASTQ)</code></pre>
+
+      <h3>SAM Flags — Bitwise Encoding</h3>
+      <pre><code>Flag  Meaning
+────  ──────────────────────────────
+1     Read is paired
+2     Both reads mapped properly
+4     Read is unmapped
+8     Mate is unmapped
+16    Read mapped to reverse strand
+32    Mate mapped to reverse strand
+64    First in pair (R1)
+128   Second in pair (R2)
+256   Secondary alignment
+1024  PCR/optical duplicate
+2048  Supplementary alignment
+
+Common combinations:
+0    = single-end, mapped, forward strand
+4    = unmapped
+16   = mapped, reverse strand
+99   = paired, both mapped, mate reverse, first in pair
+147  = paired, both mapped, read reverse, second in pair
+1024 = PCR duplicate (marked by MarkDuplicates)</code></pre>
+
+      <h3>CIGAR Strings — Alignment Description</h3>
+      <pre><code>Operation  Meaning
+─────────  ──────────────────────────────
+M          Match or mismatch (alignment column)
+I          Insertion to the reference (bases in read, not in ref)
+D          Deletion from the reference (bases in ref, not in read)
+N          Skipped region (intron in RNA-Seq spliced alignment)
+S          Soft clip (bases in read, not aligned, kept in SEQ)
+H          Hard clip (bases not in SEQ at all)
+
+Examples:
+50M              50 bases aligned (matches + mismatches)
+30M2I18M         30 aligned, 2-base insertion, 18 aligned
+25M1D25M         25 aligned, 1-base deletion, 25 aligned
+5S45M            5 bases soft-clipped at start, 45 aligned
+20M5000N30M      RNA-Seq: 20 aligned, 5kb intron, 30 aligned</code></pre>
+
+      <h3>Mapping Quality (MAPQ)</h3>
+      <pre><code>MAPQ = -10 × log₁₀(P_wrong_position)
+
+MAPQ  Meaning
+────  ──────────────────────────
+0     Maps equally well to multiple locations
+1-3   Very low confidence
+10    90% chance of correct position
+20    99% chance
+30    99.9% chance
+60    Highest confidence (BWA maximum)
+
+# Common filter: keep only high-confidence alignments
+samtools view -q 30 sorted.bam</code></pre>
+
+      <h2>samtools — Your BAM Swiss Army Knife</h2>
+      <pre><code># Convert SAM to BAM
+samtools view -bS aligned.sam -o aligned.bam
+
+# Sort by coordinate (required for most tools)
+samtools sort aligned.bam -o sorted.bam
+
+# Index (required for random access)
+samtools index sorted.bam
+
+# Alignment statistics
+samtools flagstat sorted.bam
+# Output: total reads, mapped, paired, duplicates, etc.
+
+# Per-chromosome read counts
+samtools idxstats sorted.bam
+# Output: chr  length  mapped_reads  unmapped_reads
+
+# Count specific read types
+samtools view -c sorted.bam              # Total reads
+samtools view -c -F 4 sorted.bam        # Mapped reads (-F excludes flag)
+samtools view -c -f 4 sorted.bam        # Unmapped reads (-f requires flag)
+samtools view -c -F 1024 sorted.bam     # Non-duplicate reads
+samtools view -c -f 1 -F 12 sorted.bam  # Properly paired reads
+
+# Filter by quality and region
+samtools view -b -q 30 sorted.bam -o filtered.bam       # MAPQ >= 30
+samtools view -b sorted.bam chr1:1000000-2000000 -o region.bam  # Extract region
+
+# Per-base coverage depth
+samtools depth sorted.bam | head
+# Output: chr  position  depth
+
+# Average coverage
+samtools depth sorted.bam | awk '{sum+=$3; n++} END {print "Avg depth:", sum/n}'
+
+# View alignments in a region (text-based viewer)
+samtools tview sorted.bam reference.fa</code></pre>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> -f vs -F in samtools view</strong>
+        <p><code>-f 4</code> = require flag 4 (keep unmapped). <code>-F 4</code> = exclude flag 4 (keep mapped). Mixing these up is a very common mistake that silently gives wrong results.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Alignment Quiz — 5 Free + 10 Premium</h3>
+
+      <div class="quiz-question" data-type="terminal" data-answer="samtools view -c -F 4 sorted.bam||samtools view -c -F4 sorted.bam">
+        <h4><span class="q-num">1</span> Count the number of mapped reads in <code>sorted.bam</code></h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="-c counts reads. -F 4 excludes flag 4 (unmapped). So this counts only mapped reads."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">2</span> What does the CIGAR string <code>30M2I18M</code> mean?</h4>
+        <button class="quiz-option" data-value="a">30 matches, 2 mismatches, 18 matches</button>
+        <button class="quiz-option" data-value="b">30 aligned bases, 2-base insertion in the read, 18 aligned bases</button>
+        <button class="quiz-option" data-value="c">30 aligned bases, 2-base deletion, 18 aligned bases</button>
+        <button class="quiz-option" data-value="d">30 aligned bases, 2 soft-clipped, 18 aligned bases</button>
+        <div class="quiz-explanation" data-text="M = match/mismatch (aligned). I = insertion (extra bases in the read not in the reference). D = deletion (bases in reference missing from read)."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">3</span> What SAM flag value indicates an unmapped read?</h4>
+        <button class="quiz-option" data-value="a">0</button>
+        <button class="quiz-option" data-value="b">16</button>
+        <button class="quiz-option" data-value="c">4</button>
+        <button class="quiz-option" data-value="d">99</button>
+        <div class="quiz-explanation" data-text="Flag 4 = read unmapped. Flag 0 = mapped forward. Flag 16 = mapped reverse strand. These are bitwise flags that can be combined."></div>
+      </div>
+
+      <div class="quiz-question" data-type="terminal" data-answer="samtools sort aligned.bam -o sorted.bam||samtools sort -o sorted.bam aligned.bam">
+        <h4><span class="q-num">4</span> Sort <code>aligned.bam</code> by coordinate and output to <code>sorted.bam</code></h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="Coordinate sorting is required before indexing and most downstream tools (variant calling, visualization, etc.)."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">5</span> What does a MAPQ of 0 mean?</h4>
+        <button class="quiz-option" data-value="a">The read is unmapped</button>
+        <button class="quiz-option" data-value="b">The read has no mismatches</button>
+        <button class="quiz-option" data-value="c">The alignment is perfect</button>
+        <button class="quiz-option" data-value="d">The read maps equally well to multiple locations (ambiguous)</button>
+        <div class="quiz-explanation" data-text="MAPQ 0 means the aligner cannot determine the correct position — the read maps to multiple places equally well. These are often filtered out with samtools view -q 1 or higher."></div>
+      </div>
+
+      <!-- PREMIUM -->
+      <div class="quiz-question premium" data-type="terminal" data-answer="samtools index sorted.bam">
+        <h4><span class="q-num">6</span> Create an index for <code>sorted.bam</code></h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="samtools index creates a .bai file enabling fast random access to any genomic region. The BAM must be coordinate-sorted first."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="a">
+        <h4><span class="q-num">7</span> What is the difference between <code>samtools view -f 4</code> and <code>samtools view -F 4</code>?</h4>
+        <button class="quiz-option" data-value="a">-f 4 keeps unmapped reads; -F 4 keeps mapped reads</button>
+        <button class="quiz-option" data-value="b">-f 4 keeps mapped reads; -F 4 keeps unmapped reads</button>
+        <button class="quiz-option" data-value="c">They are identical</button>
+        <button class="quiz-option" data-value="d">-f filters by quality; -F filters by flag</button>
+        <div class="quiz-explanation" data-text="-f (lowercase) REQUIRES the flag to be set. -F (uppercase) EXCLUDES reads with that flag. Flag 4 = unmapped. So -f 4 = keep unmapped, -F 4 = exclude unmapped = keep mapped."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="c">
+        <h4><span class="q-num">8</span> In the CIGAR string, what does 'N' represent?</h4>
+        <button class="quiz-option" data-value="a">An ambiguous base (like N in FASTA)</button>
+        <button class="quiz-option" data-value="b">A mismatch</button>
+        <button class="quiz-option" data-value="c">A skipped region / intron (used in RNA-Seq spliced alignments)</button>
+        <button class="quiz-option" data-value="d">The end of the alignment</button>
+        <div class="quiz-explanation" data-text="N in CIGAR means a large skipped region, typically an intron in RNA-Seq. Example: 20M5000N30M = 20 bases of exon 1, 5kb intron, 30 bases of exon 2."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="terminal" data-answer="samtools flagstat sorted.bam">
+        <h4><span class="q-num">9</span> Get a summary of alignment statistics for <code>sorted.bam</code></h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="flagstat gives a quick summary: total reads, mapped, paired, properly paired, duplicates, etc. It's the first thing to check after alignment."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="b">
+        <h4><span class="q-num">10</span> Which aligner should you use for RNA-Seq data?</h4>
+        <button class="quiz-option" data-value="a">BWA-MEM (it's the most popular)</button>
+        <button class="quiz-option" data-value="b">STAR or HISAT2 (splice-aware aligners)</button>
+        <button class="quiz-option" data-value="c">BLAST (it finds all matches)</button>
+        <button class="quiz-option" data-value="d">minimap2 (it handles long reads)</button>
+        <div class="quiz-explanation" data-text="RNA-Seq reads span exon-exon junctions. BWA can't handle introns. STAR and HISAT2 are splice-aware — they understand that a read can map across a large intron gap (N in CIGAR)."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Join the Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your thoughts... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+
+  <div class="module-nav">
+    <button class="nav-btn" onclick="navigate('ch9')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+    <button class="nav-btn" onclick="navigate('ch11')">Next: Genomic Ranges <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+  </div>
+  <div style="text-align:center;margin-top:1rem;">
+    <button class="hero-btn" id="markComplete" style="font-size:.85rem;padding:.5rem 1.5rem;">Mark as Complete ✓</button>
+  </div>
+</div>

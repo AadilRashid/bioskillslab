@@ -1,0 +1,318 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="bar-chart-3" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 7: R &amp; Bioconductor</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~90 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Intermediate</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ggplot2, dplyr, tidyr, DESeq2, Bioconductor</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>Why R?</h2>
+      <p>R is the language of statistical genomics. Bioconductor — R's bioinformatics ecosystem — has over 2,200 packages for genomic analysis. If you're doing differential expression, statistical testing, or publication-quality visualization, you're using R.</p>
+      <pre><code># Install R packages
+install.packages(c("tidyverse", "pheatmap"))
+
+# Install Bioconductor packages
+if (!require("BiocManager")) install.packages("BiocManager")
+BiocManager::install(c("DESeq2", "GenomicRanges", "rtracklayer", "clusterProfiler"))</code></pre>
+
+      <h2>R Basics for Bioinformatics</h2>
+      <pre><code># Reading data
+counts &lt;- read.delim("counts.tsv", row.names=1)
+metadata &lt;- read.csv("sample_info.csv")
+
+# Quick exploration
+head(counts)           # First 6 rows
+dim(counts)            # Rows x columns
+str(counts)            # Structure (types, dimensions)
+summary(counts)        # Min, max, mean, quartiles per column
+colnames(counts)       # Column names
+rownames(counts)       # Row names (gene IDs)</code></pre>
+
+      <h2>Data Wrangling with dplyr &amp; tidyr</h2>
+      <p>The tidyverse is a collection of R packages designed for data science. dplyr provides intuitive "verbs" for data manipulation:</p>
+      <pre><code>library(dplyr)
+library(tidyr)
+
+# The pipe operator %>% chains operations (read as "then")
+# filter: keep rows matching a condition
+results %&gt;% filter(padj &lt; 0.05, abs(log2FoldChange) &gt; 1)
+
+# select: keep specific columns
+results %&gt;% select(gene, log2FoldChange, padj)
+
+# mutate: create new columns
+results %&gt;% mutate(
+  direction = ifelse(log2FoldChange &gt; 0, "up", "down"),
+  neg_log_p = -log10(padj)
+)
+
+# arrange: sort rows
+results %&gt;% arrange(padj)                    # Ascending (most significant first)
+results %&gt;% arrange(desc(abs(log2FoldChange))) # Largest fold changes first
+
+# group_by + summarise: aggregate
+counts_long %&gt;%
+  group_by(gene, condition) %&gt;%
+  summarise(
+    mean_count = mean(count),
+    sd_count = sd(count),
+    n = n()
+  )
+
+# Combine operations
+sig_genes &lt;- results %&gt;%
+  filter(padj &lt; 0.05, abs(log2FoldChange) &gt; 1) %&gt;%
+  arrange(padj) %&gt;%
+  select(gene, log2FoldChange, padj) %&gt;%
+  mutate(direction = ifelse(log2FoldChange &gt; 0, "up", "down"))
+
+cat(nrow(sig_genes), "significant DE genes\n")</code></pre>
+
+      <h3>Reshaping Data with tidyr</h3>
+      <pre><code># Wide to long (common for plotting)
+counts_long &lt;- counts %&gt;%
+  tibble::rownames_to_column("gene") %&gt;%
+  pivot_longer(-gene, names_to="sample", values_to="count")
+
+# Long to wide
+counts_wide &lt;- counts_long %&gt;%
+  pivot_wider(names_from=sample, values_from=count)</code></pre>
+
+      <h2>Visualization with ggplot2</h2>
+      <p>ggplot2 implements the "Grammar of Graphics" — you build plots layer by layer:</p>
+      <pre><code>library(ggplot2)
+
+# Volcano plot — THE classic DE visualization
+ggplot(results, aes(x=log2FoldChange, y=-log10(padj))) +
+  geom_point(aes(color = padj &lt; 0.05 &amp; abs(log2FoldChange) &gt; 1), 
+             size=0.8, alpha=0.6) +
+  scale_color_manual(values=c("grey70","red3"), 
+                     labels=c("NS","Significant")) +
+  geom_hline(yintercept=-log10(0.05), linetype="dashed", color="grey50") +
+  geom_vline(xintercept=c(-1, 1), linetype="dashed", color="grey50") +
+  labs(title="Differential Expression", 
+       x="Log2 Fold Change", y="-Log10 Adjusted P-value",
+       color="") +
+  theme_minimal(base_size=12)
+
+# Boxplot of gene expression by condition
+ggplot(expr_data, aes(x=condition, y=log2(count+1), fill=condition)) +
+  geom_boxplot(outlier.size=0.5) +
+  facet_wrap(~gene, scales="free_y", ncol=3) +
+  theme_minimal() +
+  labs(y="Log2(count + 1)")
+
+# MA plot (log2FC vs mean expression)
+ggplot(results, aes(x=log10(baseMean), y=log2FoldChange)) +
+  geom_point(aes(color=padj &lt; 0.05), size=0.5, alpha=0.5) +
+  geom_hline(yintercept=0, color="red") +
+  theme_minimal()
+
+# PCA plot (sample clustering)
+# Usually done with DESeq2's plotPCA or manually:
+pca &lt;- prcomp(t(log2(counts+1)))
+pca_df &lt;- data.frame(PC1=pca$x[,1], PC2=pca$x[,2], condition=metadata$condition)
+ggplot(pca_df, aes(PC1, PC2, color=condition)) +
+  geom_point(size=4) +
+  theme_minimal() +
+  labs(title="PCA of Samples")</code></pre>
+
+      <h3>Heatmaps</h3>
+      <pre><code>library(pheatmap)
+
+# Heatmap of top 50 DE genes
+top50 &lt;- head(results[order(results$padj),], 50)
+mat &lt;- log2(counts[rownames(top50),] + 1)
+
+# Scale rows (z-score per gene)
+pheatmap(mat, 
+         scale="row",
+         annotation_col=metadata[,"condition",drop=FALSE],
+         show_rownames=TRUE,
+         fontsize_row=6,
+         color=colorRampPalette(c("navy","white","firebrick3"))(100))</code></pre>
+
+      <h2>Bioconductor Essentials</h2>
+      <h3>DESeq2 — Differential Expression</h3>
+      <pre><code>library(DESeq2)
+
+# Create DESeq2 dataset
+dds &lt;- DESeqDataSetFromMatrix(
+  countData = counts,        # Raw integer counts (NOT normalized)
+  colData = metadata,        # Sample info (condition, batch, etc.)
+  design = ~ condition       # Formula: what to test
+)
+
+# Pre-filter low-count genes (improves speed and multiple testing)
+keep &lt;- rowSums(counts(dds)) &gt;= 10
+dds &lt;- dds[keep, ]
+
+# Run DESeq2 pipeline (estimation, testing)
+dds &lt;- DESeq(dds)
+
+# Extract results
+res &lt;- results(dds, contrast=c("condition", "treatment", "control"))
+res &lt;- res[order(res$padj), ]  # Sort by significance
+
+# Summary
+summary(res)
+
+# Significant genes
+sig &lt;- subset(res, padj &lt; 0.05 &amp; abs(log2FoldChange) &gt; 1)
+cat(nrow(sig), "significant DE genes\n")
+cat(sum(sig$log2FoldChange &gt; 0), "upregulated\n")
+cat(sum(sig$log2FoldChange &lt; 0), "downregulated\n")
+
+# Normalized counts for visualization
+vsd &lt;- vst(dds)  # Variance-stabilizing transformation
+plotPCA(vsd, intgroup="condition")</code></pre>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Common DESeq2 Mistakes</strong>
+        <ul>
+          <li>Using normalized counts as input — DESeq2 needs RAW integer counts</li>
+          <li>Using pvalue instead of padj — always use the adjusted p-value (FDR)</li>
+          <li>Not filtering low-count genes — hurts multiple testing correction</li>
+          <li>Forgetting biological replicates — you need ≥3 per condition</li>
+        </ul>
+      </div>
+
+      <h2>Saving and Exporting</h2>
+      <pre><code># Save plots
+ggsave("results/figures/volcano.pdf", width=8, height=6)
+ggsave("results/figures/volcano.png", width=8, height=6, dpi=300)
+
+# Save tables
+write.csv(as.data.frame(sig), "results/tables/significant_genes.csv", row.names=TRUE)
+
+# Save R objects (for later use)
+saveRDS(dds, "results/dds_object.rds")
+dds &lt;- readRDS("results/dds_object.rds")</code></pre>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">R &amp; Bioconductor Quiz — 5 Free + 10 Premium</h3>
+
+      <div class="quiz-question" data-type="fillin" data-answer="ggplot2||ggplot">
+        <h4><span class="q-num">1</span> What R package is the standard for creating publication-quality plots?</h4>
+        <input type="text" class="quiz-fill-input" placeholder="Package name..." style="width:100%;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-explanation" data-text="ggplot2 implements the Grammar of Graphics. It's the most widely used R visualization package and produces publication-ready figures."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">2</span> In a volcano plot, what do the axes represent?</h4>
+        <button class="quiz-option" data-value="a">X = p-value, Y = fold change</button>
+        <button class="quiz-option" data-value="b">X = log2 fold change, Y = -log10(adjusted p-value)</button>
+        <button class="quiz-option" data-value="c">X = gene expression, Y = sample number</button>
+        <button class="quiz-option" data-value="d">X = chromosome position, Y = significance</button>
+        <div class="quiz-explanation" data-text="Volcano plots show effect size (log2FC) on X and significance (-log10 padj) on Y. Points in the upper-left and upper-right corners are the most interesting genes."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">3</span> What does the dplyr function filter() do?</h4>
+        <button class="quiz-option" data-value="a">Selects specific columns</button>
+        <button class="quiz-option" data-value="b">Creates new columns</button>
+        <button class="quiz-option" data-value="c">Keeps rows matching a condition</button>
+        <button class="quiz-option" data-value="d">Sorts the dataframe</button>
+        <div class="quiz-explanation" data-text="filter() = keep rows, select() = keep columns, mutate() = create columns, arrange() = sort, summarise() = aggregate. These are the 5 core dplyr verbs."></div>
+      </div>
+
+      <div class="quiz-question" data-type="fillin" data-answer="DESeq2||deseq2">
+        <h4><span class="q-num">4</span> What Bioconductor package is the standard for differential gene expression from RNA-Seq?</h4>
+        <input type="text" class="quiz-fill-input" placeholder="Package name..." style="width:100%;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-explanation" data-text="DESeq2 uses a negative binomial model to test for differential expression. It handles normalization, dispersion estimation, and statistical testing."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">5</span> What type of counts does DESeq2 require as input?</h4>
+        <button class="quiz-option" data-value="a">Raw, unnormalized integer counts</button>
+        <button class="quiz-option" data-value="b">FPKM-normalized values</button>
+        <button class="quiz-option" data-value="c">TPM-normalized values</button>
+        <button class="quiz-option" data-value="d">Log2-transformed counts</button>
+        <div class="quiz-explanation" data-text="DESeq2 performs its own normalization internally. Feeding it pre-normalized data breaks the statistical model. Always use raw integer counts from featureCounts or htseq-count."></div>
+      </div>
+
+      <!-- PREMIUM -->
+      <div class="quiz-question premium" data-type="choice" data-answer="d">
+        <h4><span class="q-num">6</span> Why should you use padj instead of pvalue in DESeq2 results?</h4>
+        <button class="quiz-option" data-value="a">padj is always smaller</button>
+        <button class="quiz-option" data-value="b">pvalue doesn't work with RNA-Seq data</button>
+        <button class="quiz-option" data-value="c">padj is faster to compute</button>
+        <button class="quiz-option" data-value="d">padj corrects for multiple testing (FDR), reducing false positives when testing thousands of genes</button>
+        <div class="quiz-explanation" data-text="When testing 20,000 genes at p<0.05, you'd expect 1,000 false positives by chance. padj (Benjamini-Hochberg) controls the false discovery rate to account for this."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="b">
+        <h4><span class="q-num">7</span> What does <code>%&gt;%</code> (the pipe operator) do in R?</h4>
+        <button class="quiz-option" data-value="a">Assigns a value to a variable</button>
+        <button class="quiz-option" data-value="b">Passes the result of the left side as the first argument to the right side</button>
+        <button class="quiz-option" data-value="c">Compares two values</button>
+        <button class="quiz-option" data-value="d">Creates a new column</button>
+        <div class="quiz-explanation" data-text="The pipe %>% chains operations: x %>% f() is equivalent to f(x). It makes code readable: data %>% filter() %>% select() %>% arrange() reads like a sentence."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="fillin" data-answer="pheatmap||ComplexHeatmap">
+        <h4><span class="q-num">8</span> Name an R package commonly used to create heatmaps of gene expression data.</h4>
+        <input type="text" class="quiz-fill-input" placeholder="Package name..." style="width:100%;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-explanation" data-text="pheatmap ('pretty heatmap') and ComplexHeatmap are the two most popular. Both support row/column clustering, annotations, and scaling."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="c">
+        <h4><span class="q-num">9</span> What does <code>vst(dds)</code> do in DESeq2?</h4>
+        <button class="quiz-option" data-value="a">Runs the differential expression test</button>
+        <button class="quiz-option" data-value="b">Filters low-count genes</button>
+        <button class="quiz-option" data-value="c">Applies variance-stabilizing transformation for visualization (PCA, heatmaps)</button>
+        <button class="quiz-option" data-value="d">Exports results to CSV</button>
+        <div class="quiz-explanation" data-text="VST stabilizes variance across the range of expression values. Raw counts have higher variance for highly expressed genes. VST/rlog are needed for PCA and heatmaps, NOT for DE testing."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="a">
+        <h4><span class="q-num">10</span> What is the minimum recommended number of biological replicates per condition for RNA-Seq DE analysis?</h4>
+        <button class="quiz-option" data-value="a">3</button>
+        <button class="quiz-option" data-value="b">1</button>
+        <button class="quiz-option" data-value="c">10</button>
+        <button class="quiz-option" data-value="d">2</button>
+        <div class="quiz-explanation" data-text="At least 3 biological replicates per condition is the minimum for reliable DE analysis. More replicates = more statistical power to detect true differences. 2 replicates gives very poor power."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Join the Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your thoughts... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+
+  <div class="module-nav">
+    <button class="nav-btn" onclick="navigate('ch6')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+    <button class="nav-btn" onclick="navigate('ch8')">Next: Biological Databases <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+  </div>
+  <div style="text-align:center;margin-top:1rem;">
+    <button class="hero-btn" id="markComplete" style="font-size:.85rem;padding:.5rem 1.5rem;">Mark as Complete ✓</button>
+  </div>
+</div>

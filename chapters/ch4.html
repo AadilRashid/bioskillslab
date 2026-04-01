@@ -1,0 +1,390 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="file-code-2" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 4: Advanced Shell &amp; Scripting</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~75 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Intermediate</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Bash, Loops, find, xargs, Makefiles</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>Why Shell Scripts?</h2>
+      <p>You've learned individual Unix commands. Now it's time to combine them into reusable, automated scripts. In bioinformatics, you'll process dozens or hundreds of samples through the same pipeline. Doing this manually is slow, error-prone, and not reproducible. Shell scripts solve all three problems.</p>
+
+      <h2>Writing Robust Bash Scripts</h2>
+      <p>Every Bash script should start with these two lines:</p>
+      <pre><code>#!/bin/bash
+set -euo pipefail</code></pre>
+      <p>What does <code>set -euo pipefail</code> do?</p>
+      <ul>
+        <li><code>-e</code> — Exit immediately if any command fails (non-zero exit code)</li>
+        <li><code>-u</code> — Treat undefined variables as errors (catches typos like <code>$SAMPL</code> instead of <code>$SAMPLE</code>)</li>
+        <li><code>-o pipefail</code> — If any command in a pipe fails, the whole pipe fails (without this, only the last command's exit code matters)</li>
+      </ul>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Without set -euo pipefail</strong>
+        <p>Your script will silently continue after errors. Imagine BWA fails but samtools still runs on an empty file — you'd get empty results with no error message. This is how bad papers happen.</p>
+      </div>
+
+      <h2>Variables and Arguments</h2>
+      <pre><code>#!/bin/bash
+set -euo pipefail
+
+# Variables (no spaces around =)
+SAMPLE="sample1"
+THREADS=8
+REF="data/reference/GRCh38.fa"
+OUTDIR="results/alignments"
+
+# Create output directory if it doesn't exist
+mkdir -p "${OUTDIR}"
+
+# Use variables with ${} (braces prevent ambiguity)
+echo "Processing ${SAMPLE} with ${THREADS} threads..."
+bwa mem -t ${THREADS} ${REF} data/raw/${SAMPLE}_R1.fastq data/raw/${SAMPLE}_R2.fastq \
+    | samtools sort -@ ${THREADS} -o ${OUTDIR}/${SAMPLE}.bam
+samtools index ${OUTDIR}/${SAMPLE}.bam</code></pre>
+
+      <h3>Command-Line Arguments</h3>
+      <pre><code>#!/bin/bash
+set -euo pipefail
+
+# $1, $2, etc. are positional arguments
+# $# = number of arguments, $@ = all arguments
+SAMPLE=$1
+THREADS=${2:-4}    # Default to 4 if not provided
+
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 &lt;sample_name&gt; [threads]" >&2
+    exit 1
+fi
+
+echo "Aligning ${SAMPLE} with ${THREADS} threads"
+# ... rest of pipeline</code></pre>
+      <pre><code># Run it:
+bash align.sh sample1 8
+bash align.sh sample2        # Uses default 4 threads</code></pre>
+
+      <h2>Conditionals</h2>
+      <pre><code># Check if file exists before processing
+if [ -f "data/raw/${SAMPLE}.fastq" ]; then
+    echo "Found ${SAMPLE}, processing..."
+    fastqc "data/raw/${SAMPLE}.fastq" -o results/qc/
+else
+    echo "ERROR: data/raw/${SAMPLE}.fastq not found" >&2
+    exit 1
+fi
+
+# Check if output already exists (skip if done)
+if [ ! -f "results/${SAMPLE}.bam" ]; then
+    echo "Aligning ${SAMPLE}..."
+    bwa mem ref.fa data/${SAMPLE}.fastq | samtools sort -o results/${SAMPLE}.bam
+else
+    echo "${SAMPLE}.bam already exists, skipping."
+fi
+
+# Check if a directory exists
+[ -d "results/qc" ] || mkdir -p results/qc
+
+# Common test operators:
+# -f file    File exists and is regular file
+# -d dir     Directory exists
+# -s file    File exists and is non-empty
+# -z "$var"  Variable is empty
+# -n "$var"  Variable is non-empty</code></pre>
+
+      <h2>Loops — Batch Processing</h2>
+      <p>This is where shell scripting becomes essential. Process all your samples with a single script:</p>
+
+      <h3>for Loops</h3>
+      <pre><code># Process all FASTQ files in a directory
+for fq in data/raw/*.fastq; do
+    sample=$(basename "$fq" .fastq)    # Extract filename without path/extension
+    echo "Running FastQC on ${sample}..."
+    fastqc "$fq" -o results/qc/
+done
+
+# Process a list of sample names
+for sample in control_1 control_2 treatment_1 treatment_2; do
+    echo "Aligning ${sample}..."
+    bwa mem -t 8 ref.fa data/${sample}_R1.fastq data/${sample}_R2.fastq \
+        | samtools sort -o results/${sample}.bam
+    samtools index results/${sample}.bam
+done
+
+# Process samples from a file (one per line)
+while IFS= read -r sample; do
+    echo "Processing ${sample}"
+    # ... pipeline commands
+done < samples.txt</code></pre>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> basename and dirname</strong>
+        <pre><code>basename /home/user/data/sample1.fastq          # sample1.fastq
+basename /home/user/data/sample1.fastq .fastq   # sample1
+dirname  /home/user/data/sample1.fastq          # /home/user/data</code></pre>
+      </div>
+
+      <h2>Command Substitution</h2>
+      <pre><code># Capture command output in a variable
+NUM_READS=$(grep -c "^@" data/sample.fastq)
+echo "Found ${NUM_READS} reads"
+
+# Date-stamped output directory
+OUTDIR="results/$(date +%Y%m%d)"
+mkdir -p "${OUTDIR}"
+
+# Arithmetic
+TOTAL_LINES=$(wc -l < reads.fastq)
+NUM_READS=$((TOTAL_LINES / 4))
+echo "${NUM_READS} reads in file"
+
+# Use in conditionals
+if [ $(grep -c "^>" seqs.fa) -eq 0 ]; then
+    echo "ERROR: No sequences found" >&2
+    exit 1
+fi</code></pre>
+
+      <h2>find and xargs — Processing Many Files</h2>
+      <p><code>find</code> locates files. <code>xargs</code> runs commands on them. Together they're incredibly powerful.</p>
+
+      <h3>find</h3>
+      <pre><code># Find all FASTQ files recursively
+find data/ -name "*.fastq" -type f
+
+# Find files modified in the last 24 hours
+find results/ -mtime -1 -type f
+
+# Find large files (>1GB)
+find data/ -size +1G -type f
+
+# Find empty files (potential errors)
+find results/ -empty -type f
+
+# Find and delete temporary files
+find . -name "*.tmp" -type f -delete
+
+# Combine conditions
+find data/ -name "*.fastq" -size +100M -type f</code></pre>
+
+      <h3>xargs</h3>
+      <pre><code># Run FastQC on all FASTQ files found by find
+find data/ -name "*.fastq" | xargs -I{} fastqc {} -o results/qc/
+
+# Parallel processing (4 jobs at once)
+find data/ -name "*.fastq" | xargs -P 4 -I{} fastqc {} -o results/qc/
+
+# Count lines in all BED files
+find results/ -name "*.bed" | xargs wc -l
+
+# Safer with filenames containing spaces (use -print0 and -0)
+find data/ -name "*.fastq" -print0 | xargs -0 -I{} fastqc {}</code></pre>
+
+      <h2>Makefiles — Dependency-Based Pipelines</h2>
+      <p>Make tracks dependencies between files. It only re-runs steps whose inputs have changed. This saves hours when you modify one step of a pipeline.</p>
+
+      <pre><code># Makefile (IMPORTANT: indentation MUST be tabs, not spaces)
+SAMPLES = sample1 sample2 sample3
+BAMS = $(patsubst %,results/%.bam,$(SAMPLES))
+
+.PHONY: all clean
+
+all: $(BAMS) results/multiqc_report.html
+
+# Rule: BAM depends on FASTQ and reference
+results/%.bam: data/raw/%.fastq data/reference/genome.fa
+	@echo "Aligning $*..."
+	bwa mem -t 8 data/reference/genome.fa $< | samtools sort -o $@
+	samtools index $@
+
+# Rule: MultiQC depends on all BAMs
+results/multiqc_report.html: $(BAMS)
+	multiqc results/ -o results/
+
+clean:
+	rm -f results/*.bam results/*.bai results/multiqc_report.html</code></pre>
+
+      <p>Key Make concepts:</p>
+      <ul>
+        <li><code>$@</code> — The target (output file)</li>
+        <li><code>$<</code> — The first prerequisite (first input file)</li>
+        <li><code>$^</code> — All prerequisites</li>
+        <li><code>$*</code> — The stem (the % part of the pattern)</li>
+        <li><code>%</code> — Wildcard pattern (like * in shell)</li>
+      </ul>
+
+      <pre><code># Run the pipeline
+make                    # Build everything
+make -n                 # Dry run (show what would happen)
+make -j 4               # Run up to 4 jobs in parallel
+make clean              # Remove all outputs
+make results/sample1.bam  # Build just one target</code></pre>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Make vs Snakemake</strong>
+        <p>Make is great for simple pipelines. For complex bioinformatics workflows with many samples and steps, Snakemake (Chapter 14) is more powerful — it supports wildcards, cluster submission, conda integration, and more.</p>
+      </div>
+
+      <h2>Practical Example: Complete QC Script</h2>
+      <pre><code>#!/bin/bash
+set -euo pipefail
+
+# Configuration
+DATADIR="data/raw"
+OUTDIR="results/qc"
+THREADS=4
+
+# Validate
+if [ ! -d "${DATADIR}" ]; then
+    echo "ERROR: ${DATADIR} not found" >&2
+    exit 1
+fi
+
+mkdir -p "${OUTDIR}"
+
+# Count input files
+N_FILES=$(find "${DATADIR}" -name "*.fastq" | wc -l)
+echo "Found ${N_FILES} FASTQ files in ${DATADIR}"
+
+if [ "${N_FILES}" -eq 0 ]; then
+    echo "ERROR: No FASTQ files found" >&2
+    exit 1
+fi
+
+# Run FastQC on all files (parallel)
+echo "Running FastQC with ${THREADS} parallel jobs..."
+find "${DATADIR}" -name "*.fastq" | xargs -P ${THREADS} -I{} fastqc {} -o "${OUTDIR}"
+
+# Aggregate with MultiQC
+echo "Running MultiQC..."
+multiqc "${OUTDIR}" -o "${OUTDIR}" --force
+
+echo "Done! Reports in ${OUTDIR}/"</code></pre>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Shell Scripting Quiz — 5 Free + 10 Premium</h3>
+
+      <div class="quiz-question" data-type="terminal" data-answer="set -euo pipefail">
+        <h4><span class="q-num">1</span> What line should follow <code>#!/bin/bash</code> to make your script fail safely on errors?</h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="-e exits on error, -u catches undefined variables, -o pipefail catches errors in pipes. Without this, scripts silently continue after failures."></div>
+      </div>
+
+      <div class="quiz-question" data-type="terminal" data-answer="find data/ -name *.fastq -type f||find data/ -name '*.fastq' -type f||find data/ -name \"*.fastq\" -type f">
+        <h4><span class="q-num">2</span> Find all .fastq files in the data/ directory</h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="-name filters by filename pattern, -type f restricts to regular files. find searches recursively by default."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">3</span> In a Makefile, what does <code>$&lt;</code> refer to?</h4>
+        <button class="quiz-option" data-value="a">The target (output) file</button>
+        <button class="quiz-option" data-value="b">All prerequisites (input files)</button>
+        <button class="quiz-option" data-value="c">The first prerequisite (first input file)</button>
+        <button class="quiz-option" data-value="d">The stem of the pattern match</button>
+        <div class="quiz-explanation" data-text="$< = first prerequisite, $@ = target, $^ = all prerequisites, $* = stem. These automatic variables are essential for writing Makefile rules."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">4</span> What does <code>xargs -P 4</code> do?</h4>
+        <button class="quiz-option" data-value="a">Limits output to 4 lines</button>
+        <button class="quiz-option" data-value="b">Runs up to 4 processes in parallel</button>
+        <button class="quiz-option" data-value="c">Passes 4 arguments at a time</button>
+        <button class="quiz-option" data-value="d">Retries failed commands 4 times</button>
+        <div class="quiz-explanation" data-text="-P sets the max number of parallel processes. This is a simple way to speed up batch processing — e.g., running FastQC on 4 files simultaneously."></div>
+      </div>
+
+      <!-- PREMIUM -->
+      <div class="quiz-question premium" data-type="terminal" data-answer="basename /home/user/data/sample1.fastq .fastq||basename sample1.fastq .fastq">
+        <h4><span class="q-num">5</span> Use basename to extract "sample1" from the path <code>/home/user/data/sample1.fastq</code></h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="basename strips the directory path, and the second argument strips the extension. Result: sample1."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="a">
+        <h4><span class="q-num">6</span> What does <code>set -u</code> do in a Bash script?</h4>
+        <button class="quiz-option" data-value="a">Treats undefined variables as errors</button>
+        <button class="quiz-option" data-value="b">Enables Unicode support</button>
+        <button class="quiz-option" data-value="c">Runs in user mode</button>
+        <button class="quiz-option" data-value="d">Undoes the last command</button>
+        <div class="quiz-explanation" data-text="set -u catches typos like $SAMPL instead of $SAMPLE. Without it, undefined variables silently expand to empty strings, causing subtle bugs."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="d">
+        <h4><span class="q-num">7</span> What is the main advantage of Make over a plain Bash script?</h4>
+        <button class="quiz-option" data-value="a">Make runs faster</button>
+        <button class="quiz-option" data-value="b">Make uses less memory</button>
+        <button class="quiz-option" data-value="c">Make doesn't need Linux</button>
+        <button class="quiz-option" data-value="d">Make tracks file dependencies and only re-runs steps whose inputs changed</button>
+        <div class="quiz-explanation" data-text="Make compares timestamps of targets and prerequisites. If the input hasn't changed, it skips the step. This saves hours when re-running pipelines after small changes."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="terminal" data-answer="[ -f results/sample.bam ]||test -f results/sample.bam">
+        <h4><span class="q-num">8</span> Write a Bash test to check if the file <code>results/sample.bam</code> exists</h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="[ -f path ] tests if a regular file exists. Use -d for directories, -s for non-empty files. This is used in if statements to skip already-completed steps."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="c">
+        <h4><span class="q-num">9</span> In the loop <code>for fq in data/*.fastq; do ... done</code>, what does <code>data/*.fastq</code> do?</h4>
+        <button class="quiz-option" data-value="a">Searches recursively for all FASTQ files</button>
+        <button class="quiz-option" data-value="b">Creates new FASTQ files</button>
+        <button class="quiz-option" data-value="c">Expands to all .fastq files in the data/ directory (globbing)</button>
+        <button class="quiz-option" data-value="d">Downloads FASTQ files from the internet</button>
+        <div class="quiz-explanation" data-text="Shell globbing (*) expands to matching filenames. data/*.fastq becomes data/sample1.fastq data/sample2.fastq etc. It does NOT search recursively — use find for that."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="terminal" data-answer="make -n||make --dry-run">
+        <h4><span class="q-num">10</span> What Make command shows what would run without actually executing anything?</h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="make -n (dry run) prints the commands that would execute without running them. Always do this first to verify your Makefile logic."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Join the Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your thoughts... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+
+  <div class="module-nav">
+    <button class="nav-btn" onclick="navigate('ch3')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+    <button class="nav-btn" onclick="navigate('ch5')">Next: Git <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+  </div>
+  <div style="text-align:center;margin-top:1rem;">
+    <button class="hero-btn" id="markComplete" style="font-size:.85rem;padding:.5rem 1.5rem;">Mark as Complete ✓</button>
+  </div>
+</div>

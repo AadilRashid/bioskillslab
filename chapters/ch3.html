@@ -1,0 +1,437 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="terminal" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 3: Unix Fundamentals</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~75 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Beginner</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Shell, Pipes, grep, awk, sed, cut, sort</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="terminal"><i data-lucide="terminal" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Terminal</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>Why Unix?</h2>
+      <p>Almost every bioinformatics tool — samtools, BWA, BLAST, BEDTools, GATK — is designed to run on Unix/Linux. Servers, HPC clusters, and cloud instances all run Linux. The command line isn't optional in bioinformatics; it's the primary interface.</p>
+      <p>The Unix philosophy is simple but powerful: <strong>write small programs that do one thing well, and chain them together with pipes</strong>. This lets you build complex data processing workflows from simple building blocks.</p>
+
+      <h2>Navigating the Filesystem</h2>
+      <p>The Linux filesystem is a tree. Everything starts at the root <code>/</code>. Your home directory is <code>/home/username</code> (shortcut: <code>~</code>).</p>
+      <pre><code># Where am I right now?
+pwd                          # /home/user/project
+
+# What's in this directory?
+ls                           # Simple list
+ls -l                        # Long format (permissions, size, date)
+ls -lah                      # + hidden files + human-readable sizes
+ls -lhS                      # Sort by size (largest first)
+ls -lt                       # Sort by modification time (newest first)
+
+# Move around
+cd /path/to/dir              # Go to absolute path
+cd project/data              # Go to relative path
+cd ..                        # Go up one level
+cd ../..                     # Go up two levels
+cd ~                         # Go home
+cd -                         # Go to previous directory (toggle)</code></pre>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Tab Completion</strong>
+        Press Tab to auto-complete file and directory names. Press Tab twice to see all options. This saves enormous time and prevents typos.
+      </div>
+
+      <h2>Working with Files</h2>
+      <pre><code># View file contents
+cat file.txt                 # Print entire file (careful with large files!)
+head -n 20 file.txt          # First 20 lines
+tail -n 20 file.txt          # Last 20 lines
+tail -n +2 file.txt          # Everything EXCEPT the first line (skip header)
+less file.txt                # Scroll through file (q to quit, / to search)
+
+# File info
+wc -l file.txt               # Count lines
+wc -w file.txt               # Count words
+wc -c file.txt               # Count bytes
+file sequences.fasta         # Detect file type (ASCII text, gzip, etc.)
+du -sh data/                 # Directory size (human-readable)
+
+# Copy, move, delete
+cp source.txt dest.txt       # Copy file
+cp -r source_dir/ dest_dir/  # Copy directory recursively
+mv old_name.txt new_name.txt # Rename
+mv file.txt other_dir/       # Move to another directory
+rm file.txt                  # Delete (NO UNDO — no recycle bin!)
+rm -r directory/             # Delete directory and contents
+rm -i file.txt               # Ask for confirmation before deleting
+
+# Create
+mkdir new_dir                # Create directory
+mkdir -p a/b/c/d             # Create nested directories
+touch new_file.txt           # Create empty file (or update timestamp)</code></pre>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> rm is permanent</strong>
+        There is no recycle bin on the command line. <code>rm -rf /</code> would destroy your entire system. Always double-check before deleting. Consider using <code>rm -i</code> for interactive confirmation.
+      </div>
+
+      <h2>Redirection &amp; Pipes — The Core of Unix Power</h2>
+      <p>Every Unix command has three data streams:</p>
+      <pre><code>stdin  (0) ← input  (keyboard or piped data)
+stdout (1) → output (screen or redirected to file)
+stderr (2) → errors (screen or redirected to file)</code></pre>
+
+      <h3>Redirection</h3>
+      <pre><code># Redirect stdout to a file
+echo "hello" > out.txt           # Overwrite (creates or replaces)
+echo "world" >> out.txt          # Append to existing file
+
+# Redirect stderr
+command 2> errors.log            # Errors go to file
+command > out.txt 2>&1           # Both stdout AND stderr to same file
+command > /dev/null 2>&1         # Discard all output (silent mode)</code></pre>
+
+      <h3>Pipes — Chaining Commands</h3>
+      <p>The pipe <code>|</code> sends the stdout of one command as stdin to the next. This is the most powerful concept in Unix:</p>
+      <pre><code># Count sequences in a FASTA file
+cat sequences.fasta | grep ">" | wc -l
+
+# Same thing, more efficiently (no need for cat)
+grep -c ">" sequences.fasta
+
+# Find the top 5 most common chromosomes in a BED file
+cut -f1 genes.bed | sort | uniq -c | sort -rn | head -5
+
+# Get average read length from FASTQ
+awk 'NR%4==2{sum+=length($0);c++}END{print sum/c}' reads.fastq</code></pre>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Useless Use of Cat</strong>
+        <code>cat file | grep pattern</code> is redundant — <code>grep pattern file</code> does the same thing. But <code>cat</code> is fine when you need to combine multiple files: <code>cat file1 file2 | grep pattern</code>.
+      </div>
+
+      <h2>grep — Pattern Searching</h2>
+      <p>grep is your most-used bioinformatics command. It searches for text patterns in files.</p>
+      <pre><code># Basic search
+grep "BRCA1" genes.bed                # Lines containing BRCA1
+grep -i "homo sapiens" seqs.fa        # Case-insensitive
+grep -w "chr1" genes.bed              # Whole word only (not chr10, chr11)
+grep -n "ERROR" logfile.txt           # Show line numbers
+
+# Counting
+grep -c ">" sequences.fasta           # Count FASTA sequences
+grep -c "^@" reads.fastq              # Count FASTQ reads (careful: @ also in quality)
+
+# Inverting
+grep -v "^#" variants.vcf             # Exclude comment/header lines
+grep -v "^$" file.txt                 # Remove empty lines
+
+# Context
+grep -A 1 ">" sequences.fasta        # Show 1 line After each match (header + sequence)
+grep -B 2 "ERROR" log.txt            # Show 2 lines Before each match
+
+# Regular expressions
+grep "^chr[0-9]" genes.bed           # Lines starting with chr followed by a digit
+grep -E "chr(1|2|X)" genes.bed       # Extended regex: chr1, chr2, or chrX
+grep -P "\t" file.txt                # Perl regex: match literal tab</code></pre>
+
+      <h2>awk — Column Processing Powerhouse</h2>
+      <p>awk treats each line as a record with fields (columns) separated by whitespace. It's incredibly powerful for tabular bioinformatics data.</p>
+      <pre><code># Basic syntax: awk 'condition{action}' file
+
+# Print specific columns
+awk '{print $1, $4}' genes.bed           # Chromosome and gene name
+awk '{print $1"\t"$4}' genes.bed         # Tab-separated output
+
+# Filter by column value
+awk '$5 > 900' genes.bed                 # Genes with score > 900
+awk '$1 == "chr1"' genes.bed             # Only chromosome 1
+awk '$6 == "+"' genes.bed                # Only forward strand genes
+
+# Calculations
+awk '{print $4, $3-$2}' genes.bed        # Gene name and length (end - start)
+awk '{sum+=$5} END{print sum/NR}' genes.bed  # Average score
+
+# FASTQ: every 4th line starting from line 2 = sequence
+awk 'NR%4==2' reads.fastq                # Extract all sequences
+awk 'NR%4==2{print length($0)}' reads.fastq  # Read lengths
+awk 'NR%4==2{sum+=length($0);c++}END{print "Avg:",sum/c}' reads.fastq
+
+# FASTA: calculate sequence lengths
+awk '/^>/{if(seq)print name,length(seq); name=$0; seq=""} 
+     !/^>/{seq=seq$0} 
+     END{print name,length(seq)}' sequences.fasta
+
+# Custom field separator
+awk -F'\t' '{print $1, $2}' data.tsv     # Tab-separated input
+awk -F',' '{print $1, $3}' data.csv      # Comma-separated input
+
+# Built-in variables
+# NR = current line number, NF = number of fields, $0 = entire line
+awk 'NR==1' file.txt                     # First line only (header)
+awk 'NR>1' file.txt                      # Skip header
+awk '{print NF}' file.txt               # Count columns per line</code></pre>
+
+      <h2>cut — Extract Columns</h2>
+      <pre><code>cut -f1,4 genes.bed              # Columns 1 and 4 (tab-delimited by default)
+cut -f1-3 genes.bed              # Columns 1 through 3
+cut -f4 genes.bed                # Column 4 only
+cut -d',' -f2 data.csv           # Column 2, comma-delimited
+cut -c1-10 file.txt              # First 10 characters of each line</code></pre>
+
+      <h2>sort &amp; uniq — Ordering and Counting</h2>
+      <pre><code># Sort
+sort file.txt                    # Alphabetical
+sort -n file.txt                 # Numeric
+sort -r file.txt                 # Reverse
+sort -k5,5n genes.bed            # Sort by column 5, numeric
+sort -k5,5nr genes.bed           # Sort by column 5, numeric, descending
+sort -k1,1 -k2,2n genes.bed     # Sort by col 1 alpha, then col 2 numeric
+
+# Unique (REQUIRES sorted input)
+sort file.txt | uniq             # Remove adjacent duplicates
+sort file.txt | uniq -c          # Count occurrences
+sort file.txt | uniq -d          # Show only duplicates
+
+# Common bioinformatics pattern: count items per category
+cut -f1 genes.bed | sort | uniq -c | sort -rn
+# Output:
+#   3 chr1
+#   2 chr2
+#   1 chr3</code></pre>
+
+      <h2>sed — Stream Editor</h2>
+      <pre><code>sed 's/chr//' genes.bed              # Remove "chr" prefix from each line
+sed 's/\t/,/g' data.tsv             # Convert TSV to CSV
+sed -n '10,20p' file.txt            # Print lines 10-20
+sed '/^#/d' file.vcf                # Delete comment lines
+sed '1d' file.txt                   # Delete first line (header)
+sed 's/old/new/' file.txt           # Replace first occurrence per line
+sed 's/old/new/g' file.txt          # Replace ALL occurrences per line</code></pre>
+
+      <h2>Putting It All Together — Real Bioinformatics One-Liners</h2>
+      <pre><code># 1. Count sequences in a FASTA file
+grep -c "^>" sequences.fasta
+
+# 2. Get all sequence IDs from a FASTA
+grep "^>" sequences.fasta | sed 's/>//' | cut -d' ' -f1
+
+# 3. Calculate average read length from FASTQ
+awk 'NR%4==2{sum+=length($0);c++}END{printf "%.1f\n",sum/c}' reads.fastq
+
+# 4. Find the longest sequence in a FASTA
+awk '/^>/{if(seq)print length(seq),name; name=$1; seq=""} !/^>/{seq=seq$0} END{print length(seq),name}' seqs.fa | sort -rn | head -1
+
+# 5. Extract genes on chromosome 1 with score > 800
+awk '$1=="chr1" && $5>800' genes.bed
+
+# 6. Count reads per chromosome from a BED file
+cut -f1 genes.bed | sort | uniq -c | sort -rn
+
+# 7. Get GC content of sequences (simplified)
+grep -v "^>" sequences.fasta | tr -d '\n' | fold -w1 | sort | uniq -c
+
+# 8. Convert multi-line FASTA to single-line
+awk '/^>/{if(seq)print seq; print; seq=""} !/^>/{seq=seq$0} END{print seq}' seqs.fa</code></pre>
+
+    </div>
+  </div>
+
+  <!-- INTERACTIVE TERMINAL -->
+  <div class="tab-content" id="terminal">
+    <div class="lesson">
+      <p>Practice Unix commands on real bioinformatics files. Type <code>help</code> for available commands. Files: <code>sequences.fasta</code>, <code>reads.fastq</code>, <code>genes.bed</code>, <code>counts.tsv</code></p>
+    </div>
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        <span class="title">biolab — bash</span>
+      </div>
+      <div class="terminal-body">
+        <div class="line output">Welcome to BioSkills Lab Terminal Simulator</div>
+        <div class="line output">Type 'help' for commands. Try: ls, cat sequences.fasta</div>
+        <div class="line output">────────────────────────────────────────────</div>
+        <div class="terminal-input-line">
+          <span class="prompt">user@biolab:~$</span>
+          <input type="text" class="terminal-input" autofocus>
+        </div>
+      </div>
+    </div>
+    <div class="lesson">
+      <h3>Guided Exercises</h3>
+      <ol>
+        <li><code>ls</code> — See what files are available</li>
+        <li><code>cat sequences.fasta</code> — View the FASTA file</li>
+        <li><code>grep ">" sequences.fasta</code> — List all sequence headers</li>
+        <li><code>grep -c ">" sequences.fasta</code> — Count how many sequences</li>
+        <li><code>cat genes.bed</code> — View the BED file (6 genes)</li>
+        <li><code>cut -f1,4 genes.bed</code> — Extract chromosome and gene name</li>
+        <li><code>awk '$5>900' genes.bed</code> — Filter genes with score > 900</li>
+        <li><code>head -n 4 reads.fastq</code> — View one complete FASTQ read</li>
+        <li><code>wc -l reads.fastq</code> — Count lines (divide by 4 = number of reads)</li>
+        <li><code>cat counts.tsv</code> — View the gene expression count matrix</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- QUIZ -->
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Hands-On Unix Quiz — 5 Free + 10 Premium</h3>
+
+      <div class="quiz-question" data-type="terminal" data-answer="grep -c > sequences.fasta||grep -c '>' sequences.fasta||grep -c \">\" sequences.fasta||grep -c ^> sequences.fasta||grep -c '^>' sequences.fasta">
+        <h4><span class="q-num">1</span> Count the number of sequences in <code>sequences.fasta</code></h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="grep -c counts matching lines. Each FASTA sequence starts with > so counting those lines gives the total number of sequences."></div>
+      </div>
+
+      <div class="quiz-question" data-type="terminal" data-answer="wc -l reads.fastq||wc -l ./reads.fastq">
+        <h4><span class="q-num">2</span> Count the total number of lines in <code>reads.fastq</code></h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="wc -l counts lines. FASTQ has 4 lines per read, so total_lines / 4 = number of reads."></div>
+      </div>
+
+      <div class="quiz-question" data-type="terminal" data-answer="cut -f4 genes.bed||awk '{print $4}' genes.bed">
+        <h4><span class="q-num">3</span> Extract only the gene names (column 4) from <code>genes.bed</code></h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="cut -f4 extracts the 4th tab-delimited field. awk '{print $4}' also works. BED files are tab-separated by convention."></div>
+      </div>
+
+      <div class="quiz-question" data-type="terminal" data-answer="head -n 4 reads.fastq||head -4 reads.fastq">
+        <h4><span class="q-num">4</span> Show only the first read from <code>reads.fastq</code> (FASTQ = 4 lines per read)</h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="Each FASTQ read occupies exactly 4 lines: @header, sequence, +, quality. head -n 4 shows one complete read."></div>
+      </div>
+
+      <div class="quiz-question" data-type="terminal" data-answer="sort -k5,5nr genes.bed||sort -k5nr genes.bed||sort -k5,5rn genes.bed">
+        <h4><span class="q-num">5</span> Sort <code>genes.bed</code> by score (column 5) in descending numeric order</h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="-k5,5 specifies column 5. n = numeric sort. r = reverse (descending). Without n, sort treats values as text (9 > 80)."></div>
+      </div>
+
+      <!-- PREMIUM QUESTIONS -->
+      <div class="quiz-question premium" data-type="choice" data-answer="b">
+        <h4><span class="q-num">6</span> What does <code>awk 'NR%4==2' reads.fastq</code> extract from a FASTQ file?</h4>
+        <button class="quiz-option" data-value="a">The header lines (@read_id)</button>
+        <button class="quiz-option" data-value="b">The sequence lines (ATCG...)</button>
+        <button class="quiz-option" data-value="c">The quality score lines</button>
+        <button class="quiz-option" data-value="d">The + separator lines</button>
+        <div class="quiz-explanation" data-text="FASTQ lines cycle in groups of 4: line 1=header(@), line 2=sequence, line 3=+, line 4=quality. NR%4==2 selects every 2nd line in each group = the sequence lines."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="terminal" data-answer="awk '$5>900' genes.bed||awk '$5 > 900' genes.bed">
+        <h4><span class="q-num">7</span> Use awk to find genes in <code>genes.bed</code> with a score (column 5) greater than 900</h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="awk can filter rows by column values. $5>900 checks if the 5th field exceeds 900. No quotes needed around the number."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="c">
+        <h4><span class="q-num">8</span> What does <code>grep -v "^#" file.vcf</code> do?</h4>
+        <button class="quiz-option" data-value="a">Shows only lines starting with #</button>
+        <button class="quiz-option" data-value="b">Counts lines starting with #</button>
+        <button class="quiz-option" data-value="c">Shows all lines that do NOT start with #</button>
+        <button class="quiz-option" data-value="d">Deletes lines starting with #</button>
+        <div class="quiz-explanation" data-text="-v inverts the match (exclude). ^# means 'starts with #'. So grep -v '^#' removes header/comment lines from VCF files — a very common operation."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="terminal" data-answer="cut -f1,4 genes.bed||awk '{print $1,$4}' genes.bed||awk '{print $1\"\t\"$4}' genes.bed">
+        <h4><span class="q-num">9</span> Extract columns 1 (chromosome) and 4 (gene name) from <code>genes.bed</code></h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="cut -f1,4 extracts fields 1 and 4 from tab-delimited data. awk '{print $1,$4}' also works."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="d">
+        <h4><span class="q-num">10</span> What does the pipe operator <code>|</code> do?</h4>
+        <button class="quiz-option" data-value="a">Writes output to a file</button>
+        <button class="quiz-option" data-value="b">Runs two commands simultaneously</button>
+        <button class="quiz-option" data-value="c">Appends output to a file</button>
+        <button class="quiz-option" data-value="d">Sends the stdout of one command as stdin to the next command</button>
+        <div class="quiz-explanation" data-text="The pipe connects stdout of the left command to stdin of the right command. This lets you chain tools: grep | sort | uniq | head. > writes to file, >> appends."></div>
+      </div>
+
+      <!-- EXTRA PREMIUM: Biostar-inspired advanced questions -->
+      <div class="quiz-question premium" data-type="terminal" data-answer="cut -f1 genes.bed | sort | uniq -c | sort -rn||cut -f1 genes.bed|sort|uniq -c|sort -rn">
+        <h4><span class="q-num">11</span> Use the sort-uniq-count-rank pattern to count how many genes are on each chromosome in <code>genes.bed</code>, sorted by frequency</h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="The sort-uniq-count-rank pattern (cut|sort|uniq -c|sort -rn) is the single most useful Unix pattern in bioinformatics. It answers 'how many of each type?' for any categorical column."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="terminal" data-answer="awk '{print $4, $3-$2}' genes.bed||awk '{print $4,$3-$2}' genes.bed">
+        <h4><span class="q-num">12</span> Print each gene name and its length (end minus start) from <code>genes.bed</code></h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="In BED format, length = end - start ($3-$2). awk can do arithmetic on columns directly. This is how you compute feature sizes from BED files."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="terminal" data-answer="tail -n +2 counts.tsv||awk 'NR>1' counts.tsv">
+        <h4><span class="q-num">13</span> Print <code>counts.tsv</code> without the header line (skip the first line)</h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="tail -n +2 prints from line 2 onwards (skips header). awk 'NR>1' also works. Essential when piping TSV data to tools that don't expect headers."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="choice" data-answer="a">
+        <h4><span class="q-num">14</span> What does <code>awk 'NR%4==0' reads.fastq</code> extract?</h4>
+        <button class="quiz-option" data-value="a">The quality score lines (line 4 of each read)</button>
+        <button class="quiz-option" data-value="b">The sequence lines</button>
+        <button class="quiz-option" data-value="c">The header lines</button>
+        <button class="quiz-option" data-value="d">The + separator lines</button>
+        <div class="quiz-explanation" data-text="FASTQ cycles: line 1(@)=NR%4==1, line 2(seq)=NR%4==2, line 3(+)=NR%4==3, line 4(qual)=NR%4==0. So NR%4==0 selects quality lines."></div>
+      </div>
+
+      <div class="quiz-question premium" data-type="terminal" data-answer="grep -c chr1 genes.bed||grep -c 'chr1' genes.bed||awk '$1=="chr1"' genes.bed | wc -l">
+        <h4><span class="q-num">15</span> Count how many genes are on chromosome 1 in <code>genes.bed</code></h4>
+        <input type="text" class="quiz-terminal-input" placeholder="$ " style="width:100%;padding:.75rem;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:'JetBrains Mono',monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-terminal-result" style="margin-top:.5rem;font-size:.85rem;"></div>
+        <div class="quiz-explanation" data-text="grep -c counts matching lines. For exact matching use awk '$1==&quot;chr1&quot;' to avoid matching chr10/chr11. In this small file grep works fine."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Join the Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your thoughts, ask a question... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+
+  <div class="module-nav">
+    <button class="nav-btn" onclick="navigate('ch2')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+    <button class="nav-btn" onclick="navigate('ch4')">Next: Advanced Shell <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+  </div>
+  <div style="text-align:center;margin-top:1rem;">
+    <button class="hero-btn" id="markComplete" style="font-size:.85rem;padding:.5rem 1.5rem;">Mark as Complete ✓</button>
+  </div>
+</div>
