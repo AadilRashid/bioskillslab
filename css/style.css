@@ -234,18 +234,21 @@ a:hover { color: var(--accent-hover); }
   transform: rotate(-18deg) translateY(-4px);
   opacity: .85;
   animation: floatLeft 6s ease-in-out infinite;
+  filter: drop-shadow(0 0 8px rgba(56,189,248,.5)) hue-rotate(0deg);
 }
 .hero-deco .deco-icon:nth-child(2) {
   font-size: 2.8rem;
   transform: rotate(5deg) translateY(0);
   opacity: .95;
   animation: floatCenter 5s ease-in-out 1s infinite;
+  filter: drop-shadow(0 0 10px rgba(74,222,128,.5)) hue-rotate(90deg);
 }
 .hero-deco .deco-icon:last-child {
   transform: rotate(12deg) translateY(4px);
-  opacity: .6;
+  opacity: .7;
   font-size: 1.5rem;
   animation: floatRight 7s ease-in-out 2s infinite;
+  filter: drop-shadow(0 0 8px rgba(167,139,250,.5)) hue-rotate(200deg);
 }
 @keyframes floatLeft {
   0%, 100% { transform: rotate(-18deg) translateY(-4px); }
