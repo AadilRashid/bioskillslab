@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thank You — BioSkills Lab</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    .card {
+      max-width: 520px;
+      width: 100%;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 3rem 2.5rem;
+      text-align: center;
+    }
+    .icon { font-size: 3.5rem; margin-bottom: 1.5rem; }
+    h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: .5rem; }
+    h1 span { color: #38bdf8; }
+    .subtitle { color: #94a3b8; font-size: 1rem; margin-bottom: 2rem; }
+    .key-box {
+      background: #0d1117;
+      border: 2px dashed #38bdf8;
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .key-label { font-size: .75rem; color: #94a3b8; text-transform: uppercase; letter-spacing: .1em; margin-bottom: .5rem; }
+    .key-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #4ade80;
+      letter-spacing: .15em;
+      user-select: all;
+    }
+    .copy-btn {
+      margin-top: .75rem;
+      padding: .5rem 1.25rem;
+      background: #334155;
+      border: 1px solid #475569;
+      border-radius: 8px;
+      color: #e2e8f0;
+      cursor: pointer;
+      font-size: .85rem;
+      transition: all .2s;
+    }
+    .copy-btn:hover { background: #475569; }
+    .instructions {
+      text-align: left;
+      background: rgba(56,189,248,.06);
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+      font-size: .85rem;
+      line-height: 1.8;
+    }
+    .instructions strong { color: #38bdf8; }
+    .instructions ol { padding-left: 1.25rem; }
+    .go-btn {
+      display: inline-block;
+      padding: .75rem 2rem;
+      background: #38bdf8;
+      color: #0f172a;
+      border: none;
+      border-radius: 99px;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all .3s;
+    }
+    .go-btn:hover { background: #7dd3fc; transform: translateY(-2px); box-shadow: 0 8px 30px rgba(56,189,248,.3); }
+    .note { margin-top: 1.5rem; font-size: .75rem; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">🎉</div>
+    <h1>Welcome to <span>Premium</span>!</h1>
+    <p class="subtitle">You now have full access to all 150+ quiz questions.</p>
+
+    <div class="key-box">
+      <div class="key-label">Your License Key</div>
+      <div class="key-value" id="keyDisplay">BIOSKILLS2024</div>
+      <button class="copy-btn" onclick="copyKey()">📋 Copy Key</button>
+      <div id="copyMsg" style="font-size:.75rem;margin-top:.25rem;color:#4ade80;"></div>
+    </div>
+
+    <div class="instructions">
+      <strong>How to activate:</strong>
+      <ol>
+        <li>Go to any chapter's <strong>Quiz</strong> tab</li>
+        <li>Scroll to the <strong>"Unlock All Questions"</strong> section</li>
+        <li>Paste your key and click <strong>Activate</strong></li>
+        <li>All premium questions unlock instantly</li>
+      </ol>
+    </div>
+
+    <a href="/" class="go-btn">Start Learning →</a>
+
+    <p class="note">Save this key — you'll need it if you clear your browser data.<br>Questions? Email bioskillslab@gmail.com</p>
+  </div>
+
+  <script>
+    function copyKey() {
+      const key = document.getElementById('keyDisplay').textContent;
+      navigator.clipboard.writeText(key).then(() => {
+        document.getElementById('copyMsg').textContent = '✓ Copied!';
+        setTimeout(() => document.getElementById('copyMsg').textContent = '', 2000);
+      });
+    }
+
+    // Auto-activate if key is in URL
+    const params = new URLSearchParams(window.location.search);
+    const urlKey = params.get('key');
+    if (urlKey) {
+      document.getElementById('keyDisplay').textContent = urlKey;
+    }
+
+    // Auto-unlock in localStorage so they don't even need to paste
+    localStorage.setItem('bsl_premium', 'true');
+  </script>
+</body>
+</html>
