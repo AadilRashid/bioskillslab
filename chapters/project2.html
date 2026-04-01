@@ -1,0 +1,276 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="dna" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Project 2: Which Genes Respond to Drug Treatment?</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~4 hours</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Intermediate</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> RNA-Seq, STAR, DESeq2, ggplot2, Full Pipeline</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Project</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>The Biological Question</h2>
+      <p>Asthma patients are commonly treated with glucocorticoids like dexamethasone. But which genes in airway cells actually respond to this drug? Understanding this helps researchers find new drug targets and predict side effects.</p>
+      <p><strong>Your job: identify differentially expressed genes between dexamethasone-treated and untreated airway smooth muscle cells.</strong></p>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Why does this matter?</strong>
+        <p>Differential expression analysis is the most common RNA-Seq application. It's used in cancer research (tumor vs normal), drug development (treated vs untreated), developmental biology (embryo stages), and virtually every area of modern biology. If you learn one bioinformatics pipeline, this is the one.</p>
+      </div>
+
+      <h2>The Dataset</h2>
+      <p>We'll use a real published dataset:</p>
+      <pre><code>Study:       Himes et al., 2014, PLOS ONE
+Title:       "RNA-Seq Transcriptome Profiling Identifies CRISPLD2 as a
+              Glucocorticoid Responsive Gene..."
+GEO:         GSE52778
+Samples:     4 untreated + 4 dexamethasone-treated
+Cell type:   Human airway smooth muscle cells
+Platform:    Illumina HiSeq 2000
+DOI:         10.1371/journal.pone.0099625</code></pre>
+      <p>This is a well-studied dataset used in the official <a href="https://bioconductor.org/packages/release/workflows/vignettes/rnaseqGene/inst/doc/rnaseqGene.html" target="_blank">Bioconductor RNA-Seq workflow</a>. Our results should match the published findings.</p>
+
+      <h3>Expected Results (for validation)</h3>
+      <p>The original paper found genes like <strong>CRISPLD2</strong>, <strong>DUSP1</strong>, and <strong>KLF15</strong> upregulated by dexamethasone. If your analysis finds these, you know your pipeline is working correctly.</p>
+
+      <h2>Step 0: Set Up</h2>
+      <pre><code>mkdir -p rnaseq_project/{data/{raw,reference},results/{qc,trimmed,aligned,counts,de,figures},scripts,envs}
+cd rnaseq_project
+
+# Conda environment
+conda create -n rnaseq -y python=3.11
+conda activate rnaseq
+conda install -c bioconda -c conda-forge -y \
+    sra-tools fastqc fastp star subread samtools multiqc
+
+# R packages (run in R)
+# install.packages("BiocManager")
+# BiocManager::install(c("DESeq2","ggplot2","pheatmap","EnhancedVolcano"))</code></pre>
+
+      <h2>Step 1: Download Data</h2>
+      <pre><code># Sample accessions from GSE52778
+# Untreated: SRR1039508, SRR1039512, SRR1039516, SRR1039520
+# Dex-treated: SRR1039509, SRR1039513, SRR1039517, SRR1039521
+
+cd data/raw
+
+# Download all 8 samples (this takes a while)
+for acc in SRR1039508 SRR1039509 SRR1039512 SRR1039513 \
+           SRR1039516 SRR1039517 SRR1039520 SRR1039521; do
+    echo "Downloading ${acc}..."
+    fasterq-dump ${acc} --split-files --threads 4
+    gzip ${acc}_1.fastq ${acc}_2.fastq
+done
+
+# Verify
+ls -lh *.gz | wc -l
+# Expected: 16 files (2 per sample × 8 samples)</code></pre>
+
+      <h2>Step 2: Download Reference Genome</h2>
+      <pre><code>cd ../reference
+
+# Human genome and annotation from Ensembl
+wget https://ftp.ensembl.org/pub/release-110/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+wget https://ftp.ensembl.org/pub/release-110/gtf/homo_sapiens/Homo_sapiens.GRCh38.110.gtf.gz
+
+gunzip Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+gunzip Homo_sapiens.GRCh38.110.gtf.gz
+
+# Build STAR index (~30 min, needs ~32 GB RAM)
+STAR --runMode genomeGenerate \
+     --genomeDir star_index \
+     --genomeFastaFiles Homo_sapiens.GRCh38.dna.primary_assembly.fa \
+     --sjdbGTFfile Homo_sapiens.GRCh38.110.gtf \
+     --sjdbOverhang 62 \
+     --runThreadN 8</code></pre>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Resource Requirements</strong>
+        <p>STAR genome indexing needs ~32 GB RAM. If you don't have this, use HISAT2 instead (needs ~8 GB) or download a pre-built index from the <a href="https://daehwankimlab.github.io/hisat2/download/" target="_blank">HISAT2 website</a>.</p>
+      </div>
+
+      <h2>Step 3: QC → Trim → Align → Count</h2>
+      <pre><code>#!/bin/bash
+# scripts/01_pipeline.sh
+set -euo pipefail
+
+SAMPLES="SRR1039508 SRR1039509 SRR1039512 SRR1039513 SRR1039516 SRR1039517 SRR1039520 SRR1039521"
+THREADS=8
+STAR_IDX="data/reference/star_index"
+GTF="data/reference/Homo_sapiens.GRCh38.110.gtf"
+
+for sample in ${SAMPLES}; do
+    echo "========== Processing ${sample} =========="
+
+    # QC
+    fastqc data/raw/${sample}_1.fastq.gz data/raw/${sample}_2.fastq.gz \
+        -o results/qc/ -t 2
+
+    # Trim
+    fastp -i data/raw/${sample}_1.fastq.gz -I data/raw/${sample}_2.fastq.gz \
+          -o results/trimmed/${sample}_R1.fastq.gz -O results/trimmed/${sample}_R2.fastq.gz \
+          --qualified_quality_phred 20 --length_required 50 \
+          --html results/trimmed/${sample}_fastp.html --thread 4
+
+    # Align with STAR
+    STAR --genomeDir ${STAR_IDX} \
+         --readFilesIn results/trimmed/${sample}_R1.fastq.gz results/trimmed/${sample}_R2.fastq.gz \
+         --readFilesCommand zcat \
+         --outSAMtype BAM SortedByCoordinate \
+         --outFileNamePrefix results/aligned/${sample}_ \
+         --runThreadN ${THREADS}
+
+    # Index BAM
+    samtools index results/aligned/${sample}_Aligned.sortedByCoord.out.bam
+done
+
+# Count reads per gene
+featureCounts \
+    -a ${GTF} \
+    -o results/counts/gene_counts.txt \
+    -T ${THREADS} \
+    -p --countReadPairs \
+    -s 2 \
+    results/aligned/*_Aligned.sortedByCoord.out.bam
+
+# Aggregate QC reports
+multiqc results/ -o results/ --force
+
+echo "Pipeline complete! Check results/multiqc_report.html"</code></pre>
+
+      <h2>Step 4: Differential Expression with DESeq2</h2>
+      <pre><code># scripts/02_deseq2.R
+library(DESeq2)
+library(ggplot2)
+library(pheatmap)
+
+# ── Load counts ──
+raw &lt;- read.delim("results/counts/gene_counts.txt", comment.char="#")
+counts &lt;- raw[, 7:ncol(raw)]
+rownames(counts) &lt;- raw$Geneid
+
+# Clean column names
+colnames(counts) &lt;- gsub(".*aligned\\.|\\_Aligned.*", "", colnames(counts))
+
+# ── Sample metadata ──
+coldata &lt;- data.frame(
+  condition = factor(c("untreated","dex","untreated","dex",
+                       "untreated","dex","untreated","dex")),
+  row.names = colnames(counts)
+)
+
+# ── DESeq2 ──
+dds &lt;- DESeqDataSetFromMatrix(countData=counts, colData=coldata, design=~condition)
+keep &lt;- rowSums(counts(dds)) &gt;= 10
+dds &lt;- dds[keep, ]
+cat("Genes after filtering:", nrow(dds), "\n")
+
+dds &lt;- DESeq(dds)
+res &lt;- results(dds, contrast=c("condition","dex","untreated"), alpha=0.05)
+res &lt;- res[order(res$padj), ]
+
+# ── Summary ──
+summary(res)
+sig &lt;- subset(res, padj &lt; 0.05 &amp; abs(log2FoldChange) &gt; 1)
+cat("\nSignificant DE genes:", nrow(sig), "\n")
+cat("Upregulated:", sum(sig$log2FoldChange &gt; 0), "\n")
+cat("Downregulated:", sum(sig$log2FoldChange &lt; 0), "\n")
+
+# ── Validate: check for known dex-responsive genes ──
+known_genes &lt;- c("CRISPLD2","DUSP1","KLF15","PER1","TSC22D3")
+cat("\nValidation - known dex-responsive genes:\n")
+for (g in known_genes) {
+  idx &lt;- grep(g, rownames(res))
+  if (length(idx) &gt; 0) {
+    r &lt;- res[idx[1], ]
+    cat(sprintf("  %s: log2FC=%.2f, padj=%.2e %s\n",
+        g, r$log2FoldChange, r$padj,
+        ifelse(!is.na(r$padj) &amp;&amp; r$padj &lt; 0.05, "✓ SIGNIFICANT", "")))
+  }
+}
+
+# ── Save results ──
+write.csv(as.data.frame(res), "results/de/all_results.csv")
+write.csv(as.data.frame(sig), "results/de/significant_genes.csv")</code></pre>
+
+      <h2>Step 5: Visualization</h2>
+      <pre><code># ── Volcano plot ──
+df &lt;- as.data.frame(res)
+df$sig &lt;- !is.na(df$padj) &amp; df$padj &lt; 0.05 &amp; abs(df$log2FoldChange) &gt; 1
+
+pdf("results/figures/volcano_plot.pdf", width=8, height=6)
+ggplot(df, aes(log2FoldChange, -log10(padj), color=sig)) +
+  geom_point(size=0.5, alpha=0.5) +
+  scale_color_manual(values=c("grey70","red3"), labels=c("NS","Significant")) +
+  geom_hline(yintercept=-log10(0.05), linetype="dashed", color="grey50") +
+  geom_vline(xintercept=c(-1, 1), linetype="dashed", color="grey50") +
+  labs(title="Dexamethasone vs Untreated — Airway Smooth Muscle",
+       subtitle=paste(nrow(sig), "significant DE genes (|log2FC| > 1, padj < 0.05)"),
+       x="Log2 Fold Change", y="-Log10 Adjusted P-value", color="") +
+  theme_minimal(base_size=12)
+dev.off()
+
+# ── PCA ──
+vsd &lt;- vst(dds)
+pdf("results/figures/pca_plot.pdf", width=6, height=5)
+plotPCA(vsd, intgroup="condition") +
+  theme_minimal() +
+  labs(title="PCA — Samples should cluster by condition")
+dev.off()
+
+# ── Heatmap of top 30 DE genes ──
+top30 &lt;- head(rownames(res[order(res$padj),]), 30)
+mat &lt;- assay(vsd)[top30, ]
+
+pdf("results/figures/heatmap_top30.pdf", width=8, height=10)
+pheatmap(mat, scale="row", annotation_col=coldata,
+         color=colorRampPalette(c("navy","white","firebrick3"))(100),
+         fontsize_row=8, main="Top 30 DE Genes")
+dev.off()
+
+cat("Figures saved to results/figures/\n")</code></pre>
+
+      <h2>Step 6: Validate Against the Published Paper</h2>
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> How to know your pipeline worked</strong>
+        <p>Himes et al. (2014) reported CRISPLD2 as a key glucocorticoid-responsive gene. If your analysis shows CRISPLD2 significantly upregulated (log2FC > 0, padj < 0.05), your pipeline is producing valid results. Other expected hits: DUSP1, KLF15, PER1, TSC22D3.</p>
+      </div>
+
+      <h2>What You Learned</h2>
+      <ul>
+        <li>End-to-end RNA-Seq pipeline from raw FASTQ to publication-ready figures</li>
+        <li>Proper experimental design (biological replicates, controls)</li>
+        <li>Splice-aware alignment with STAR</li>
+        <li>Gene counting with featureCounts</li>
+        <li>Differential expression with DESeq2 (normalization, statistical testing, FDR)</li>
+        <li>Visualization: volcano plots, PCA, heatmaps</li>
+        <li>Validating computational results against published findings</li>
+      </ul>
+
+      <div class="module-nav">
+        <button class="nav-btn" onclick="navigate('project1')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Project 1</button>
+        <button class="nav-btn" onclick="navigate('project3')">Next: Variant Calling <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your results, ask questions... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+</div>

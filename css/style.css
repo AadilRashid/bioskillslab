@@ -116,6 +116,10 @@ a:hover { color: var(--accent-hover); }
 .module-card[data-part="Programming"] { border-left: 3px solid var(--purple); }
 .module-card[data-part="Data & Formats"] { border-left: 3px solid var(--green); }
 .module-card[data-part="Analysis"] { border-left: 3px solid var(--orange); }
+.module-card[data-part="Projects"] { border-left: 3px solid var(--red); }
+.module-card[data-part="Projects"] .icon svg { color: var(--red); }
+.module-card[data-part="Projects"] .tag { background: rgba(248,113,113,.12); color: var(--red); }
+.module-card[data-part="Projects"]:hover { border-color: var(--red); box-shadow: 0 8px 30px rgba(248,113,113,.15); }
 .module-card[data-part="Foundations"]:hover { border-color: var(--accent); box-shadow: 0 8px 30px rgba(56,189,248,.15); }
 .module-card[data-part="Programming"]:hover { border-color: var(--purple); box-shadow: 0 8px 30px rgba(167,139,250,.15); }
 .module-card[data-part="Data & Formats"]:hover { border-color: var(--green); box-shadow: 0 8px 30px rgba(74,222,128,.15); }
@@ -216,60 +220,16 @@ a:hover { color: var(--accent-hover); }
 .hero h1 .brand-bio { font-family: 'Caveat', cursive; font-size: 5.25rem; font-weight: 700; background: linear-gradient(135deg, var(--green), #22d3ee); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 0.02em; line-height: 1; display: inline; }
 .hero h1 .brand-rest { }
 
-/* Hero decoration — sparks & helix */
+/* Hero decoration — animated helix canvas */
 .hero-deco {
   display: flex;
   justify-content: center;
   align-items: center;
   margin-bottom: 1rem;
 }
-.deco-sparks {
-  width: 360px;
-  height: 120px;
-}
-.spark {
-  animation: sparkPulse 3s ease-in-out infinite;
-}
-.spark.s1 { animation-delay: 0s; }
-.spark.s2 { animation-delay: .6s; }
-.spark.s3 { animation-delay: 1.2s; }
-.spark.s4 { animation-delay: 1.8s; }
-.spark.s5 { animation-delay: 2.4s; }
-@keyframes sparkPulse {
-  0%, 100% { opacity: .4; r: 2; }
-  50% { opacity: 1; r: 5; filter: drop-shadow(0 0 10px currentColor); }
-}
-.helix-line {
-  stroke-dasharray: 10 8;
-  stroke-width: 1.8;
-  opacity: .25;
-  animation: dashFlow 4s linear infinite;
-}
-.helix-line.h2 { animation-delay: -2s; }
-@keyframes dashFlow {
-  0% { stroke-dashoffset: 0; }
-  100% { stroke-dashoffset: -36; }
-}
-.dash {
-  stroke-width: 2.5;
-  animation: dashFade 2.5s ease-in-out infinite;
-}
-.dash.d1 { animation-delay: 0s; }
-.dash.d2 { animation-delay: .8s; }
-.dash.d3 { animation-delay: 1.6s; }
-@keyframes dashFade {
-  0%, 100% { opacity: .15; transform: scaleX(.5); }
-  50% { opacity: .6; transform: scaleX(1.2); }
-}
-.arrow {
-  animation: arrowBounce 3s ease-in-out infinite;
-  opacity: .6;
-}
-.arrow.a1 { animation-delay: 0s; transform-origin: 31px 38px; }
-.arrow.a2 { animation-delay: 1.5s; transform-origin: 169px 38px; }
-@keyframes arrowBounce {
-  0%, 100% { opacity: .4; transform: translateX(0); }
-  50% { opacity: .9; transform: translateX(6px); }
+#helixCanvas {
+  width: 200px;
+  height: 60px;
 }
 .hero p { font-size: 1.1rem; color: var(--text-muted); max-width: 600px; margin: 0 auto 2rem; }
 .hero-btn {

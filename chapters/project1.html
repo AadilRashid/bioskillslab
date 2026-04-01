@@ -1,0 +1,289 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="flask-conical" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Project 1: Who Is This Microbe?</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~2 hours</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Beginner</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Unix, FASTQ, QC, BLAST, Species ID</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Project</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>The Biological Question</h2>
+      <p>A clinical microbiology lab receives a patient sample with a suspected bacterial infection. They sequence the isolate using Illumina, producing a FASTQ file — but they don't know what species it is. <strong>Your job: identify the organism from raw sequencing data.</strong></p>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Why does this matter?</strong>
+        <p>Species identification from sequencing data is one of the most fundamental tasks in clinical microbiology, outbreak investigation, food safety, and environmental monitoring. Hospitals use this to determine which antibiotic to prescribe. Public health agencies use it to trace outbreaks. It's the "Hello World" of bioinformatics — simple, practical, and immediately useful.</p>
+      </div>
+
+      <h2>The Dataset</h2>
+      <p>We'll use a real whole-genome sequencing run from NCBI's Sequence Read Archive:</p>
+      <pre><code>Accession:   SRR24043640
+Organism:    Unknown (you'll figure this out!)
+Platform:    Illumina MiSeq
+Layout:      Paired-end, 2 × 250 bp
+Size:        ~200 MB compressed
+Study:       Clinical isolate sequencing for pathogen identification
+Source:      NCBI SRA</code></pre>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Requirements</strong>
+        <p>This project requires a Linux environment with conda installed. You'll need ~2 GB of free disk space and an internet connection to download data. If you haven't set up your environment yet, complete <a href="#" onclick="navigate('ch2');return false;">Chapter 2</a> first.</p>
+      </div>
+
+      <h2>Step 0: Set Up Your Environment</h2>
+      <pre><code># Create a project directory
+mkdir -p mystery_microbe/{data,results/{qc,trimmed,blast},scripts}
+cd mystery_microbe
+
+# Create and activate conda environment
+conda create -n microbe-id -y python=3.11
+conda activate microbe-id
+
+# Install tools
+conda install -c bioconda -c conda-forge -y \
+    sra-tools fastqc fastp blast seqkit
+
+# Verify installations
+fastqc --version
+fastp --version
+blastn -version</code></pre>
+
+      <h2>Step 1: Download the Data</h2>
+      <pre><code># Download from SRA
+cd data
+fasterq-dump SRR24043640 --split-files --threads 4
+
+# Check what we got
+ls -lh
+# Expected: SRR24043640_1.fastq  SRR24043640_2.fastq
+
+# Quick look at the first read
+head -4 SRR24043640_1.fastq</code></pre>
+      <p>You should see 4 lines: a header starting with @, a DNA sequence, a + separator, and quality scores.</p>
+
+      <pre><code># How many reads do we have?
+echo "Forward reads: $(( $(wc -l < SRR24043640_1.fastq) / 4 ))"
+echo "Reverse reads: $(( $(wc -l < SRR24043640_2.fastq) / 4 ))"</code></pre>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Expected output</strong>
+        <p>You should see roughly 500,000–1,000,000 read pairs. This is typical for a bacterial whole-genome sequencing run on MiSeq.</p>
+      </div>
+
+      <h2>Step 2: Quality Control</h2>
+      <p>Never skip QC. We need to know if the data is good before we analyze it.</p>
+      <pre><code># Run FastQC on both files
+cd ../results/qc
+fastqc ../../data/SRR24043640_1.fastq ../../data/SRR24043640_2.fastq -o . -t 2
+
+# List the reports
+ls *.html</code></pre>
+
+      <h3>What to check in the FastQC report:</h3>
+      <ul>
+        <li><strong>Per base sequence quality</strong> — Should be mostly green (>Q20). Quality typically drops at the 3' end of reads</li>
+        <li><strong>Adapter content</strong> — Should be low. If high, trimming will remove them</li>
+        <li><strong>GC content</strong> — The peak tells you something about the organism. E. coli is ~50%, Mycobacterium is ~65%, Staphylococcus is ~33%</li>
+        <li><strong>Sequence length distribution</strong> — Should be ~250 bp for MiSeq 2×250</li>
+      </ul>
+
+      <h2>Step 3: Trim and Filter</h2>
+      <p>Remove adapters, low-quality bases, and short reads:</p>
+      <pre><code>cd ../trimmed
+fastp \
+    -i ../../data/SRR24043640_1.fastq \
+    -I ../../data/SRR24043640_2.fastq \
+    -o trimmed_R1.fastq \
+    -O trimmed_R2.fastq \
+    --qualified_quality_phred 20 \
+    --length_required 100 \
+    --detect_adapter_for_pe \
+    --thread 4 \
+    --html fastp_report.html \
+    --json fastp_report.json
+
+# Check how many reads survived
+echo "Before: $(( $(wc -l < ../../data/SRR24043640_1.fastq) / 4 )) read pairs"
+echo "After:  $(( $(wc -l < trimmed_R1.fastq) / 4 )) read pairs"</code></pre>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> What fastp does</strong>
+        <ul>
+          <li><code>--qualified_quality_phred 20</code> — Bases below Q20 (99% accuracy) are trimmed</li>
+          <li><code>--length_required 100</code> — Reads shorter than 100 bp after trimming are discarded</li>
+          <li><code>--detect_adapter_for_pe</code> — Automatically detects and removes Illumina adapters</li>
+        </ul>
+        <p>Open <code>fastp_report.html</code> in a browser to see a visual summary of what was trimmed.</p>
+      </div>
+
+      <h2>Step 4: Subsample for BLAST</h2>
+      <p>BLAST against the full NCBI nt database is slow. For species identification, we don't need all reads — a random subset is enough:</p>
+      <pre><code># Take 1000 random reads
+cd ../blast
+seqkit sample -n 1000 -s 42 ../trimmed/trimmed_R1.fastq > subset_1000.fastq
+
+# Convert to FASTA (BLAST needs FASTA, not FASTQ)
+seqkit fq2fa subset_1000.fastq > subset_1000.fasta
+
+# Verify
+grep -c "^>" subset_1000.fasta
+# Expected: 1000</code></pre>
+
+      <h2>Step 5: BLAST Against NCBI</h2>
+      <p>Now the key step — search these sequences against NCBI's nucleotide database to identify the organism:</p>
+
+      <h3>Option A: Web BLAST (no local database needed)</h3>
+      <pre><code># Take just 10 reads for web BLAST (it's slow for many sequences)
+head -20 subset_1000.fasta > query_10.fasta
+
+# Go to https://blast.ncbi.nlm.nih.gov/Blast.cgi
+# Select: blastn → Nucleotide collection (nt)
+# Paste or upload query_10.fasta
+# Click BLAST and wait ~2 minutes</code></pre>
+
+      <h3>Option B: Command-line BLAST (faster, needs local database)</h3>
+      <pre><code># If you have a local nt database:
+blastn \
+    -query subset_1000.fasta \
+    -db nt \
+    -outfmt "6 qseqid sseqid pident length evalue stitle" \
+    -evalue 1e-10 \
+    -max_target_seqs 1 \
+    -num_threads 4 \
+    -out blast_results.txt
+
+# Count hits per species
+awk -F'\t' '{print $6}' blast_results.txt | \
+    sed 's/ .*//' | \
+    sort | uniq -c | sort -rn | head -10</code></pre>
+
+      <h3>Option C: Use Biopython for remote BLAST</h3>
+      <pre><code>from Bio.Blast import NCBIWWW, NCBIXML
+from Bio import SeqIO
+
+# Read first 5 sequences
+records = list(SeqIO.parse("subset_1000.fasta", "fasta"))[:5]
+
+for record in records:
+    print(f"BLASTing {record.id}...")
+    result = NCBIWWW.qblast("blastn", "nt", str(record.seq))
+    blast_records = NCBIXML.parse(result)
+    blast_record = next(blast_records)
+    
+    if blast_record.alignments:
+        top_hit = blast_record.alignments[0]
+        print(f"  Top hit: {top_hit.title[:100]}")
+        print(f"  E-value: {top_hit.hsps[0].expect}")
+        print(f"  Identity: {top_hit.hsps[0].identities}/{top_hit.hsps[0].align_length}")
+    print()</code></pre>
+
+      <h2>Step 6: Interpret Your Results</h2>
+      <p>Look at your BLAST results. You should see a clear pattern — most reads hitting the same organism with >95% identity and very low E-values (< 1e-50).</p>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> How to interpret BLAST results</strong>
+        <ul>
+          <li><strong>% Identity > 97%</strong> — Same species</li>
+          <li><strong>% Identity 90-97%</strong> — Same genus, different species</li>
+          <li><strong>% Identity < 90%</strong> — Different genus</li>
+          <li><strong>E-value < 1e-50</strong> — Very confident match</li>
+          <li><strong>Multiple reads hitting the same organism</strong> — Strong evidence</li>
+        </ul>
+      </div>
+
+      <h2>Step 7: Summarize Your Findings</h2>
+      <pre><code># Create a summary report
+cat > ../report.md << 'EOF'
+# Mystery Microbe Identification Report
+
+## Dataset
+- **Accession**: SRR24043640
+- **Platform**: Illumina MiSeq 2×250 bp
+- **Total read pairs**: [fill in]
+
+## QC Summary
+- **Reads after trimming**: [fill in]
+- **% reads passing QC**: [fill in]
+- **Mean quality score**: [from fastp report]
+- **GC content**: [from FastQC — this is a clue!]
+
+## Species Identification
+- **Top BLAST hit**: [species name]
+- **Average % identity**: [fill in]
+- **Number of reads matching**: [fill in]
+- **Confidence**: [High/Medium/Low]
+
+## Conclusion
+Based on BLAST analysis of [N] randomly sampled reads against NCBI nt,
+the isolate is identified as [species name] with high confidence
+([X]% of reads matching at >[Y]% identity).
+
+## Tools and Versions
+- FastQC: [version]
+- fastp: [version]
+- BLAST+: [version]
+- seqkit: [version]
+EOF
+
+echo "Report template created at results/report.md"</code></pre>
+
+      <h2>What You Learned</h2>
+      <ul>
+        <li>How to download raw sequencing data from SRA</li>
+        <li>How to assess data quality with FastQC</li>
+        <li>How to trim and filter reads with fastp</li>
+        <li>How to use BLAST for species identification</li>
+        <li>How to interpret BLAST results (% identity, E-value)</li>
+        <li>How to write a reproducible analysis report</li>
+        <li>The sort-uniq-count pattern for summarizing categorical results</li>
+      </ul>
+
+      <h2>Challenge Extensions</h2>
+      <p>If you want to go further:</p>
+      <ol>
+        <li><strong>Assemble the genome</strong> — Use SPAdes: <code>spades.py -1 trimmed_R1.fastq -2 trimmed_R2.fastq -o assembly/</code></li>
+        <li><strong>Check for antibiotic resistance genes</strong> — Run the assembly through <a href="https://card.mcmaster.ca/analyze/rgi" target="_blank">CARD RGI</a></li>
+        <li><strong>Annotate the genome</strong> — Use Prokka: <code>prokka assembly/scaffolds.fasta --outdir annotation/</code></li>
+        <li><strong>Compare to known genomes</strong> — Use Mash: <code>mash dist assembly/scaffolds.fasta refseq.genomes.k21s1000.msh</code></li>
+      </ol>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Reproducibility Checklist</strong>
+        <ul>
+          <li>☐ All commands documented</li>
+          <li>☐ Tool versions recorded</li>
+          <li>☐ Raw data accession noted (SRR24043640)</li>
+          <li>☐ Parameters explained</li>
+          <li>☐ Results match expected output</li>
+        </ul>
+      </div>
+
+      <div class="module-nav">
+        <button class="nav-btn" onclick="navigate('ch14')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Chapter 14</button>
+        <button class="nav-btn" onclick="navigate('project2')">Next: RNA-Seq Project <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your results, ask questions... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+</div>

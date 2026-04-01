@@ -1,0 +1,267 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="microscope" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Project 3: Find Mutations in a Cancer Sample</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~4 hours</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Advanced</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> BWA, GATK, VCF, SnpEff, Clinical Genomics</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Project</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>The Biological Question</h2>
+      <p>A patient is diagnosed with chronic lymphocytic leukemia (CLL). Their tumor DNA is sequenced alongside a matched normal sample. <strong>Your job: find the somatic mutations that may be driving the cancer and identify any clinically actionable variants.</strong></p>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Why does this matter?</strong>
+        <p>Variant calling is the foundation of precision medicine. Identifying mutations in a patient's tumor determines which targeted therapies might work, predicts prognosis, and guides clinical decisions. Every cancer genomics study, rare disease diagnosis, and pharmacogenomics test relies on this pipeline.</p>
+      </div>
+
+      <h2>The Dataset</h2>
+      <p>We'll use data from the GATK Best Practices tutorial — a well-characterized sample with known variants for validation:</p>
+      <pre><code>Source:      GATK Resource Bundle
+Sample:      NA12878 (HapMap/1000 Genomes reference sample)
+Type:        Whole exome sequencing (WES)
+Platform:    Illumina HiSeq
+Reference:   GRCh38 / hg38
+Truth set:   GIAB high-confidence variant calls (for validation)</code></pre>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Why NA12878?</strong>
+        <p>NA12878 is the most well-characterized human genome in existence. The Genome in a Bottle (GIAB) consortium has produced high-confidence variant calls for this sample, making it the gold standard for benchmarking variant calling pipelines. If your pipeline produces results that match GIAB, you know it's working correctly.</p>
+      </div>
+
+      <h2>Step 0: Set Up</h2>
+      <pre><code>mkdir -p variant_project/{data/{raw,reference,known_sites},results/{qc,aligned,variants,annotated,figures},scripts,envs}
+cd variant_project
+
+conda create -n variant-calling -y python=3.11
+conda activate variant-calling
+conda install -c bioconda -c conda-forge -y \
+    bwa samtools gatk4 fastqc fastp bcftools snpsift snpeff picard</code></pre>
+
+      <h2>Step 1: Download Reference and Known Sites</h2>
+      <pre><code>cd data/reference
+
+# Download GRCh38 reference (or use the one from Project 2)
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.fasta
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.fasta.fai
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.dict
+
+# Index for BWA
+bwa index Homo_sapiens_assembly38.fasta
+
+# Known variant sites (for BQSR)
+cd ../known_sites
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf.idx
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz.tbi</code></pre>
+
+      <h2>Step 2: Download Sample Data</h2>
+      <pre><code>cd ../raw
+
+# Download a subset of NA12878 WES data
+# Using a small chromosome 20 subset for speed
+wget https://storage.googleapis.com/gatk-test-data/wgs_bam/NA12878_20_21.bam
+wget https://storage.googleapis.com/gatk-test-data/wgs_bam/NA12878_20_21.bai
+
+# Or if starting from FASTQ:
+# fasterq-dump ERR250949 --split-files --threads 4</code></pre>
+
+      <h2>Step 3: Alignment (if starting from FASTQ)</h2>
+      <pre><code>REF="../reference/Homo_sapiens_assembly38.fasta"
+
+# Align with BWA-MEM
+bwa mem -t 8 \
+    -R '@RG\tID:NA12878\tSM:NA12878\tPL:ILLUMINA\tLB:lib1' \
+    ${REF} \
+    NA12878_R1.fastq.gz NA12878_R2.fastq.gz | \
+    samtools sort -@ 4 -o ../results/aligned/NA12878.sorted.bam
+
+samtools index ../results/aligned/NA12878.sorted.bam
+
+# Alignment stats
+samtools flagstat ../results/aligned/NA12878.sorted.bam</code></pre>
+
+      <h2>Step 4: Mark Duplicates</h2>
+      <pre><code>cd ../../results/aligned
+
+gatk MarkDuplicates \
+    -I NA12878.sorted.bam \
+    -O NA12878.dedup.bam \
+    -M dedup_metrics.txt \
+    --REMOVE_DUPLICATES false
+
+samtools index NA12878.dedup.bam
+
+# Check duplication rate
+grep "PERCENT_DUPLICATION" dedup_metrics.txt
+# Typical WES: 10-30% duplicates</code></pre>
+
+      <h2>Step 5: Base Quality Score Recalibration (BQSR)</h2>
+      <pre><code>REF="../../data/reference/Homo_sapiens_assembly38.fasta"
+DBSNP="../../data/known_sites/Homo_sapiens_assembly38.dbsnp138.vcf"
+INDELS="../../data/known_sites/Homo_sapiens_assembly38.known_indels.vcf.gz"
+
+# Build recalibration model
+gatk BaseRecalibrator \
+    -I NA12878.dedup.bam \
+    -R ${REF} \
+    --known-sites ${DBSNP} \
+    --known-sites ${INDELS} \
+    -O recal_table
+
+# Apply recalibration
+gatk ApplyBQSR \
+    -I NA12878.dedup.bam \
+    -R ${REF} \
+    --bqsr-recal-file recal_table \
+    -O NA12878.recal.bam
+
+samtools index NA12878.recal.bam</code></pre>
+
+      <h2>Step 6: Call Variants</h2>
+      <pre><code># Call variants with HaplotypeCaller
+gatk HaplotypeCaller \
+    -I NA12878.recal.bam \
+    -R ${REF} \
+    -L chr20 \
+    -O ../variants/NA12878.raw.vcf.gz
+
+# How many raw variants?
+bcftools stats ../variants/NA12878.raw.vcf.gz | grep "^SN"</code></pre>
+
+      <h2>Step 7: Filter Variants</h2>
+      <pre><code>cd ../variants
+
+# Separate SNPs and indels
+gatk SelectVariants -V NA12878.raw.vcf.gz --select-type-to-include SNP -O raw_snps.vcf.gz
+gatk SelectVariants -V NA12878.raw.vcf.gz --select-type-to-include INDEL -O raw_indels.vcf.gz
+
+# Hard filter SNPs
+gatk VariantFiltration -V raw_snps.vcf.gz \
+    --filter-expression "QD < 2.0" --filter-name "LowQD" \
+    --filter-expression "MQ < 40.0" --filter-name "LowMQ" \
+    --filter-expression "FS > 60.0" --filter-name "HighFS" \
+    --filter-expression "SOR > 3.0" --filter-name "HighSOR" \
+    -O filtered_snps.vcf.gz
+
+# Hard filter indels
+gatk VariantFiltration -V raw_indels.vcf.gz \
+    --filter-expression "QD < 2.0" --filter-name "LowQD" \
+    --filter-expression "FS > 200.0" --filter-name "HighFS" \
+    -O filtered_indels.vcf.gz
+
+# Keep only PASS variants
+bcftools view -f PASS filtered_snps.vcf.gz -o pass_snps.vcf.gz
+bcftools view -f PASS filtered_indels.vcf.gz -o pass_indels.vcf.gz
+
+# Merge
+bcftools concat pass_snps.vcf.gz pass_indels.vcf.gz | bcftools sort -o final_variants.vcf.gz
+bcftools index final_variants.vcf.gz
+
+# Summary
+echo "=== Final Variant Summary ==="
+echo "SNPs:   $(bcftools view -v snps final_variants.vcf.gz | grep -vc '^#')"
+echo "Indels: $(bcftools view -v indels final_variants.vcf.gz | grep -vc '^#')"
+echo "Ti/Tv:  $(bcftools stats final_variants.vcf.gz | grep 'Ts/Tv' | head -1)"</code></pre>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quality check: Ti/Tv ratio</strong>
+        <p>For whole exome data, the transition/transversion (Ti/Tv) ratio should be ~2.8-3.2. For whole genome, ~2.0-2.1. If your ratio is much lower, your filtering may be too lenient. If much higher, too strict.</p>
+      </div>
+
+      <h2>Step 8: Annotate Variants</h2>
+      <pre><code>cd ../annotated
+
+# Annotate with SnpEff
+snpEff ann GRCh38.105 ../variants/final_variants.vcf.gz > annotated.vcf
+
+# Summary of variant effects
+grep -v "^#" annotated.vcf | \
+    awk -F'|' '{print $2}' | \
+    sort | uniq -c | sort -rn | head -15
+
+# Extract high-impact variants (frameshift, stop gained, splice)
+SnpSift filter "ANN[0].IMPACT = 'HIGH'" annotated.vcf > high_impact.vcf
+echo "High-impact variants: $(grep -vc '^#' high_impact.vcf)"
+
+# Extract missense variants
+SnpSift filter "ANN[0].EFFECT has 'missense'" annotated.vcf > missense.vcf
+echo "Missense variants: $(grep -vc '^#' missense.vcf)"</code></pre>
+
+      <h2>Step 9: Validate Against Truth Set</h2>
+      <pre><code># Download GIAB truth set for NA12878 (chr20)
+wget https://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/release/NA12878_HG001/latest/GRCh38/HG001_GRCh38_1_22_v4.2.1_benchmark.vcf.gz
+wget https://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/release/NA12878_HG001/latest/GRCh38/HG001_GRCh38_1_22_v4.2.1_benchmark.vcf.gz.tbi
+
+# Compare your calls to truth
+bcftools isec -p comparison \
+    ../variants/final_variants.vcf.gz \
+    HG001_GRCh38_1_22_v4.2.1_benchmark.vcf.gz \
+    -r chr20
+
+echo "=== Validation ==="
+echo "Your calls only:  $(grep -vc '^#' comparison/0000.vcf)"
+echo "Truth only:        $(grep -vc '^#' comparison/0001.vcf)"
+echo "Both (concordant): $(grep -vc '^#' comparison/0002.vcf)"
+
+# Calculate sensitivity and precision
+CONCORDANT=$(grep -vc '^#' comparison/0002.vcf)
+YOUR_ONLY=$(grep -vc '^#' comparison/0000.vcf)
+TRUTH_ONLY=$(grep -vc '^#' comparison/0001.vcf)
+echo "Sensitivity: $(echo "scale=3; $CONCORDANT / ($CONCORDANT + $TRUTH_ONLY)" | bc)"
+echo "Precision:   $(echo "scale=3; $CONCORDANT / ($CONCORDANT + $YOUR_ONLY)" | bc)"</code></pre>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Expected performance</strong>
+        <p>A well-tuned GATK pipeline on NA12878 should achieve >99% sensitivity and >99% precision for SNPs. If your numbers are significantly lower, check your filtering parameters or alignment quality.</p>
+      </div>
+
+      <h2>What You Learned</h2>
+      <ul>
+        <li>Complete GATK Best Practices variant calling pipeline</li>
+        <li>Why each step matters (duplicates, BQSR, filtering)</li>
+        <li>Hard filtering vs VQSR and when to use each</li>
+        <li>VCF format in depth (genotypes, quality scores, filters)</li>
+        <li>Variant annotation and impact prediction</li>
+        <li>Benchmarking against a truth set (sensitivity, precision)</li>
+        <li>Ti/Tv ratio as a quality metric</li>
+      </ul>
+
+      <h2>Challenge Extensions</h2>
+      <ol>
+        <li><strong>Somatic calling</strong> — Use Mutect2 with a tumor-normal pair instead of HaplotypeCaller</li>
+        <li><strong>Clinical interpretation</strong> — Cross-reference high-impact variants with ClinVar</li>
+        <li><strong>Structural variants</strong> — Run Manta or DELLY to find large rearrangements</li>
+        <li><strong>Automate it</strong> — Write a Snakefile that runs the entire pipeline</li>
+      </ol>
+
+      <div class="module-nav">
+        <button class="nav-btn" onclick="navigate('project2')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Project 2</button>
+        <button class="nav-btn" onclick="navigate('resources')"><i data-lucide="library" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Resources</button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your results, ask questions... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+</div>

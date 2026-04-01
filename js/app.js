@@ -19,6 +19,9 @@ const chapters = [
   {id:'ch12', title:'RNA-Seq Analysis', icon:'dna', part:'Analysis', tags:['DESeq2','edgeR','Pathways'], desc:'Full RNA-Seq pipeline: QC → alignment → counting → DE → visualization → pathways.'},
   {id:'ch13', title:'Variant Calling', icon:'microscope', part:'Analysis', tags:['GATK','VCF','SNPs'], desc:'GATK best practices, VCF format, genotypes, filtering, and annotation with SnpEff.'},
   {id:'ch14', title:'Reproducibility & Pipelines', icon:'package', part:'Analysis', tags:['Snakemake','Docker','SQLite'], desc:'Snakemake, Nextflow, Docker/Singularity, SQLite, and the reproducibility checklist.'},
+  {id:'project1', title:'Project: Mystery Microbe', icon:'flask-conical', part:'Projects', tags:['BLAST','QC','Species ID'], desc:'Identify an unknown bacterial species from raw sequencing data using BLAST.'},
+  {id:'project2', title:'Project: RNA-Seq Analysis', icon:'dna', part:'Projects', tags:['STAR','DESeq2','Volcano'], desc:'Full RNA-Seq pipeline on real published data — find dexamethasone-responsive genes.'},
+  {id:'project3', title:'Project: Variant Calling', icon:'microscope', part:'Projects', tags:['GATK','VCF','Clinical'], desc:'GATK best practices on NA12878 — call, filter, annotate, and validate variants.'},
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -119,22 +122,7 @@ function renderHome(el) {
 
   el.innerHTML = `
     <div class="hero">
-      <div class="hero-deco">
-        <svg class="deco-sparks" viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle class="spark s1" cx="40" cy="40" r="2.5" fill="var(--accent)"/>
-          <circle class="spark s2" cx="70" cy="30" r="1.8" fill="var(--green)"/>
-          <circle class="spark s3" cx="100" cy="40" r="3" fill="var(--purple)"/>
-          <circle class="spark s4" cx="130" cy="30" r="2" fill="var(--accent)"/>
-          <circle class="spark s5" cx="160" cy="40" r="1.5" fill="var(--green)"/>
-          <path class="helix-line" d="M20 40 Q50 15 80 40 Q110 65 140 40 Q170 15 190 40" stroke="var(--accent)" stroke-width="1" opacity=".15"/>
-          <path class="helix-line h2" d="M20 40 Q50 65 80 40 Q110 15 140 40 Q170 65 190 40" stroke="var(--green)" stroke-width="1" opacity=".15"/>
-          <line class="dash d1" x1="55" y1="28" x2="65" y2="22" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" opacity=".3"/>
-          <line class="dash d2" x1="95" y1="52" x2="105" y2="58" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" opacity=".3"/>
-          <line class="dash d3" x1="145" y1="28" x2="155" y2="22" stroke="var(--purple)" stroke-width="1.5" stroke-linecap="round" opacity=".3"/>
-          <polygon class="arrow a1" points="28,38 34,34 34,42" fill="var(--accent)" opacity=".5"/>
-          <polygon class="arrow a2" points="172,38 166,34 166,42" fill="var(--green)" opacity=".5"/>
-        </svg>
-      </div>
+      <div class="hero-deco"><canvas id="helixCanvas" width="200" height="60"></canvas></div>
       <h1>Welcome to <span class="brand-bio">BioSkills</span> <span class="brand-rest">Lab</span></h1>
       <p>Learn bioinformatics from scratch through interactive lessons, a built-in Linux terminal simulator, and hands-on quizzes on real genomic data.</p>
       <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
@@ -549,7 +537,7 @@ function captureEmail() {
 }
 window.captureEmail = captureEmail;
 
-// Re-init terminals after home page renders
+// Re-init terminals and helix after home page renders
 const origNavigate = navigate;
 const _patchedNav = navigate;
 document.addEventListener('click', () => {
@@ -560,5 +548,50 @@ document.addEventListener('click', () => {
         t.dataset.init = 'true';
       }
     });
+    initHelixCanvas();
   }, 100);
 });
+
+function initHelixCanvas() {
+  const c = document.getElementById('helixCanvas');
+  if (!c || c.dataset.init) return;
+  c.dataset.init = 'true';
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height, mid = H / 2, amp = 18;
+  let t = 0;
+  const colors = ['#38bdf8','#4ade80','#a78bfa'];
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    const pts1 = [], pts2 = [];
+    for (let x = 0; x < W; x += 2) {
+      pts1.push({x, y: mid + Math.sin(x * 0.04 + t) * amp});
+      pts2.push({x, y: mid + Math.sin(x * 0.04 + t + Math.PI) * amp});
+    }
+    // Strand 1
+    ctx.beginPath(); ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 1.8; ctx.globalAlpha = 0.6;
+    pts1.forEach((p,i) => i === 0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
+    ctx.stroke();
+    // Strand 2
+    ctx.beginPath(); ctx.strokeStyle = '#4ade80';
+    pts2.forEach((p,i) => i === 0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
+    ctx.stroke();
+    // Rungs
+    ctx.globalAlpha = 0.25;
+    for (let i = 0; i < pts1.length; i += 12) {
+      ctx.beginPath(); ctx.strokeStyle = colors[(i/12|0) % 3]; ctx.lineWidth = 1.2;
+      ctx.moveTo(pts1[i].x, pts1[i].y); ctx.lineTo(pts2[i].x, pts2[i].y); ctx.stroke();
+    }
+    // Glowing dots
+    ctx.globalAlpha = 1;
+    for (let i = 0; i < pts1.length; i += 24) {
+      const glow = 0.5 + 0.5 * Math.sin(t * 2 + i * 0.1);
+      ctx.fillStyle = colors[(i/24|0) % 3]; ctx.globalAlpha = glow;
+      ctx.beginPath(); ctx.arc(pts1[i].x, pts1[i].y, 2.5 + glow, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(pts2[i].x, pts2[i].y, 2 + glow*.8, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    t += 0.02;
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
