@@ -206,13 +206,13 @@ a:hover { color: var(--accent-hover); }
 .hero {
   text-align: center;
   padding: 4rem 2rem;
-  background: linear-gradient(135deg, rgba(56,189,248,.1), rgba(167,139,250,.1));
+  background: transparent;
   border-radius: var(--radius);
   margin-bottom: 2rem;
-  border: 1px solid var(--border);
+  border: none;
 }
 .hero h1 { font-size: 2.5rem; font-weight: 800; margin-bottom: 1rem; }
-.hero h1 span { background: linear-gradient(135deg, var(--accent), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.hero h1 span { font-family: 'Caveat', cursive; font-size: 3.5rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 0.02em; }
 .hero p { font-size: 1.1rem; color: var(--text-muted); max-width: 600px; margin: 0 auto 2rem; }
 .hero-btn {
   display: inline-flex;
@@ -583,6 +583,7 @@ a:hover { color: var(--accent-hover); }
   .content { padding: 1rem; }
   .hero { padding: 2rem 1rem; }
   .hero h1 { font-size: 1.8rem; }
+  .hero h1 span { font-size: 2.5rem; }
   .modules-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 480px) {
