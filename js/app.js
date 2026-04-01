@@ -237,6 +237,11 @@ function renderHome(el) {
     </div>
   `;
   lucide.createIcons();
+  // Init homepage terminal
+  document.querySelectorAll('#content .terminal').forEach(t => {
+    if (!t.dataset.init) { initTerminal(t); t.dataset.init = 'true'; }
+  });
+  setTimeout(initHelixCanvas, 50);
 }
 
 function initChapterPage(chId) {
