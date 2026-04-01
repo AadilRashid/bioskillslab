@@ -24,6 +24,46 @@
   --border: #e2e8f0;
   --code-bg: #f1f5f9;
 }
+
+/* Light theme card overrides */
+[data-theme="light"] .module-card {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
+}
+[data-theme="light"] .module-card::before { opacity: 0.01; }
+[data-theme="light"] .module-card:hover {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06), 0 12px 36px rgba(0,0,0,0.08);
+}
+[data-theme="light"] .module-card .tag {
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: var(--text-muted);
+}
+[data-theme="light"] .module-card:hover .tag {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: var(--text);
+}
+[data-theme="light"] .module-card:hover h3 { color: #0f172a; }
+[data-theme="light"] .module-card .progress-mini { background: rgba(0,0,0,0.06); }
+[data-theme="light"] .module-card[data-part="Foundations"]:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06), 0 12px 36px rgba(0,0,0,0.08), 0 0 24px -8px rgba(56,189,248,0.2); }
+[data-theme="light"] .module-card[data-part="Programming"]:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06), 0 12px 36px rgba(0,0,0,0.08), 0 0 24px -8px rgba(167,139,250,0.2); }
+[data-theme="light"] .module-card[data-part="Data & Formats"]:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06), 0 12px 36px rgba(0,0,0,0.08), 0 0 24px -8px rgba(74,222,128,0.2); }
+[data-theme="light"] .module-card[data-part="Analysis"]:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06), 0 12px 36px rgba(0,0,0,0.08), 0 0 24px -8px rgba(251,146,60,0.2); }
+[data-theme="light"] .module-card[data-part="Projects"]:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06), 0 12px 36px rgba(0,0,0,0.08), 0 0 24px -8px rgba(248,113,113,0.2); }
+
+/* Light theme topbar */
+[data-theme="light"] .topbar { background: color-mix(in srgb, var(--bg) 85%, transparent); }
+
+/* Light theme hero */
+[data-theme="light"] .hero h1 .brand-bio { background: linear-gradient(135deg, #059669, #0891b2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+/* Light theme terminal */
+[data-theme="light"] .terminal { border-color: var(--border); }
+[data-theme="light"] .terminal-bar { background: #f1f5f9; border-bottom-color: var(--border); }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 body {
