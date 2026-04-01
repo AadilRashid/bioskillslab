@@ -132,23 +132,14 @@ function renderHome(el) {
     </div>
 
     <!-- STATS BAR -->
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;margin-bottom:2rem;">
-      <div style="text-align:center;padding:1.25rem;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;">
-        <div style="font-size:1.8rem;font-weight:800;color:var(--accent);">14</div>
-        <div style="font-size:.8rem;color:var(--text-muted);">Chapters</div>
-      </div>
-      <div style="text-align:center;padding:1.25rem;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;">
-        <div style="font-size:1.8rem;font-weight:800;color:var(--purple);">150+</div>
-        <div style="font-size:.8rem;color:var(--text-muted);">Quiz Questions</div>
-      </div>
-      <div style="text-align:center;padding:1.25rem;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;">
-        <div style="font-size:1.8rem;font-weight:800;color:var(--green);">3</div>
-        <div style="font-size:.8rem;color:var(--text-muted);">Interactive Terminals</div>
-      </div>
-      <div style="text-align:center;padding:1.25rem;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;">
-        <div style="font-size:1.8rem;font-weight:800;color:var(--orange);">Free</div>
-        <div style="font-size:.8rem;color:var(--text-muted);">To Start</div>
-      </div>
+    <div style="display:flex;justify-content:center;gap:2rem;flex-wrap:wrap;margin-bottom:2rem;padding:1rem 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:.5rem;"><span style="font-size:1.5rem;font-weight:800;color:var(--accent);">14</span><span style="font-size:.8rem;color:var(--text-muted);">Chapters</span></div>
+      <div style="width:1px;background:var(--border);"></div>
+      <div style="display:flex;align-items:center;gap:.5rem;"><span style="font-size:1.5rem;font-weight:800;color:var(--purple);">150+</span><span style="font-size:.8rem;color:var(--text-muted);">Quizzes</span></div>
+      <div style="width:1px;background:var(--border);"></div>
+      <div style="display:flex;align-items:center;gap:.5rem;"><span style="font-size:1.5rem;font-weight:800;color:var(--green);">3</span><span style="font-size:.8rem;color:var(--text-muted);">Projects</span></div>
+      <div style="width:1px;background:var(--border);"></div>
+      <div style="display:flex;align-items:center;gap:.5rem;"><span style="font-size:1.5rem;font-weight:800;color:var(--orange);">Free</span><span style="font-size:.8rem;color:var(--text-muted);">Forever</span></div>
     </div>
 
     <!-- TRY IT LIVE -->
