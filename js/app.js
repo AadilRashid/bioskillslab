@@ -229,10 +229,7 @@ function renderHome(el) {
       <div style="flex:1;min-width:200px;">
         <h3 style="font-size:1rem;margin-bottom:.25rem;">Built by Aadil Bhat</h3>
         <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:.5rem;">Bioinformatics developer and educator. Passionate about making genomics accessible to everyone.</p>
-        <div style="display:flex;gap:1rem;flex-wrap:wrap;">
-          <a href="https://github.com/AadilRashid" target="_blank" style="font-size:.8rem;display:flex;align-items:center;gap:.3rem;"><i data-lucide="github" style="width:14px;height:14px;"></i> GitHub</a>
-          <a href="https://linkedin.com/in/" target="_blank" style="font-size:.8rem;display:flex;align-items:center;gap:.3rem;"><i data-lucide="linkedin" style="width:14px;height:14px;"></i> LinkedIn</a>
-        </div>
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;"></div>
       </div>
     </div>
   `;
