@@ -233,11 +233,17 @@ a:hover { color: var(--accent-hover); }
 .hero-deco .deco-icon:first-child {
   transform: rotate(-18deg) translateY(-4px);
   opacity: .85;
+  animation: gentleFloat 6s ease-in-out infinite;
 }
 .hero-deco .deco-icon:last-child {
   transform: rotate(12deg) translateY(4px);
   opacity: .6;
   font-size: 1.5rem;
+  animation: gentleFloat 6s ease-in-out 3s infinite;
+}
+@keyframes gentleFloat {
+  0%, 100% { transform: rotate(-18deg) translateY(-4px); }
+  50% { transform: rotate(-12deg) translateY(-10px) scale(1.05); }
 }
 .hero p { font-size: 1.1rem; color: var(--text-muted); max-width: 600px; margin: 0 auto 2rem; }
 .hero-btn {
