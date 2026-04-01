@@ -25,16 +25,21 @@
   --code-bg: #f1f5f9;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background: var(--bg);
   color: var(--text);
   line-height: 1.7;
   min-height: 100vh;
+  letter-spacing: -0.01em;
 }
 a { color: var(--accent); text-decoration: none; transition: color .2s; }
 a:hover { color: var(--accent-hover); }
+
+/* Smooth page transitions */
+.content > * { animation: slideUp .35s cubic-bezier(.22,1,.36,1); }
+@keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 8px; }
@@ -53,7 +58,7 @@ a:hover { color: var(--accent-hover); }
   top: 0; left: 0; bottom: 0;
   overflow-y: auto;
   z-index: 100;
-  transition: transform .3s;
+  transition: transform .3s cubic-bezier(.22,1,.36,1);
 }
 .sidebar.collapsed { transform: translateX(-100%); }
 .sidebar-header {
@@ -140,15 +145,15 @@ a:hover { color: var(--accent-hover); }
 .topbar {
   position: sticky;
   top: 0;
-  background: var(--bg);
   border-bottom: 1px solid var(--border);
   padding: .75rem 2rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   z-index: 50;
-  backdrop-filter: blur(12px);
-  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  background: color-mix(in srgb, var(--bg) 75%, transparent);
 }
 .topbar-left { display: flex; align-items: center; gap: 1rem; }
 .menu-btn {
@@ -223,7 +228,8 @@ a:hover { color: var(--accent-hover); }
   border: none;
   cursor: pointer;
 }
-.hero-btn:hover { background: var(--accent-hover); transform: translateY(-2px); box-shadow: 0 8px 30px rgba(56,189,248,.3); color: #0f172a; }
+.hero-btn:hover { background: var(--accent-hover); transform: translateY(-3px); box-shadow: 0 12px 40px rgba(56,189,248,.35); color: #0f172a; }
+.hero-btn:active { transform: translateY(0); box-shadow: 0 4px 12px rgba(56,189,248,.2); transition-duration: .1s; }
 
 /* Module cards */
 .modules-grid {
@@ -238,11 +244,14 @@ a:hover { color: var(--accent-hover); }
   border-radius: var(--radius);
   padding: 1.5rem;
   cursor: pointer;
-  transition: all .3s;
+  transition: transform .3s cubic-bezier(.22,1,.36,1), box-shadow .3s ease, border-color .3s ease;
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
-.module-card:hover { transform: translateY(-4px); border-color: var(--accent); box-shadow: 0 8px 30px rgba(56,189,248,.1); }
+.module-card:hover { transform: translateY(-6px); border-color: var(--accent); box-shadow: 0 12px 40px rgba(56,189,248,.12), 0 4px 12px rgba(0,0,0,.08); }
+.module-card:active { transform: translateY(-2px); transition-duration: .1s; }
 .module-card .icon { margin-bottom: .75rem; line-height: 1; }
 .module-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: .5rem; }
 .module-card p { font-size: .8rem; color: var(--text-muted); margin-bottom: 1rem; }
@@ -556,14 +565,30 @@ a:hover { color: var(--accent-hover); }
 }
 .nav-btn:hover { border-color: var(--accent); background: var(--bg-card-hover); }
 
+/* Card description */
+.card-desc { font-size: .8rem; color: var(--text-muted); margin-bottom: .75rem; flex: 1; }
+
+/* Focus styles */
+*:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+/* Selection */
+::selection { background: rgba(56,189,248,.25); color: var(--text); }
+
 /* Responsive */
 @media (max-width: 768px) {
   .sidebar { transform: translateX(-100%); }
-  .sidebar.open { transform: translateX(0); }
+  .sidebar.open { transform: translateX(0); box-shadow: 8px 0 40px rgba(0,0,0,.3); }
   .main { margin-left: 0; }
   .menu-btn { display: block; }
   .content { padding: 1rem; }
   .hero { padding: 2rem 1rem; }
   .hero h1 { font-size: 1.8rem; }
   .modules-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .hero h1 { font-size: 1.5rem; }
+  .hero p { font-size: .95rem; }
+  .module-header h1 { font-size: 1.4rem; }
+  .tabs { gap: 0; }
+  .tab-btn { padding: .6rem .75rem; font-size: .8rem; }
 }
