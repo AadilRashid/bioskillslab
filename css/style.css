@@ -216,24 +216,57 @@ a:hover { color: var(--accent-hover); }
 .hero h1 .brand-bio { font-family: 'Caveat', cursive; font-size: 5.25rem; font-weight: 700; background: linear-gradient(135deg, var(--green), #22d3ee); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 0.02em; line-height: 1; display: inline; }
 .hero h1 .brand-rest { }
 
-/* Decorative double helix accent above hero title */
+/* Hero decoration — sparks & helix */
 .hero-deco {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: .5rem;
-  margin-bottom: .75rem;
+  margin-bottom: 1rem;
 }
-.hero-deco .deco-icon {
-  width: 48px;
-  height: 48px;
-  display: inline-block;
-  animation: spinY 10s linear infinite;
-  filter: drop-shadow(0 0 8px rgba(56,189,248,.3));
+.deco-sparks {
+  width: 220px;
+  height: 80px;
 }
-@keyframes spinY {
-  0% { transform: rotateY(0deg); }
-  100% { transform: rotateY(360deg); }
+.spark {
+  animation: sparkPulse 3s ease-in-out infinite;
+  filter: blur(.3px);
+}
+.spark.s1 { animation-delay: 0s; }
+.spark.s2 { animation-delay: .6s; }
+.spark.s3 { animation-delay: 1.2s; }
+.spark.s4 { animation-delay: 1.8s; }
+.spark.s5 { animation-delay: 2.4s; }
+@keyframes sparkPulse {
+  0%, 100% { opacity: .3; r: 1.5; }
+  50% { opacity: 1; r: 3.5; filter: drop-shadow(0 0 6px currentColor); }
+}
+.helix-line {
+  stroke-dasharray: 8 6;
+  animation: dashFlow 4s linear infinite;
+}
+.helix-line.h2 { animation-delay: -2s; }
+@keyframes dashFlow {
+  0% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -28; }
+}
+.dash {
+  animation: dashFade 2.5s ease-in-out infinite;
+}
+.dash.d1 { animation-delay: 0s; }
+.dash.d2 { animation-delay: .8s; }
+.dash.d3 { animation-delay: 1.6s; }
+@keyframes dashFade {
+  0%, 100% { opacity: .1; transform: scaleX(.5); }
+  50% { opacity: .5; transform: scaleX(1); }
+}
+.arrow {
+  animation: arrowBounce 3s ease-in-out infinite;
+}
+.arrow.a1 { animation-delay: 0s; transform-origin: 31px 38px; }
+.arrow.a2 { animation-delay: 1.5s; transform-origin: 169px 38px; }
+@keyframes arrowBounce {
+  0%, 100% { opacity: .3; transform: translateX(0); }
+  50% { opacity: .7; transform: translateX(4px); }
 }
 .hero p { font-size: 1.1rem; color: var(--text-muted); max-width: 600px; margin: 0 auto 2rem; }
 .hero-btn {

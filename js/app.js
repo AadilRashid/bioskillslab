@@ -119,7 +119,22 @@ function renderHome(el) {
 
   el.innerHTML = `
     <div class="hero">
-      <div class="hero-deco"><svg class="deco-icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M32 4C20 4 14 16 14 32s6 28 18 28" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" opacity=".7"/><path d="M32 4c12 0 18 12 18 28s-6 28-18 28" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" opacity=".7"/><line x1="16" y1="16" x2="48" y2="16" stroke="var(--accent)" stroke-width="1.5" opacity=".4"/><line x1="14" y1="24" x2="50" y2="24" stroke="var(--green)" stroke-width="1.5" opacity=".4"/><line x1="14" y1="32" x2="50" y2="32" stroke="var(--purple)" stroke-width="1.5" opacity=".4"/><line x1="14" y1="40" x2="50" y2="40" stroke="var(--green)" stroke-width="1.5" opacity=".4"/><line x1="16" y1="48" x2="48" y2="48" stroke="var(--accent)" stroke-width="1.5" opacity=".4"/></svg></div>
+      <div class="hero-deco">
+        <svg class="deco-sparks" viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle class="spark s1" cx="40" cy="40" r="2.5" fill="var(--accent)"/>
+          <circle class="spark s2" cx="70" cy="30" r="1.8" fill="var(--green)"/>
+          <circle class="spark s3" cx="100" cy="40" r="3" fill="var(--purple)"/>
+          <circle class="spark s4" cx="130" cy="30" r="2" fill="var(--accent)"/>
+          <circle class="spark s5" cx="160" cy="40" r="1.5" fill="var(--green)"/>
+          <path class="helix-line" d="M20 40 Q50 15 80 40 Q110 65 140 40 Q170 15 190 40" stroke="var(--accent)" stroke-width="1" opacity=".15"/>
+          <path class="helix-line h2" d="M20 40 Q50 65 80 40 Q110 15 140 40 Q170 65 190 40" stroke="var(--green)" stroke-width="1" opacity=".15"/>
+          <line class="dash d1" x1="55" y1="28" x2="65" y2="22" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" opacity=".3"/>
+          <line class="dash d2" x1="95" y1="52" x2="105" y2="58" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" opacity=".3"/>
+          <line class="dash d3" x1="145" y1="28" x2="155" y2="22" stroke="var(--purple)" stroke-width="1.5" stroke-linecap="round" opacity=".3"/>
+          <polygon class="arrow a1" points="28,38 34,34 34,42" fill="var(--accent)" opacity=".5"/>
+          <polygon class="arrow a2" points="172,38 166,34 166,42" fill="var(--green)" opacity=".5"/>
+        </svg>
+      </div>
       <h1>Welcome to <span class="brand-bio">BioSkills</span> <span class="brand-rest">Lab</span></h1>
       <p>Learn bioinformatics from scratch through interactive lessons, a built-in Linux terminal simulator, and hands-on quizzes on real genomic data.</p>
       <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
