@@ -6,15 +6,20 @@ function isUnlocked() {
 
 function unlockPremium(key) {
   const k = key.toUpperCase().trim();
-  // Accept any key starting with BSL- (you generate and email these after payment)
-  // Also accept legacy hardcoded keys
-  const validKeys = ['BIOSKILLS2024', 'EARLYBIRD', 'LAUNCH50'];
-  if (k.startsWith('BSL-') && k.length >= 8) {
-    localStorage.setItem('bsl_premium', 'true');
-    localStorage.setItem('bsl_key', k);
-    return true;
-  }
-  if (validKeys.includes(k)) {
+  const validKeys = new Set([
+    'BIOSKILLS2024','EARLYBIRD','LAUNCH50',
+    'BSL-R8C8JYU5','BSL-IB6SHM5F','BSL-UDVI1Z1N','BSL-D2P6DMCR','BSL-930ZCQFW',
+    'BSL-EM36TQAY','BSL-4HOXS9WO','BSL-TGI7XVTK','BSL-5L62NNDI','BSL-D13VMEBE',
+    'BSL-H80L33WS','BSL-9Y9OLTX2','BSL-JK3OA7FQ','BSL-HZ4ZLZQ4','BSL-YSHZB0BK',
+    'BSL-1HWZF5BN','BSL-JSU0O985','BSL-CGQ7SVB6','BSL-GIMIQ7T1','BSL-XUWH2CBI',
+    'BSL-MSKSEUPS','BSL-CE3023PQ','BSL-O1YFGENX','BSL-VIZ6HYVE','BSL-61HI7MSX',
+    'BSL-6PIC6RZO','BSL-HHMBDW0L','BSL-1KTU600K','BSL-IATGGD62','BSL-HFYX9AFS',
+    'BSL-38MF47X0','BSL-FQYGZQ0C','BSL-C5GSQ7QM','BSL-5N7DVTDT','BSL-3TWVD2CP',
+    'BSL-JJAAD87G','BSL-IFTOX5NB','BSL-I3WID292','BSL-SU5NYMM9','BSL-YO31ICAU',
+    'BSL-LUKLVT1R','BSL-H6PTEMV7','BSL-YXR3NRCQ','BSL-T2RO5HZN','BSL-CEQO2DD1',
+    'BSL-U0ATFWRD','BSL-OQVPI1HD','BSL-02JWONPJ','BSL-79ESHANU','BSL-IPTPL838'
+  ]);
+  if (validKeys.has(k)) {
     localStorage.setItem('bsl_premium', 'true');
     localStorage.setItem('bsl_key', k);
     return true;
