@@ -55,6 +55,7 @@ conda install -c bioconda -c conda-forge -y \
 # BiocManager::install(c("DESeq2","ggplot2","pheatmap","EnhancedVolcano"))</code></pre>
 
       <h2>Step 1: Download Data</h2>
+      <p>We need 8 samples: 4 untreated controls and 4 dexamethasone-treated. Each sample has two FASTQ files (paired-end). This download takes a while, so kick it off and grab a coffee.</p>
       <pre><code># Sample accessions from GSE52778
 # Untreated: SRR1039508, SRR1039512, SRR1039516, SRR1039520
 # Dex-treated: SRR1039509, SRR1039513, SRR1039517, SRR1039521
@@ -74,6 +75,7 @@ ls -lh *.gz | wc -l
 # Expected: 16 files (2 per sample × 8 samples)</code></pre>
 
       <h2>Step 2: Download Reference Genome</h2>
+      <p>To figure out where each read came from, we need the human reference genome and a gene annotation file (GTF) that tells us where each gene starts and ends. We also need to build a STAR index, which is like creating a searchable map of the genome.</p>
       <pre><code>cd ../reference
 
 # Human genome and annotation from Ensembl
@@ -97,6 +99,7 @@ STAR --runMode genomeGenerate \
       </div>
 
       <h2>Step 3: QC → Trim → Align → Count</h2>
+      <p>This is the workhorse script. For each sample, it checks quality, trims bad bases, aligns reads to the genome, and counts how many reads land on each gene. At the end, you'll have a count matrix: rows are genes, columns are samples, values are read counts. That's what DESeq2 needs.</p>
       <pre><code>#!/bin/bash
 # scripts/01_pipeline.sh
 set -euo pipefail
@@ -146,6 +149,7 @@ multiqc results/ -o results/ --force
 echo "Pipeline complete! Check results/multiqc_report.html"</code></pre>
 
       <h2>Step 4: Differential Expression with DESeq2</h2>
+      <p>Now the statistics. DESeq2 takes your raw count matrix, normalizes it (because some samples have more total reads than others), estimates how variable each gene is, and tests whether the difference between treated and untreated is real or just noise. The output: a log2 fold change and an adjusted p-value for every gene.</p>
       <pre><code># scripts/02_deseq2.R
 library(DESeq2)
 library(ggplot2)
@@ -201,6 +205,7 @@ write.csv(as.data.frame(res), "results/de/all_results.csv")
 write.csv(as.data.frame(sig), "results/de/significant_genes.csv")</code></pre>
 
       <h2>Step 5: Visualization</h2>
+      <p>Numbers in a table don't tell a story. These three plots are what you'd put in a paper or show your PI. The volcano plot shows effect size vs significance. The PCA shows whether your samples cluster by condition (they should). The heatmap shows expression patterns across your top hits.</p>
       <pre><code># ── Volcano plot ──
 df &lt;- as.data.frame(res)
 df$sig &lt;- !is.na(df$padj) &amp; df$padj &lt; 0.05 &amp; abs(df$log2FoldChange) &gt; 1
@@ -238,6 +243,7 @@ dev.off()
 cat("Figures saved to results/figures/\n")</code></pre>
 
       <h2>Step 6: Validate Against the Published Paper</h2>
+      <p>This is what separates a tutorial from real science. We're checking our results against what Himes et al. actually found. If the same genes come up, we know the pipeline is solid.</p>
       <div class="callout tip">
         <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> How to know your pipeline worked</strong>
         <p>Himes et al. (2014) reported CRISPLD2 as a key glucocorticoid-responsive gene. If your analysis shows CRISPLD2 significantly upregulated (log2FC > 0, padj < 0.05), your pipeline is producing valid results. Other expected hits: DUSP1, KLF15, PER1, TSC22D3.</p>

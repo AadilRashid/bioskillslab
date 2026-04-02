@@ -58,6 +58,7 @@ fastp --version
 blastn -version</code></pre>
 
       <h2>Step 1: Download the Data</h2>
+      <p>First, grab the raw sequencing reads from NCBI. Think of SRA as a giant library of sequencing experiments anyone can access.</p>
       <pre><code># Download from SRA
 cd data
 fasterq-dump SRR24043640 --split-files --threads 4
@@ -68,7 +69,7 @@ ls -lh
 
 # Quick look at the first read
 head -4 SRR24043640_1.fastq</code></pre>
-      <p>You should see 4 lines: a header starting with @, a DNA sequence, a + separator, and quality scores.</p>
+      <p>You should see 4 lines: a header starting with @, a DNA sequence, a + separator, and quality scores. That's one read. The entire file is millions of these stacked together.</p>
 
       <pre><code># How many reads do we have?
 echo "Forward reads: $(( $(wc -l < SRR24043640_1.fastq) / 4 ))"
@@ -80,7 +81,7 @@ echo "Reverse reads: $(( $(wc -l < SRR24043640_2.fastq) / 4 ))"</code></pre>
       </div>
 
       <h2>Step 2: Quality Control</h2>
-      <p>Never skip QC. You need to know if the data is usable before spending hours analyzing it.</p>
+      <p>Before doing anything with the data, check if it's any good. FastQC generates a visual report showing quality scores, adapter contamination, GC bias, and other red flags. This takes about a minute.</p>
       <pre><code># Run FastQC on both files
 cd ../results/qc
 fastqc ../../data/SRR24043640_1.fastq ../../data/SRR24043640_2.fastq -o . -t 2
@@ -97,7 +98,7 @@ ls *.html</code></pre>
       </ul>
 
       <h2>Step 3: Trim and Filter</h2>
-      <p>Clean up the reads. Remove adapters, chop off low-quality bases, toss anything too short:</p>
+      <p>Sequencing isn't perfect. Reads often have low-quality bases at the ends and leftover adapter sequences. fastp cleans all of this up in one pass. After this step, you'll have smaller but much higher quality files.</p>
       <pre><code>cd ../trimmed
 fastp \
     -i ../../data/SRR24043640_1.fastq \
@@ -126,7 +127,7 @@ echo "After:  $(( $(wc -l < trimmed_R1.fastq) / 4 )) read pairs"</code></pre>
       </div>
 
       <h2>Step 4: Subsample for BLAST</h2>
-      <p>BLAST against the full NCBI nt database is slow. For species ID, you don't need every read. A random subset of 1000 gets the job done:</p>
+      <p>Here's a practical trick: you don't need to BLAST a million reads to identify a species. A random sample of 1000 is more than enough, and it runs in seconds instead of hours.</p>
       <pre><code># Take 1000 random reads
 cd ../blast
 seqkit sample -n 1000 -s 42 ../trimmed/trimmed_R1.fastq > subset_1000.fastq
@@ -139,7 +140,7 @@ grep -c "^>" subset_1000.fasta
 # Expected: 1000</code></pre>
 
       <h2>Step 5: BLAST Against NCBI</h2>
-      <p>The key step. Search your sequences against NCBI's nucleotide database to find out what organism they came from:</p>
+      <p>This is the moment of truth. You're taking your mystery sequences and asking NCBI: "What organism do these come from?" BLAST compares each read against billions of known sequences and returns the closest matches. There are three ways to do this:</p>
 
       <h3>Option A: Web BLAST (no local database needed)</h3>
       <pre><code># Take just 10 reads for web BLAST (it's slow for many sequences)
@@ -187,7 +188,7 @@ for record in records:
     print()</code></pre>
 
       <h2>Step 6: Interpret Your Results</h2>
-      <p>Look at your BLAST results. You should see a clear pattern: most reads hitting the same organism with >95% identity and E-values well below 1e-50.</p>
+      <p>This is where the biology happens. Look at your BLAST results. You should see a clear pattern: most reads hitting the same organism with >95% identity and E-values well below 1e-50. If the top hits are scattered across different species, something might be off with your data (contamination, mixed culture, etc.).</p>
 
       <div class="callout tip">
         <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> How to interpret BLAST results</strong>
@@ -201,6 +202,7 @@ for record in records:
       </div>
 
       <h2>Step 7: Summarize Your Findings</h2>
+      <p>A good bioinformatician always writes up their results. This report template captures everything someone would need to reproduce your analysis or trust your conclusion.</p>
       <pre><code># Create a summary report
 cat > ../report.md << 'EOF'
 # Mystery Microbe Identification Report

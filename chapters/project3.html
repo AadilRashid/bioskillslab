@@ -48,6 +48,7 @@ conda install -c bioconda -c conda-forge -y \
     bwa samtools gatk4 fastqc fastp bcftools snpsift snpeff picard</code></pre>
 
       <h2>Step 1: Download Reference and Known Sites</h2>
+      <p>Variant calling needs two things beyond your sample: a reference genome to compare against, and databases of known variants (like dbSNP) that help calibrate quality scores later.</p>
       <pre><code>cd data/reference
 
 # Download GRCh38 reference (or use the one from Project 2)
@@ -66,6 +67,7 @@ wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0
 wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz.tbi</code></pre>
 
       <h2>Step 2: Download Sample Data</h2>
+      <p>We're using a subset of NA12878 covering chromosomes 20 and 21. This keeps the data small enough to process on a laptop while still giving you real results to validate.</p>
       <pre><code>cd ../raw
 
 # Download a subset of NA12878 WES data
@@ -77,6 +79,7 @@ wget https://storage.googleapis.com/gatk-test-data/wgs_bam/NA12878_20_21.bai
 # fasterq-dump ERR250949 --split-files --threads 4</code></pre>
 
       <h2>Step 3: Alignment (if starting from FASTQ)</h2>
+      <p>BWA-MEM maps each read to the position in the reference genome where it fits best. The read group tag (-R) is important because downstream tools like GATK use it to identify which sample a read belongs to.</p>
       <pre><code>REF="../reference/Homo_sapiens_assembly38.fasta"
 
 # Align with BWA-MEM
@@ -92,6 +95,7 @@ samtools index ../results/aligned/NA12878.sorted.bam
 samtools flagstat ../results/aligned/NA12878.sorted.bam</code></pre>
 
       <h2>Step 4: Mark Duplicates</h2>
+      <p>During library prep, PCR amplification creates copies of the same DNA fragment. These duplicates look like extra evidence for a variant but they're not independent observations. Marking them tells GATK to ignore them during variant calling.</p>
       <pre><code>cd ../../results/aligned
 
 gatk MarkDuplicates \
@@ -107,6 +111,7 @@ grep "PERCENT_DUPLICATION" dedup_metrics.txt
 # Typical WES: 10-30% duplicates</code></pre>
 
       <h2>Step 5: Base Quality Score Recalibration (BQSR)</h2>
+      <p>Sequencing machines report a quality score for each base, but these scores have systematic biases (certain positions, certain sequence contexts). BQSR learns these patterns from known variant sites and corrects the scores. This makes variant calling more accurate.</p>
       <pre><code>REF="../../data/reference/Homo_sapiens_assembly38.fasta"
 DBSNP="../../data/known_sites/Homo_sapiens_assembly38.dbsnp138.vcf"
 INDELS="../../data/known_sites/Homo_sapiens_assembly38.known_indels.vcf.gz"
@@ -129,6 +134,7 @@ gatk ApplyBQSR \
 samtools index NA12878.recal.bam</code></pre>
 
       <h2>Step 6: Call Variants</h2>
+      <p>This is where HaplotypeCaller does its thing. It looks at the pileup of reads at each position and determines whether the sample differs from the reference. The output is a VCF file listing every variant found.</p>
       <pre><code># Call variants with HaplotypeCaller
 gatk HaplotypeCaller \
     -I NA12878.recal.bam \
@@ -140,6 +146,7 @@ gatk HaplotypeCaller \
 bcftools stats ../variants/NA12878.raw.vcf.gz | grep "^SN"</code></pre>
 
       <h2>Step 7: Filter Variants</h2>
+      <p>Not every variant call is real. Some are sequencing errors, alignment artifacts, or low-confidence calls. Filtering removes the noise. We separate SNPs and indels because they need different filter thresholds, then keep only variants that pass all filters.</p>
       <pre><code>cd ../variants
 
 # Separate SNPs and indels
@@ -180,6 +187,7 @@ echo "Ti/Tv:  $(bcftools stats final_variants.vcf.gz | grep 'Ts/Tv' | head -1)"<
       </div>
 
       <h2>Step 8: Annotate Variants</h2>
+      <p>A list of genomic positions isn't very useful on its own. Annotation tells you what each variant actually does: is it in a gene? Does it change a protein? Is it a known pathogenic mutation? SnpEff maps each variant to genes and predicts the functional impact.</p>
       <pre><code>cd ../annotated
 
 # Annotate with SnpEff
@@ -199,6 +207,7 @@ SnpSift filter "ANN[0].EFFECT has 'missense'" annotated.vcf > missense.vcf
 echo "Missense variants: $(grep -vc '^#' missense.vcf)"</code></pre>
 
       <h2>Step 9: Validate Against Truth Set</h2>
+      <p>The final test. GIAB has independently verified which variants NA12878 actually has. By comparing your calls to this truth set, you get hard numbers on how well your pipeline performed. This is how every clinical lab validates their pipeline before going live.</p>
       <pre><code># Download GIAB truth set for NA12878 (chr20)
 wget https://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/release/NA12878_HG001/latest/GRCh38/HG001_GRCh38_1_22_v4.2.1_benchmark.vcf.gz
 wget https://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/release/NA12878_HG001/latest/GRCh38/HG001_GRCh38_1_22_v4.2.1_benchmark.vcf.gz.tbi
