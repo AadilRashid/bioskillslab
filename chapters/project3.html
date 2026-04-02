@@ -17,15 +17,15 @@
     <div class="lesson">
 
       <h2>The Biological Question</h2>
-      <p>A patient is diagnosed with chronic lymphocytic leukemia (CLL). Their tumor DNA is sequenced alongside a matched normal sample. <strong>Your job: find the somatic mutations that may be driving the cancer and identify any clinically actionable variants.</strong></p>
+      <p>A patient is diagnosed with chronic lymphocytic leukemia (CLL). Their tumor DNA is sequenced alongside a matched normal sample. <strong>Your job: find the somatic mutations driving the cancer and flag anything clinically actionable.</strong></p>
 
       <div class="callout tip">
         <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Why does this matter?</strong>
-        <p>Variant calling is the foundation of precision medicine. Identifying mutations in a patient's tumor determines which targeted therapies might work, predicts prognosis, and guides clinical decisions. Every cancer genomics study, rare disease diagnosis, and pharmacogenomics test relies on this pipeline.</p>
+        <p>Variant calling is the foundation of precision medicine. The mutations you find in a patient's tumor determine which targeted therapies might work, predict how aggressive the cancer is, and guide treatment decisions. Every cancer genomics study, rare disease diagnosis, and pharmacogenomics test runs on this pipeline.</p>
       </div>
 
       <h2>The Dataset</h2>
-      <p>We'll use data from the GATK Best Practices tutorial — a well-characterized sample with known variants for validation:</p>
+      <p>We're using data from the GATK Best Practices tutorial. NA12878 is a well-characterized sample with known variants, so you can check your work:</p>
       <pre><code>Source:      GATK Resource Bundle
 Sample:      NA12878 (HapMap/1000 Genomes reference sample)
 Type:        Whole exome sequencing (WES)
@@ -35,7 +35,7 @@ Truth set:   GIAB high-confidence variant calls (for validation)</code></pre>
 
       <div class="callout tip">
         <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Why NA12878?</strong>
-        <p>NA12878 is the most well-characterized human genome in existence. The Genome in a Bottle (GIAB) consortium has produced high-confidence variant calls for this sample, making it the gold standard for benchmarking variant calling pipelines. If your pipeline produces results that match GIAB, you know it's working correctly.</p>
+        <p>NA12878 is the most studied human genome on the planet. The Genome in a Bottle (GIAB) consortium has produced high-confidence variant calls for this sample, making it the gold standard for benchmarking. If your pipeline matches GIAB, it works.</p>
       </div>
 
       <h2>Step 0: Set Up</h2>
@@ -176,7 +176,7 @@ echo "Ti/Tv:  $(bcftools stats final_variants.vcf.gz | grep 'Ts/Tv' | head -1)"<
 
       <div class="callout tip">
         <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quality check: Ti/Tv ratio</strong>
-        <p>For whole exome data, the transition/transversion (Ti/Tv) ratio should be ~2.8-3.2. For whole genome, ~2.0-2.1. If your ratio is much lower, your filtering may be too lenient. If much higher, too strict.</p>
+        <p>For whole exome data, Ti/Tv should be around 2.8 to 3.2. For whole genome, around 2.0 to 2.1. Much lower means your filtering is too lenient. Much higher means too strict.</p>
       </div>
 
       <h2>Step 8: Annotate Variants</h2>
@@ -223,12 +223,12 @@ echo "Precision:   $(echo "scale=3; $CONCORDANT / ($CONCORDANT + $YOUR_ONLY)" | 
 
       <div class="callout tip">
         <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Expected performance</strong>
-        <p>A well-tuned GATK pipeline on NA12878 should achieve >99% sensitivity and >99% precision for SNPs. If your numbers are significantly lower, check your filtering parameters or alignment quality.</p>
+        <p>A well-tuned GATK pipeline on NA12878 should hit >99% sensitivity and >99% precision for SNPs. If your numbers are significantly off, check your filtering or alignment quality.</p>
       </div>
 
       <h2>What You Learned</h2>
       <ul>
-        <li>Complete GATK Best Practices variant calling pipeline</li>
+        <li>The complete GATK Best Practices variant calling pipeline</li>
         <li>Why each step matters (duplicates, BQSR, filtering)</li>
         <li>Hard filtering vs VQSR and when to use each</li>
         <li>VCF format in depth (genotypes, quality scores, filters)</li>

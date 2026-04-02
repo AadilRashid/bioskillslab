@@ -17,15 +17,15 @@
     <div class="lesson">
 
       <h2>The Biological Question</h2>
-      <p>A clinical microbiology lab receives a patient sample with a suspected bacterial infection. They sequence the isolate using Illumina, producing a FASTQ file — but they don't know what species it is. <strong>Your job: identify the organism from raw sequencing data.</strong></p>
+      <p>A clinical microbiology lab receives a patient sample with a suspected bacterial infection. They sequence the isolate on an Illumina MiSeq, producing a FASTQ file. Nobody knows what species it is. <strong>Your job: figure it out from the raw reads.</strong></p>
 
       <div class="callout tip">
         <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Why does this matter?</strong>
-        <p>Species identification from sequencing data is one of the most fundamental tasks in clinical microbiology, outbreak investigation, food safety, and environmental monitoring. Hospitals use this to determine which antibiotic to prescribe. Public health agencies use it to trace outbreaks. It's the "Hello World" of bioinformatics — simple, practical, and immediately useful.</p>
+        <p>Species identification from sequencing data is bread and butter in clinical microbiology. Hospitals need it to pick the right antibiotic. Public health labs need it to trace outbreaks. Food safety labs need it to catch contamination. If bioinformatics has a "Hello World," this is it.</p>
       </div>
 
       <h2>The Dataset</h2>
-      <p>We'll use a real whole-genome sequencing run from NCBI's Sequence Read Archive:</p>
+      <p>We're using a real whole-genome sequencing run from NCBI's Sequence Read Archive:</p>
       <pre><code>Accession:   SRR24043640
 Organism:    Unknown (you'll figure this out!)
 Platform:    Illumina MiSeq
@@ -76,11 +76,11 @@ echo "Reverse reads: $(( $(wc -l < SRR24043640_2.fastq) / 4 ))"</code></pre>
 
       <div class="callout tip">
         <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Expected output</strong>
-        <p>You should see roughly 500,000–1,000,000 read pairs. This is typical for a bacterial whole-genome sequencing run on MiSeq.</p>
+        <p>You should see roughly 500K to 1M read pairs. That's typical for a bacterial WGS run on MiSeq.</p>
       </div>
 
       <h2>Step 2: Quality Control</h2>
-      <p>Never skip QC. We need to know if the data is good before we analyze it.</p>
+      <p>Never skip QC. You need to know if the data is usable before spending hours analyzing it.</p>
       <pre><code># Run FastQC on both files
 cd ../results/qc
 fastqc ../../data/SRR24043640_1.fastq ../../data/SRR24043640_2.fastq -o . -t 2
@@ -88,16 +88,16 @@ fastqc ../../data/SRR24043640_1.fastq ../../data/SRR24043640_2.fastq -o . -t 2
 # List the reports
 ls *.html</code></pre>
 
-      <h3>What to check in the FastQC report:</h3>
+      <h3>What to look for in the FastQC report:</h3>
       <ul>
-        <li><strong>Per base sequence quality</strong> — Should be mostly green (>Q20). Quality typically drops at the 3' end of reads</li>
-        <li><strong>Adapter content</strong> — Should be low. If high, trimming will remove them</li>
-        <li><strong>GC content</strong> — The peak tells you something about the organism. E. coli is ~50%, Mycobacterium is ~65%, Staphylococcus is ~33%</li>
-        <li><strong>Sequence length distribution</strong> — Should be ~250 bp for MiSeq 2×250</li>
+        <li><strong>Per base sequence quality</strong> should be mostly green (>Q20). Quality usually drops toward the 3' end</li>
+        <li><strong>Adapter content</strong> should be low. If it's high, trimming takes care of it</li>
+        <li><strong>GC content</strong> is a clue about the organism. E. coli sits around 50%, Mycobacterium around 65%, Staphylococcus around 33%</li>
+        <li><strong>Sequence length distribution</strong> should be around 250 bp for MiSeq 2x250</li>
       </ul>
 
       <h2>Step 3: Trim and Filter</h2>
-      <p>Remove adapters, low-quality bases, and short reads:</p>
+      <p>Clean up the reads. Remove adapters, chop off low-quality bases, toss anything too short:</p>
       <pre><code>cd ../trimmed
 fastp \
     -i ../../data/SRR24043640_1.fastq \
@@ -118,15 +118,15 @@ echo "After:  $(( $(wc -l < trimmed_R1.fastq) / 4 )) read pairs"</code></pre>
       <div class="callout tip">
         <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> What fastp does</strong>
         <ul>
-          <li><code>--qualified_quality_phred 20</code> — Bases below Q20 (99% accuracy) are trimmed</li>
-          <li><code>--length_required 100</code> — Reads shorter than 100 bp after trimming are discarded</li>
-          <li><code>--detect_adapter_for_pe</code> — Automatically detects and removes Illumina adapters</li>
+          <li><code>--qualified_quality_phred 20</code> trims bases below Q20 (99% accuracy)</li>
+          <li><code>--length_required 100</code> drops reads shorter than 100 bp after trimming</li>
+          <li><code>--detect_adapter_for_pe</code> auto-detects and removes Illumina adapters</li>
         </ul>
         <p>Open <code>fastp_report.html</code> in a browser to see a visual summary of what was trimmed.</p>
       </div>
 
       <h2>Step 4: Subsample for BLAST</h2>
-      <p>BLAST against the full NCBI nt database is slow. For species identification, we don't need all reads — a random subset is enough:</p>
+      <p>BLAST against the full NCBI nt database is slow. For species ID, you don't need every read. A random subset of 1000 gets the job done:</p>
       <pre><code># Take 1000 random reads
 cd ../blast
 seqkit sample -n 1000 -s 42 ../trimmed/trimmed_R1.fastq > subset_1000.fastq
@@ -139,7 +139,7 @@ grep -c "^>" subset_1000.fasta
 # Expected: 1000</code></pre>
 
       <h2>Step 5: BLAST Against NCBI</h2>
-      <p>Now the key step — search these sequences against NCBI's nucleotide database to identify the organism:</p>
+      <p>The key step. Search your sequences against NCBI's nucleotide database to find out what organism they came from:</p>
 
       <h3>Option A: Web BLAST (no local database needed)</h3>
       <pre><code># Take just 10 reads for web BLAST (it's slow for many sequences)
@@ -187,16 +187,16 @@ for record in records:
     print()</code></pre>
 
       <h2>Step 6: Interpret Your Results</h2>
-      <p>Look at your BLAST results. You should see a clear pattern — most reads hitting the same organism with >95% identity and very low E-values (< 1e-50).</p>
+      <p>Look at your BLAST results. You should see a clear pattern: most reads hitting the same organism with >95% identity and E-values well below 1e-50.</p>
 
       <div class="callout tip">
         <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> How to interpret BLAST results</strong>
         <ul>
-          <li><strong>% Identity > 97%</strong> — Same species</li>
-          <li><strong>% Identity 90-97%</strong> — Same genus, different species</li>
-          <li><strong>% Identity < 90%</strong> — Different genus</li>
-          <li><strong>E-value < 1e-50</strong> — Very confident match</li>
-          <li><strong>Multiple reads hitting the same organism</strong> — Strong evidence</li>
+          <li><strong>% Identity > 97%</strong> means same species</li>
+          <li><strong>% Identity 90-97%</strong> means same genus, different species</li>
+          <li><strong>% Identity < 90%</strong> means different genus</li>
+          <li><strong>E-value < 1e-50</strong> means a very confident match</li>
+          <li><strong>Multiple reads hitting the same organism</strong> is strong evidence</li>
         </ul>
       </div>
 
@@ -242,13 +242,13 @@ echo "Report template created at results/report.md"</code></pre>
         <li>How to assess data quality with FastQC</li>
         <li>How to trim and filter reads with fastp</li>
         <li>How to use BLAST for species identification</li>
-        <li>How to interpret BLAST results (% identity, E-value)</li>
+        <li>How to read BLAST output (% identity, E-value)</li>
         <li>How to write a reproducible analysis report</li>
-        <li>The sort-uniq-count pattern for summarizing categorical results</li>
+        <li>The sort-uniq-count pattern for summarizing results</li>
       </ul>
 
       <h2>Challenge Extensions</h2>
-      <p>If you want to go further:</p>
+      <p>Want to take this further?</p>
       <ol>
         <li><strong>Assemble the genome</strong> — Use SPAdes: <code>spades.py -1 trimmed_R1.fastq -2 trimmed_R2.fastq -o assembly/</code></li>
         <li><strong>Check for antibiotic resistance genes</strong> — Run the assembly through <a href="https://card.mcmaster.ca/analyze/rgi" target="_blank">CARD RGI</a></li>

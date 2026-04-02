@@ -17,16 +17,16 @@
     <div class="lesson">
 
       <h2>The Biological Question</h2>
-      <p>Asthma patients are commonly treated with glucocorticoids like dexamethasone. But which genes in airway cells actually respond to this drug? Understanding this helps researchers find new drug targets and predict side effects.</p>
-      <p><strong>Your job: identify differentially expressed genes between dexamethasone-treated and untreated airway smooth muscle cells.</strong></p>
+      <p>Asthma patients are commonly treated with glucocorticoids like dexamethasone. But which genes in airway cells actually respond to this drug? Understanding the answer helps researchers find new drug targets and predict side effects.</p>
+      <p><strong>Your job: find the genes that change expression when airway smooth muscle cells are treated with dexamethasone.</strong></p>
 
       <div class="callout tip">
         <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Why does this matter?</strong>
-        <p>Differential expression analysis is the most common RNA-Seq application. It's used in cancer research (tumor vs normal), drug development (treated vs untreated), developmental biology (embryo stages), and virtually every area of modern biology. If you learn one bioinformatics pipeline, this is the one.</p>
+        <p>Differential expression analysis is the most common RNA-Seq application. Cancer researchers use it to compare tumor vs normal tissue. Drug developers use it to see what a compound does to cells. Developmental biologists use it to track how gene programs change over time. If you learn one bioinformatics pipeline, make it this one.</p>
       </div>
 
       <h2>The Dataset</h2>
-      <p>We'll use a real published dataset:</p>
+      <p>We're using a real published dataset:</p>
       <pre><code>Study:       Himes et al., 2014, PLOS ONE
 Title:       "RNA-Seq Transcriptome Profiling Identifies CRISPLD2 as a
               Glucocorticoid Responsive Gene..."
@@ -35,10 +35,10 @@ Samples:     4 untreated + 4 dexamethasone-treated
 Cell type:   Human airway smooth muscle cells
 Platform:    Illumina HiSeq 2000
 DOI:         10.1371/journal.pone.0099625</code></pre>
-      <p>This is a well-studied dataset used in the official <a href="https://bioconductor.org/packages/release/workflows/vignettes/rnaseqGene/inst/doc/rnaseqGene.html" target="_blank">Bioconductor RNA-Seq workflow</a>. Our results should match the published findings.</p>
+      <p>This dataset is used in the official <a href="https://bioconductor.org/packages/release/workflows/vignettes/rnaseqGene/inst/doc/rnaseqGene.html" target="_blank">Bioconductor RNA-Seq workflow</a>. Our results should line up with the published findings.</p>
 
       <h3>Expected Results (for validation)</h3>
-      <p>The original paper found genes like <strong>CRISPLD2</strong>, <strong>DUSP1</strong>, and <strong>KLF15</strong> upregulated by dexamethasone. If your analysis finds these, you know your pipeline is working correctly.</p>
+      <p>The original paper found CRISPLD2, DUSP1, and KLF15 upregulated by dexamethasone. If your analysis picks these up, your pipeline is working.</p>
 
       <h2>Step 0: Set Up</h2>
       <pre><code>mkdir -p rnaseq_project/{data/{raw,reference},results/{qc,trimmed,aligned,counts,de,figures},scripts,envs}
