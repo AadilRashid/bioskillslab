@@ -511,7 +511,7 @@ chr1    12345  .  A    G    99    PASS    DP=30</code></pre>
 }
 
 
-// Email capture (stores locally — replace with real email service later)
+// Email capture via Formspree
 function captureEmail() {
   const input = document.getElementById('emailCapture');
   const msg = document.getElementById('emailMsg');
@@ -521,15 +521,21 @@ function captureEmail() {
     msg.innerHTML = '<span style="color:var(--red)">Please enter a valid email.</span>';
     return;
   }
-  const emails = JSON.parse(localStorage.getItem('bsl_emails') || '[]');
-  if (emails.includes(email)) {
-    msg.innerHTML = '<span style="color:var(--orange)">You\'re already subscribed!</span>';
-    return;
-  }
-  emails.push(email);
-  localStorage.setItem('bsl_emails', JSON.stringify(emails));
-  msg.innerHTML = '<span style="color:var(--green)">✓ Subscribed! We\'ll keep you posted.</span>';
-  input.value = '';
+  msg.innerHTML = '<span style="color:var(--text-muted)">Subscribing...</span>';
+  fetch('https://formspree.io/f/xyzdobbo', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: email })
+  }).then(r => {
+    if (r.ok) {
+      msg.innerHTML = '<span style="color:var(--green)">✓ Subscribed! We\'ll keep you posted.</span>';
+      input.value = '';
+    } else {
+      msg.innerHTML = '<span style="color:var(--red)">Something went wrong. Try again.</span>';
+    }
+  }).catch(() => {
+    msg.innerHTML = '<span style="color:var(--red)">Network error. Try again.</span>';
+  });
 }
 window.captureEmail = captureEmail;
 
