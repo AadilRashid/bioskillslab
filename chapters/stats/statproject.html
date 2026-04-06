@@ -1,0 +1,285 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="flask-conical" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Statistics Project: Interrogating a Real RNA-Seq Dataset</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~3 hours</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Intermediate</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> All 15 chapters applied to real data</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Project</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>The Question</h2>
+      <p>Dexamethasone is a glucocorticoid used to treat asthma. It works by suppressing inflammation in airway cells. But which genes does it actually affect, and how confident should we be in those findings?</p>
+      <p>In this project, you'll apply every statistical concept from this course to a real published dataset. You won't just run DESeq2 and call it done. You'll interrogate the results statistically: check distributions, assess power, validate assumptions, interpret effect sizes, and think critically about what the data can and cannot tell you.</p>
+
+      <h2>The Dataset</h2>
+      <pre><code>Study:    Himes et al., 2014, PLOS ONE (GSE52778)
+Samples:  4 untreated + 4 dexamethasone-treated airway smooth muscle cells
+Platform: Illumina HiSeq 2000
+Access:   Available via Bioconductor airway package</code></pre>
+
+      <h2>Setup</h2>
+      <pre><code># Install required packages
+if (!require("BiocManager")) install.packages("BiocManager")
+BiocManager::install(c("airway", "DESeq2", "ggplot2", "dplyr",
+                       "pheatmap", "pROC", "EnhancedVolcano"))
+
+library(airway)
+library(DESeq2)
+library(ggplot2)
+library(dplyr)
+library(pheatmap)
+
+# Load the dataset
+data(airway)
+se <- airway
+
+# Quick look
+colData(se)
+dim(assay(se))   # 63,677 genes × 8 samples</code></pre>
+
+      <h2>Part 1: Understand Your Data Before Any Testing</h2>
+      <p>Before running a single statistical test, understand what you're working with. This is the most important habit in statistics.</p>
+
+      <h3>Step 1.1: Check the distribution of counts</h3>
+      <pre><code># Raw counts are highly skewed (lognormal)
+counts_mat <- assay(se)
+hist(counts_mat[, 1], breaks = 100, main = "Raw counts — sample 1")
+# Most genes have very low counts, a few are very high
+
+# Log-transform to see the distribution better
+hist(log2(counts_mat[, 1] + 1), breaks = 50,
+     main = "Log2(counts + 1) — sample 1",
+     xlab = "Log2 expression")
+# Now it looks roughly Gaussian — this is the lognormal distribution</code></pre>
+
+      <p>What you should see: raw counts are right-skewed (lognormal). Log-transformed counts are approximately Gaussian. This is why we work on the log scale in genomics.</p>
+
+      <h3>Step 1.2: Check sample-sample correlations</h3>
+      <pre><code># Pearson correlation between all pairs of samples
+log_counts <- log2(counts_mat + 1)
+cor_mat <- cor(log_counts)
+pheatmap(cor_mat,
+         annotation_col = data.frame(
+           treatment = colData(se)$dex,
+           row.names = colnames(se)),
+         main = "Sample-sample Pearson correlation")
+
+# What to look for:
+# - Replicates should correlate > 0.95
+# - Treated and untreated should form separate clusters</code></pre>
+
+      <h3>Step 1.3: PCA for quality control</h3>
+      <pre><code>dds <- DESeqDataSet(se, design = ~dex)
+dds <- dds[rowSums(counts(dds)) >= 10, ]
+vsd <- vst(dds)
+
+plotPCA(vsd, intgroup = "dex") +
+  theme_minimal() +
+  labs(title = "PCA: do samples separate by treatment?",
+       color = "Treatment")
+
+# Questions to answer:
+# 1. Do treated and untreated samples separate along PC1?
+# 2. Are there any outlier samples?
+# 3. What % of variance does PC1 explain?</code></pre>
+
+      <h2>Part 2: Statistical Testing</h2>
+
+      <h3>Step 2.1: Run DESeq2</h3>
+      <pre><code>dds <- DESeq(dds)
+res <- results(dds, contrast = c("dex", "trt", "untrt"), alpha = 0.05)
+res <- res[order(res$padj), ]
+
+# Summary
+summary(res)
+cat("\nGenes tested:", nrow(res))
+cat("\nSignificant (padj < 0.05):", sum(!is.na(res$padj) & res$padj < 0.05))
+cat("\nWith |log2FC| > 1:", sum(!is.na(res$padj) & res$padj < 0.05 & abs(res$log2FoldChange) > 1))</code></pre>
+
+      <h3>Step 2.2: Understand the p-value distribution</h3>
+      <pre><code># Plot histogram of raw p-values
+hist(res$pvalue, breaks = 50,
+     main = "P-value distribution",
+     xlab = "Raw p-value",
+     col = "steelblue")
+
+# What to look for:
+# - Uniform distribution from 0.1 to 1.0 (null genes)
+# - Spike near 0 (truly DE genes)
+# - If the distribution is flat or has a spike near 1, something is wrong</code></pre>
+
+      <p>A healthy p-value histogram has a spike near 0 (real effects) and a flat distribution from 0.1 to 1.0 (null genes). This is what Benjamini-Hochberg correction assumes.</p>
+
+      <h3>Step 2.3: Compare raw vs adjusted p-values</h3>
+      <pre><code># How many genes are significant with raw vs adjusted p-values?
+raw_sig <- sum(!is.na(res$pvalue) & res$pvalue < 0.05)
+adj_sig <- sum(!is.na(res$padj) & res$padj < 0.05)
+
+cat("Significant with raw p < 0.05:", raw_sig)
+cat("Significant with padj < 0.05:", adj_sig)
+cat("Difference (likely false positives):", raw_sig - adj_sig)
+
+# This demonstrates why multiple testing correction matters</code></pre>
+
+      <h2>Part 3: Effect Size Analysis</h2>
+
+      <h3>Step 3.1: Volcano plot</h3>
+      <pre><code>library(EnhancedVolcano)
+EnhancedVolcano(as.data.frame(res),
+    lab = rownames(res),
+    x = "log2FoldChange",
+    y = "padj",
+    pCutoff = 0.05,
+    FCcutoff = 1,
+    title = "Dexamethasone vs Untreated",
+    subtitle = "Airway smooth muscle cells")
+
+# Identify the quadrants:
+# Upper left: downregulated, significant
+# Upper right: upregulated, significant
+# Lower middle: not significant (regardless of fold change)</code></pre>
+
+      <h3>Step 3.2: Separate statistical from biological significance</h3>
+      <pre><code># Genes significant by p-value only (small effect)
+stat_only <- subset(res, padj < 0.05 & abs(log2FoldChange) <= 1)
+cat("Statistically significant but small effect:", nrow(stat_only))
+
+# Genes significant by both criteria
+both_sig <- subset(res, padj < 0.05 & abs(log2FoldChange) > 1)
+cat("Both statistically and biologically significant:", nrow(both_sig))
+
+# Distribution of fold changes among significant genes
+hist(both_sig$log2FoldChange, breaks = 30,
+     main = "Fold changes of significant DE genes",
+     xlab = "log2 Fold Change")</code></pre>
+
+      <h3>Step 3.3: Confidence intervals on fold changes</h3>
+      <pre><code># DESeq2 provides standard errors for fold changes
+# Compute 95% CIs
+res_df <- as.data.frame(res)
+res_df$CI_lower <- res_df$log2FoldChange - 1.96 * res_df$lfcSE
+res_df$CI_upper <- res_df$log2FoldChange + 1.96 * res_df$lfcSE
+
+# Look at the top 10 genes
+top10 <- head(res_df[order(res_df$padj), ], 10)
+top10[, c("log2FoldChange", "lfcSE", "CI_lower", "CI_upper", "padj")]
+
+# Which genes have tight CIs (precise estimates)?
+# Which have wide CIs (uncertain estimates)?</code></pre>
+
+      <h2>Part 4: Validate Known Biology</h2>
+      <pre><code># Himes et al. reported CRISPLD2 as a key dex-responsive gene
+# Let's check our results
+
+known_genes <- c("CRISPLD2", "DUSP1", "KLF15", "PER1", "TSC22D3")
+
+for (gene in known_genes) {
+  idx <- grep(gene, rownames(res))
+  if (length(idx) > 0) {
+    r <- res[idx[1], ]
+    cat(sprintf("\n%s: log2FC = %.2f, padj = %.2e %s",
+        gene,
+        r$log2FoldChange,
+        r$padj,
+        ifelse(!is.na(r$padj) & r$padj < 0.05, "SIGNIFICANT", "not significant")))
+  }
+}</code></pre>
+
+      <h2>Part 5: Power Analysis</h2>
+      <pre><code># How many genes could we detect with only 2 replicates instead of 4?
+library(RNASeqPower)
+
+# Estimate CV from the data
+# CV = SD / mean for each gene
+cv_estimates <- apply(counts(dds)[rowSums(counts(dds)) > 100, ], 1, function(x) {
+  sd(x) / mean(x)
+})
+median_cv <- median(cv_estimates, na.rm = TRUE)
+cat("Median CV:", round(median_cv, 3))
+
+# Power with n=2 vs n=4 vs n=8
+for (n in c(2, 4, 8)) {
+  p <- rnapower(depth = 20, n = n, cv = median_cv, effect = 2, alpha = 0.05)
+  cat(sprintf("\nn = %d: power = %.2f", n, p))
+}</code></pre>
+
+      <h2>Part 6: Write Up Your Findings</h2>
+      <p>A good statistical analysis report answers these questions:</p>
+      <pre><code># Template for your report:
+
+cat("
+## Statistical Analysis Report: Dexamethasone RNA-Seq
+
+### Data Quality
+- Samples: [N] treated, [N] untreated
+- Genes after filtering: [N]
+- Sample correlation range: [min] to [max]
+- PCA: PC1 explains [X]% of variance; samples [do/do not] separate by treatment
+
+### Statistical Testing
+- Method: DESeq2 with Benjamini-Hochberg FDR correction
+- Genes tested: [N]
+- Significant (padj < 0.05): [N]
+- Significant with |log2FC| > 1: [N]
+- False positives avoided by FDR correction: [raw_sig - adj_sig]
+
+### Effect Sizes
+- Upregulated: [N] genes
+- Downregulated: [N] genes
+- Median |log2FC| among significant genes: [X]
+- Range of fold changes: [min] to [max]
+
+### Validation
+- CRISPLD2: log2FC = [X], padj = [X] [significant/not]
+- DUSP1: log2FC = [X], padj = [X] [significant/not]
+
+### Power
+- With n=4 per group, power to detect 2-fold change: [X]%
+- With n=2 per group, power would be: [X]%
+
+### Limitations
+- [List any concerns about the analysis]
+")</code></pre>
+
+      <h2>What You Practiced</h2>
+      <ul>
+        <li><strong>S3 Distributions:</strong> Identified lognormal distribution of raw counts</li>
+        <li><strong>S4 Confidence Intervals:</strong> Computed CIs on fold changes using lfcSE</li>
+        <li><strong>S5 P-values:</strong> Interpreted p-value histogram, understood what it means</li>
+        <li><strong>S6 Effect size:</strong> Separated statistical from biological significance</li>
+        <li><strong>S7 Multiple testing:</strong> Compared raw vs adjusted p-values, quantified false positives avoided</li>
+        <li><strong>S10 Correlation:</strong> Sample-sample correlation matrix for QC</li>
+        <li><strong>S13 PCA:</strong> Used PCA to check sample quality and batch effects</li>
+        <li><strong>S14 Experimental design:</strong> Power analysis for different sample sizes</li>
+        <li><strong>S15 Traps:</strong> Validated against published findings to check for circular analysis</li>
+      </ul>
+
+      <div class="module-nav">
+        <button class="nav-btn" onclick="navigate('stat15')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Chapter 15</button>
+        <button class="nav-btn" onclick="navigate('home')"><i data-lucide="home" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Back to Home</button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your results, ask questions... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+</div>
