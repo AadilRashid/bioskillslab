@@ -1,0 +1,197 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="bar-chart-3" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 11: Multiple Regression and GLMs</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~50 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Intermediate</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Multiple Regression, Confounders, Logistic, GLM</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>Why One Predictor is Never Enough</h2>
+      <p>Gene expression doesn't depend on just one thing. It depends on treatment, age, sex, batch, cell type, and dozens of other factors simultaneously. Simple regression handles one predictor. Multiple regression handles all of them at once.</p>
+      <p>More importantly, multiple regression lets you ask: <strong>what is the effect of treatment, after accounting for age and sex?</strong> This is the question that matters in real biology.</p>
+
+      <h2>Multiple Linear Regression</h2>
+      <pre><code>y = β₀ + β₁x₁ + β₂x₂ + β₃x₃ + ... + ε
+
+Example:
+expression = β₀ + β₁(treatment) + β₂(age) + β₃(sex) + ε</code></pre>
+
+      <h3>In R:</h3>
+      <pre><code>model <- lm(expression ~ treatment + age + sex, data = df)
+summary(model)
+
+# Coefficients:
+#                  Estimate Std. Error t value Pr(>|t|)
+# (Intercept)       85.2      12.1     7.04   0.0001 ***
+# treatmentDrug      18.5       3.2     5.78   0.0002 ***
+# age                 0.8       0.4     2.00   0.065  .
+# sexMale            -5.2       2.8    -1.86   0.082  .
+#
+# R-squared: 0.72</code></pre>
+
+      <p>Each coefficient tells you the effect of that variable <strong>holding all others constant</strong>. The drug increases expression by 18.5 units, after accounting for age and sex differences.</p>
+
+      <h2>Confounders: Why This Matters</h2>
+      <p>A confounder is a variable that's associated with both your predictor and your outcome. If you don't include it in the model, you get a biased estimate.</p>
+      <pre><code>Example: You find that older patients have higher tumor expression.
+But older patients also received more prior treatments.
+Prior treatment is a confounder.
+
+Without adjustment: age effect = 3.2 (biased, includes treatment effect)
+With adjustment:    age effect = 0.8 (true age effect)</code></pre>
+
+      <h3>In bioinformatics:</h3>
+      <ul>
+        <li><strong>Batch effects</strong> confound treatment comparisons. Include batch in the model.</li>
+        <li><strong>Cell type composition</strong> confounds bulk RNA-Seq. Deconvolve or include as covariate.</li>
+        <li><strong>Sequencing depth</strong> confounds expression comparisons. Normalize first.</li>
+        <li><strong>Age and sex</strong> affect gene expression. Include in DESeq2 design formula.</li>
+      </ul>
+
+      <h2>The DESeq2 Design Formula is Multiple Regression</h2>
+      <pre><code># Simple: just test condition
+dds <- DESeqDataSetFromMatrix(counts, coldata, design = ~condition)
+
+# With covariates: adjust for batch and sex before testing condition
+dds <- DESeqDataSetFromMatrix(counts, coldata, design = ~batch + sex + condition)
+
+# The last term is what you're testing.
+# Earlier terms are adjusted for (like covariates in multiple regression).</code></pre>
+
+      <h2>Multicollinearity: When Predictors Correlate</h2>
+      <p>If two predictors are highly correlated with each other, the model can't separate their effects. This is multicollinearity.</p>
+      <pre><code>Example: You include both "age" and "years_since_diagnosis" in a model.
+These are highly correlated. The model can't tell which one is driving the effect.
+Both coefficients become unstable and unreliable.
+
+Solution: Remove one of the correlated predictors, or use PCA to create
+uncorrelated composite variables.</code></pre>
+
+      <h2>Generalized Linear Models (GLMs)</h2>
+      <p>Linear regression assumes the outcome is continuous and Gaussian. GLMs extend this to other types of outcomes.</p>
+      <pre><code>Outcome type          Distribution    Link function    Use case
+────────────          ────────────    ─────────────    ────────
+Continuous            Gaussian        Identity         Gene expression (log-transformed)
+Binary (0/1)          Binomial        Logit            Disease yes/no, variant present/absent
+Counts                Poisson         Log              Read counts (simplified)
+Counts (overdispersed) Neg. Binomial  Log              RNA-Seq (DESeq2, edgeR)
+Survival time         Weibull/Cox     Log              Patient survival</code></pre>
+
+      <h2>Logistic Regression</h2>
+      <p>The most important GLM for bioinformatics. Predicts a binary outcome (disease/healthy, variant/no variant, responder/non-responder).</p>
+      <pre><code># In R:
+model <- glm(disease ~ gene_expression + age + sex,
+             family = binomial(link = "logit"),
+             data = df)
+summary(model)
+
+# Coefficients are on the log-odds scale.
+# Exponentiate to get odds ratios:
+exp(coef(model))
+
+# Interpretation:
+# OR = 2.3 for gene_expression means:
+# Each unit increase in expression multiplies the odds of disease by 2.3</code></pre>
+
+      <h3>Odds ratios in GWAS</h3>
+      <p>GWAS reports odds ratios for each SNP. OR = 1.5 means carrying the risk allele multiplies your odds of disease by 1.5. OR = 0.7 means it's protective (reduces odds by 30%).</p>
+
+      <h2>Model Selection: How Many Predictors?</h2>
+      <p>More predictors always improve R² on your training data. But too many predictors leads to overfitting: the model fits noise instead of signal and performs poorly on new data.</p>
+      <pre><code>Rule of thumb: you need at least 10-20 observations per predictor.
+With 50 patients, don't include more than 2-5 predictors.
+
+Criteria for comparing models:
+AIC (Akaike Information Criterion): lower is better, penalizes complexity
+BIC (Bayesian Information Criterion): stricter penalty for complexity
+Adjusted R²: R² penalized for number of predictors</code></pre>
+
+      <pre><code># In R:
+model1 <- lm(y ~ x1, data = df)
+model2 <- lm(y ~ x1 + x2, data = df)
+AIC(model1, model2)   # Compare models</code></pre>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Quiz</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">1</span> In DESeq2, the design formula <code>~batch + condition</code> means:</h4>
+        <button class="quiz-option" data-value="a">Test both batch and condition effects</button>
+        <button class="quiz-option" data-value="b">Ignore batch and only test condition</button>
+        <button class="quiz-option" data-value="c">Adjust for batch effects, then test condition</button>
+        <button class="quiz-option" data-value="d">Combine batch and condition into one variable</button>
+        <div class="quiz-explanation" data-text="In DESeq2, the last term is what you test. Earlier terms are covariates that are adjusted for. ~batch + condition removes batch variation before testing the condition effect."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">2</span> A confounder is:</h4>
+        <button class="quiz-option" data-value="a">A variable that has no effect on the outcome</button>
+        <button class="quiz-option" data-value="b">A variable associated with both the predictor and the outcome that can bias your results</button>
+        <button class="quiz-option" data-value="c">An outlier in your dataset</button>
+        <button class="quiz-option" data-value="d">A variable with high variance</button>
+        <div class="quiz-explanation" data-text="Confounders create spurious associations. If older patients both have higher expression AND received more treatments, age and treatment are confounded. You need to include both in the model to separate their effects."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">3</span> Logistic regression is used when the outcome is:</h4>
+        <button class="quiz-option" data-value="a">Continuous (e.g., gene expression level)</button>
+        <button class="quiz-option" data-value="b">A count (e.g., number of reads)</button>
+        <button class="quiz-option" data-value="c">A time-to-event (e.g., survival)</button>
+        <button class="quiz-option" data-value="d">Binary (e.g., disease yes/no, variant present/absent)</button>
+        <div class="quiz-explanation" data-text="Logistic regression models binary outcomes. It predicts the probability of the event (disease, variant) as a function of predictors."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">4</span> In a GWAS, a SNP has odds ratio = 0.7. This means:</h4>
+        <button class="quiz-option" data-value="a">Carrying the allele reduces the odds of disease by 30% (protective)</button>
+        <button class="quiz-option" data-value="b">Carrying the allele increases the odds of disease by 70%</button>
+        <button class="quiz-option" data-value="c">The SNP has no effect</button>
+        <button class="quiz-option" data-value="d">The allele frequency is 70%</button>
+        <div class="quiz-explanation" data-text="OR < 1 means protective. OR = 0.7 means the odds of disease are 0.7 times lower (30% reduction) for carriers. OR > 1 means risk-increasing."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">5</span> You include both "age" and "years_since_birth" in a regression model. This causes:</h4>
+        <button class="quiz-option" data-value="a">Overfitting</button>
+        <button class="quiz-option" data-value="b">Underfitting</button>
+        <button class="quiz-option" data-value="c">Multicollinearity — the model can't separate their effects</button>
+        <button class="quiz-option" data-value="d">Improved accuracy</button>
+        <div class="quiz-explanation" data-text="Age and years since birth are perfectly correlated. Including both creates multicollinearity: the model can't determine which one is driving the effect, making both coefficients unstable."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your thoughts... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+
+  <div class="module-nav">
+    <button class="nav-btn" onclick="navigate('stat10')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+    <button class="nav-btn" onclick="navigate('stat12')">Next: Classification <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+  </div>
+</div>

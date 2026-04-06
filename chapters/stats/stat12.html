@@ -1,0 +1,214 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="bar-chart-3" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 12: Classification — From Logistic Regression to Random Forests</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~55 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Intermediate</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Classification, ROC, Random Forest, Cross-validation</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>What is Classification?</h2>
+      <p>Regression predicts a continuous number. Classification predicts a category. Is this tumor malignant or benign? Will this patient respond to treatment? Does this variant cause disease?</p>
+      <p>Classification is one of the most important tasks in clinical genomics. A good classifier can turn a gene expression profile into a diagnosis.</p>
+
+      <h2>Logistic Regression as a Classifier</h2>
+      <p>You already know logistic regression from Chapter 11. It predicts the probability of belonging to a class. To classify, you pick a threshold (usually 0.5): if predicted probability > 0.5, predict class 1.</p>
+      <pre><code># In R:
+model <- glm(cancer ~ gene1 + gene2 + gene3,
+             family = binomial, data = train_data)
+
+# Predict probabilities on new data
+probs <- predict(model, newdata = test_data, type = "response")
+
+# Classify at 0.5 threshold
+predictions <- ifelse(probs > 0.5, "cancer", "normal")</code></pre>
+
+      <h2>Evaluating a Classifier</h2>
+      <p>Accuracy alone is misleading. If 95% of samples are healthy, a classifier that always says "healthy" has 95% accuracy but is useless.</p>
+
+      <h3>Confusion matrix</h3>
+      <pre><code>                  Predicted
+                  Positive  Negative
+Actual Positive:    TP        FN
+Actual Negative:    FP        TN
+
+TP = True Positive  (correctly predicted disease)
+TN = True Negative  (correctly predicted healthy)
+FP = False Positive (predicted disease, actually healthy)
+FN = False Negative (predicted healthy, actually disease)</code></pre>
+
+      <h3>Key metrics</h3>
+      <pre><code>Sensitivity (Recall) = TP / (TP + FN)   # How many true cases did you catch?
+Specificity          = TN / (TN + FP)   # How many true negatives did you correctly identify?
+Precision            = TP / (TP + FP)   # Of your positive predictions, how many were right?
+Accuracy             = (TP + TN) / total
+
+F1 score = 2 × (Precision × Recall) / (Precision + Recall)  # Balanced metric</code></pre>
+
+      <h2>ROC Curves and AUC</h2>
+      <p>Instead of picking one threshold, plot sensitivity vs (1-specificity) across all possible thresholds. This is the ROC (Receiver Operating Characteristic) curve.</p>
+      <pre><code>AUC = Area Under the ROC Curve
+
+AUC = 0.5   Random classifier (useless)
+AUC = 0.7   Acceptable
+AUC = 0.8   Good
+AUC = 0.9   Excellent
+AUC = 1.0   Perfect (probably overfitting)</code></pre>
+
+      <pre><code># In R:
+library(pROC)
+roc_obj <- roc(test_data$cancer, probs)
+auc(roc_obj)
+plot(roc_obj)</code></pre>
+
+      <h2>Decision Trees</h2>
+      <p>A tree of if-then rules. Easy to interpret. "If BRCA1 expression > 500 AND TP53 < 100, predict cancer."</p>
+      <pre><code># In R:
+library(rpart)
+tree <- rpart(cancer ~ ., data = train_data, method = "class")
+rpart.plot::rpart.plot(tree)</code></pre>
+      <p>Single trees are interpretable but unstable. Small changes in data can produce very different trees. Random forests fix this.</p>
+
+      <h2>Random Forests</h2>
+      <p>Build hundreds of decision trees, each on a random subset of samples and features. Average their predictions. The result is much more stable and accurate than any single tree.</p>
+      <pre><code># In R:
+library(randomForest)
+rf <- randomForest(cancer ~ ., data = train_data, ntree = 500)
+
+# Feature importance: which genes matter most?
+importance(rf)
+varImpPlot(rf)</code></pre>
+
+      <h3>Why random forests work well in genomics:</h3>
+      <ul>
+        <li>Handle thousands of features (genes) without feature selection</li>
+        <li>Capture non-linear relationships and interactions</li>
+        <li>Built-in feature importance scores</li>
+        <li>Robust to outliers and missing data</li>
+        <li>Work well even when features outnumber samples (p >> n)</li>
+      </ul>
+
+      <h2>Cross-Validation: Honest Performance Estimates</h2>
+      <p>Never evaluate a model on the same data you trained it on. You'll get an optimistic estimate because the model has memorized the training data.</p>
+      <pre><code>k-fold cross-validation:
+1. Split data into k folds (usually k=5 or k=10)
+2. Train on k-1 folds, test on the remaining fold
+3. Repeat k times, each fold serves as test set once
+4. Average the performance across all k folds
+
+This gives an honest estimate of how the model will perform on new data.</code></pre>
+
+      <pre><code># In R with caret:
+library(caret)
+ctrl <- trainControl(method = "cv", number = 10)
+model <- train(cancer ~ ., data = df,
+               method = "rf",
+               trControl = ctrl)
+model$results</code></pre>
+
+      <h2>Overfitting: The Biggest Danger</h2>
+      <p>A model that's too complex memorizes the training data, including its noise. It performs perfectly on training data but poorly on new data.</p>
+      <pre><code>Signs of overfitting:
+- Training accuracy >> test accuracy
+- AUC on training set >> AUC on test set
+- Model has more parameters than samples
+- Adding more features keeps improving training performance
+
+Solutions:
+- Cross-validation to detect it
+- Regularization (Ridge, Lasso) to penalize complexity
+- Simpler models
+- More data</code></pre>
+
+      <h2>Classification in Bioinformatics</h2>
+      <ul>
+        <li><strong>Cancer subtype classification</strong> from gene expression (PAM50 for breast cancer)</li>
+        <li><strong>Variant pathogenicity prediction</strong> (CADD, REVEL scores use random forests)</li>
+        <li><strong>Cell type annotation</strong> in single-cell RNA-Seq</li>
+        <li><strong>Treatment response prediction</strong> from tumor genomics</li>
+        <li><strong>Splice site prediction</strong> from sequence features</li>
+      </ul>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Quiz</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">1</span> A cancer classifier has 95% accuracy on a dataset where 95% of samples are healthy. This classifier is:</h4>
+        <button class="quiz-option" data-value="a">Excellent</button>
+        <button class="quiz-option" data-value="b">Useless — it probably just predicts "healthy" for everything</button>
+        <button class="quiz-option" data-value="c">Good but could be improved</button>
+        <button class="quiz-option" data-value="d">Overfitted</button>
+        <div class="quiz-explanation" data-text="On imbalanced datasets, accuracy is misleading. A classifier that always predicts the majority class gets high accuracy but zero sensitivity. Use AUC, F1, or sensitivity/specificity instead."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">2</span> Sensitivity measures:</h4>
+        <button class="quiz-option" data-value="a">How many true negatives you correctly identified</button>
+        <button class="quiz-option" data-value="b">How many of your positive predictions were correct</button>
+        <button class="quiz-option" data-value="c">How many true positive cases you correctly detected</button>
+        <button class="quiz-option" data-value="d">The overall accuracy of the classifier</button>
+        <div class="quiz-explanation" data-text="Sensitivity = TP/(TP+FN). It answers: of all the true cases, how many did you catch? High sensitivity means few missed cases (low false negatives)."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">3</span> AUC = 0.5 means:</h4>
+        <button class="quiz-option" data-value="a">The classifier performs no better than random chance</button>
+        <button class="quiz-option" data-value="b">The classifier is 50% accurate</button>
+        <button class="quiz-option" data-value="c">The classifier has 50% sensitivity</button>
+        <button class="quiz-option" data-value="d">The model is overfitted</button>
+        <div class="quiz-explanation" data-text="AUC = 0.5 is the diagonal line on a ROC curve, representing random guessing. A useful classifier should have AUC > 0.7."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">4</span> Why are random forests better than single decision trees?</h4>
+        <button class="quiz-option" data-value="a">They are faster to train</button>
+        <button class="quiz-option" data-value="b">They are easier to interpret</button>
+        <button class="quiz-option" data-value="c">They require less data</button>
+        <button class="quiz-option" data-value="d">They average many trees, reducing variance and overfitting</button>
+        <div class="quiz-explanation" data-text="Single trees are unstable — small data changes produce very different trees. Random forests average hundreds of trees trained on random subsets, making predictions much more stable and accurate."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">5</span> Cross-validation is used to:</h4>
+        <button class="quiz-option" data-value="a">Speed up model training</button>
+        <button class="quiz-option" data-value="b">Get an honest estimate of model performance on unseen data</button>
+        <button class="quiz-option" data-value="c">Select the best features</button>
+        <button class="quiz-option" data-value="d">Correct for multiple testing</button>
+        <div class="quiz-explanation" data-text="Cross-validation prevents you from evaluating a model on its training data, which gives an overly optimistic estimate. It simulates how the model will perform on truly new samples."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your thoughts... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+
+  <div class="module-nav">
+    <button class="nav-btn" onclick="navigate('stat11')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+    <button class="nav-btn" onclick="navigate('stat13')">Next: PCA &amp; Clustering <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+  </div>
+</div>
