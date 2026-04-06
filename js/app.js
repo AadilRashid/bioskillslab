@@ -186,8 +186,13 @@ function renderHome(el) {
       </div>
     </div>
 
-    <h2 style="margin-bottom:1rem;font-size:1.2rem;display:flex;align-items:center;gap:.5rem;"><i data-lucide="layers" style="width:20px;height:20px;color:var(--accent);"></i> Bioinformatics Chapters</h2>
-    <div class="modules-grid">${cards}</div>
+    <div class="section-toggle" onclick="toggleSection('bio-chapters')">
+      <h2 style="margin:0;font-size:1rem;display:flex;align-items:center;gap:.5rem;"><i data-lucide="layers" style="width:16px;height:16px;color:var(--accent);"></i> Bioinformatics Chapters</h2>
+      <i data-lucide="chevron-down" class="toggle-icon open" style="width:16px;height:16px;color:var(--text-muted);"></i>
+    </div>
+    <div class="section-body" id="bio-chapters" style="max-height:9999px;opacity:1;">
+      <div class="modules-grid" style="padding-top:.75rem;">${cards}</div>
+    </div>
     <div class="section-toggle" onclick="toggleSection('quick-access')">
       <h2 style="margin:0;font-size:1rem;display:flex;align-items:center;gap:.5rem;"><i data-lucide="bookmark" style="width:16px;height:16px;color:var(--accent);"></i> Quick Access</h2>
       <i data-lucide="chevron-down" class="toggle-icon" style="width:16px;height:16px;color:var(--text-muted);"></i>
