@@ -1,0 +1,198 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="bar-chart-3" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 13: PCA, Clustering, and UMAP</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~55 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Intermediate</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> PCA, k-means, Hierarchical, UMAP, t-SNE</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>Unsupervised Learning: Finding Structure Without Labels</h2>
+      <p>In supervised learning (classification, regression), you have labels. You know which samples are cancer and which are normal. In unsupervised learning, you don't have labels. You're asking: <strong>what structure exists in this data?</strong> Do samples naturally group together? Are there patterns in gene expression across thousands of genes?</p>
+      <p>This is the dominant mode of analysis in genomics. Most of the time, you don't know the answer before you look.</p>
+
+      <h2>Principal Component Analysis (PCA)</h2>
+      <p>You have 20,000 genes measured across 50 samples. That's a 50 × 20,000 matrix. You can't visualize it. PCA compresses it into 2-3 dimensions while preserving as much variation as possible.</p>
+
+      <h3>How it works</h3>
+      <p>PCA finds new axes (principal components) that capture the most variance in the data. PC1 captures the most variance, PC2 the second most, and so on. Each PC is a linear combination of the original variables.</p>
+      <pre><code># In R with DESeq2:
+vsd <- vst(dds)                    # Variance-stabilizing transform
+plotPCA(vsd, intgroup = "condition")
+
+# Or manually:
+pca <- prcomp(t(assay(vsd)), scale = TRUE)
+summary(pca)$importance[, 1:5]    # Variance explained by each PC
+
+# PC1 explains 45% of variance
+# PC2 explains 18% of variance
+# Together: 63% of total variance in 2 dimensions</code></pre>
+
+      <h3>What to look for in a PCA plot</h3>
+      <ul>
+        <li><strong>Samples cluster by condition:</strong> treated and control separate along PC1. Good sign.</li>
+        <li><strong>Samples cluster by batch:</strong> batch 1 and batch 2 separate. Problem. Correct for batch.</li>
+        <li><strong>Outlier samples:</strong> one sample far from all others. Investigate. May need to remove.</li>
+        <li><strong>No separation:</strong> conditions overlap completely. The treatment may not affect global expression.</li>
+      </ul>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> PCA is not clustering</strong>
+        <p>PCA shows you the structure of the data. It doesn't assign samples to groups. If you see two clusters in a PCA plot, you still need a clustering algorithm to formally assign samples to those clusters.</p>
+      </div>
+
+      <h2>k-means Clustering</h2>
+      <p>Partition samples into k groups by minimizing within-cluster variance. You specify k in advance.</p>
+      <pre><code># In R:
+set.seed(42)
+km <- kmeans(t(assay(vsd)), centers = 3, nstart = 25)
+km$cluster    # Which cluster each sample belongs to
+
+# How to choose k? Elbow plot:
+wss <- sapply(1:10, function(k) {
+  kmeans(data, centers = k, nstart = 25)$tot.withinss
+})
+plot(1:10, wss, type = "b", xlab = "k", ylab = "Within-cluster SS")</code></pre>
+
+      <h3>Limitations of k-means:</h3>
+      <ul>
+        <li>You must specify k in advance</li>
+        <li>Assumes spherical clusters of similar size</li>
+        <li>Sensitive to outliers</li>
+        <li>Results vary with random initialization (use nstart > 1)</li>
+      </ul>
+
+      <h2>Hierarchical Clustering</h2>
+      <p>Builds a tree (dendrogram) of samples based on pairwise distances. No need to specify k in advance. You cut the tree at a height to get clusters.</p>
+      <pre><code># In R:
+dist_mat <- dist(t(assay(vsd)))          # Euclidean distance
+hc <- hclust(dist_mat, method = "ward.D2")
+plot(hc)                                  # Dendrogram
+
+# Cut into 3 clusters:
+clusters <- cutree(hc, k = 3)
+
+# Heatmap with hierarchical clustering:
+pheatmap(assay(vsd)[top_genes, ],
+         clustering_method = "ward.D2",
+         annotation_col = coldata)</code></pre>
+
+      <h3>Distance metrics:</h3>
+      <pre><code>Euclidean:    Straight-line distance. Sensitive to scale.
+Correlation:  1 - Pearson r. Good for gene expression (ignores magnitude).
+Manhattan:    Sum of absolute differences. Robust to outliers.</code></pre>
+
+      <h2>t-SNE and UMAP: Nonlinear Dimensionality Reduction</h2>
+      <p>PCA is linear. It can only capture linear structure. t-SNE and UMAP can capture complex nonlinear structure, which is why they're the standard for single-cell RNA-Seq visualization.</p>
+
+      <h3>UMAP (Uniform Manifold Approximation and Projection)</h3>
+      <pre><code># In R (Seurat for single-cell):
+seurat_obj <- RunPCA(seurat_obj)
+seurat_obj <- RunUMAP(seurat_obj, dims = 1:30)
+DimPlot(seurat_obj, reduction = "umap", group.by = "cell_type")</code></pre>
+
+      <h3>Key differences from PCA:</h3>
+      <ul>
+        <li>Preserves local structure (nearby cells stay nearby)</li>
+        <li>Global distances are NOT meaningful (clusters far apart on UMAP may not be biologically distant)</li>
+        <li>Results depend on hyperparameters (n_neighbors, min_dist)</li>
+        <li>Not deterministic — different runs give different layouts</li>
+      </ul>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> UMAP misinterpretation</strong>
+        <p>The distance between clusters on a UMAP plot is not biologically meaningful. Two clusters that look far apart might be transcriptionally similar. Two clusters that look close might be very different. UMAP is for visualization only. Use actual gene expression distances for biological comparisons.</p>
+      </div>
+
+      <h2>Clustering in Bioinformatics</h2>
+      <ul>
+        <li><strong>Sample QC:</strong> PCA to detect outliers and batch effects before DE analysis</li>
+        <li><strong>Gene co-expression modules:</strong> WGCNA clusters genes with similar expression patterns</li>
+        <li><strong>Single-cell cell type discovery:</strong> Leiden/Louvain clustering on UMAP</li>
+        <li><strong>Patient stratification:</strong> Cluster patients by molecular profile to find subtypes</li>
+        <li><strong>Heatmap organization:</strong> Hierarchical clustering orders genes and samples in heatmaps</li>
+      </ul>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Quiz</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">1</span> In a PCA plot of RNA-Seq samples, treated and control samples cluster by batch instead of condition. This means:</h4>
+        <button class="quiz-option" data-value="a">The treatment worked</button>
+        <button class="quiz-option" data-value="b">Batch effects dominate the data and need to be corrected</button>
+        <button class="quiz-option" data-value="c">The PCA failed</button>
+        <button class="quiz-option" data-value="d">You need more samples</button>
+        <div class="quiz-explanation" data-text="If batch separates samples more than condition, the batch effect is larger than the biological signal. Include batch in the DESeq2 design formula or use ComBat to correct it."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">3</span> PC1 explains 45% of variance and PC2 explains 18%. Together they explain:</h4>
+        <button class="quiz-option" data-value="a">45%</button>
+        <button class="quiz-option" data-value="b">18%</button>
+        <button class="quiz-option" data-value="c">63%</button>
+        <button class="quiz-option" data-value="d">100%</button>
+        <div class="quiz-explanation" data-text="Principal components are orthogonal (independent), so their variance contributions add up. PC1 + PC2 = 45% + 18% = 63% of total variance captured in 2 dimensions."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">3</span> What is the main limitation of k-means clustering?</h4>
+        <button class="quiz-option" data-value="a">It only works with Gaussian data</button>
+        <button class="quiz-option" data-value="b">It can't handle more than 100 samples</button>
+        <button class="quiz-option" data-value="c">It requires a distance matrix</button>
+        <button class="quiz-option" data-value="d">You must specify the number of clusters k in advance</button>
+        <div class="quiz-explanation" data-text="k-means requires you to choose k before running. If you don't know how many clusters exist, you need to try multiple values and use an elbow plot or silhouette score to choose."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">4</span> On a UMAP plot, two cell clusters appear far apart. This means:</h4>
+        <button class="quiz-option" data-value="a">They are visually separated, but the distance is not necessarily biologically meaningful</button>
+        <button class="quiz-option" data-value="b">They are very different cell types</button>
+        <button class="quiz-option" data-value="c">They have very different gene expression profiles</button>
+        <button class="quiz-option" data-value="d">They come from different patients</button>
+        <div class="quiz-explanation" data-text="UMAP preserves local structure but global distances are not interpretable. Two clusters far apart on UMAP might be transcriptionally similar. Always validate with actual marker gene expression."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">5</span> Which dimensionality reduction method is standard for single-cell RNA-Seq visualization?</h4>
+        <button class="quiz-option" data-value="a">PCA</button>
+        <button class="quiz-option" data-value="b">UMAP</button>
+        <button class="quiz-option" data-value="c">k-means</button>
+        <button class="quiz-option" data-value="d">Hierarchical clustering</button>
+        <div class="quiz-explanation" data-text="UMAP (and t-SNE before it) became the standard for single-cell visualization because it captures the nonlinear manifold structure of cell states better than PCA."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your thoughts... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+
+  <div class="module-nav">
+    <button class="nav-btn" onclick="navigate('stat12')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+    <button class="nav-btn" onclick="navigate('stat14')">Next: Experimental Design <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+  </div>
+</div>
