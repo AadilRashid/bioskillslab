@@ -1,0 +1,154 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="bar-chart-3" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 1: Why Statistics? Your Data is Lying to You</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~30 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Beginner</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Intuition, Bias, Probability, Variability</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>Your Brain is Bad at Statistics</h2>
+      <p>Before learning any formulas, you need to understand something uncomfortable: human intuition about data is reliably wrong. We see patterns in noise, we jump to conclusions from small samples, and we confuse correlation with causation every single day.</p>
+      <p>This isn't a character flaw. It's how brains evolved. Spotting a tiger in the grass once and assuming all rustling grass means tigers kept our ancestors alive. But in a genomics lab, that same instinct makes you see "significant" results that aren't real.</p>
+
+      <h3>We See Patterns in Random Data</h3>
+      <p>Run a differential expression analysis on two groups of completely random data. No real biological difference. You'll still find "significant" genes. With 20,000 genes tested at p < 0.05, you expect 1,000 false positives by pure chance. That's not a bug in the software. That's how probability works.</p>
+
+      <h3>We Jump to Conclusions from Small Samples</h3>
+      <p>A colleague runs an experiment with 2 replicates per condition and finds a 3-fold change in their favorite gene. Exciting? Maybe. But with n=2, the confidence interval around that fold change is enormous. It could easily be 0.5-fold or 10-fold. You simply can't tell with that little data.</p>
+      <p>This is the single most common mistake in bioinformatics: drawing strong conclusions from underpowered experiments.</p>
+
+      <h3>We Confuse Correlation with Causation</h3>
+      <p>Gene A and Gene B are co-expressed across 50 samples. Does A regulate B? Does B regulate A? Are they both regulated by some third factor C? Co-expression tells you nothing about causation. It only tells you the two things move together.</p>
+
+      <h3>We are Overconfident</h3>
+      <p>Ask a researcher how confident they are in their results. Most will say "very." Ask them to put a number on it. They'll say 95%. But when you actually look at reproducibility studies, about 50-70% of published findings fail to replicate. Our confidence far exceeds our accuracy.</p>
+
+      <h2>What Statistics Actually Does</h2>
+      <p>Statistics is a set of tools for making decisions under uncertainty. You never have perfect data. You always have noise, variability, and limited samples. Statistics helps you answer one question: <strong>is the signal I'm seeing real, or could it be explained by chance?</strong></p>
+
+      <h3>The Core Problem</h3>
+      <p>You measure gene expression in 3 treated and 3 control samples. The treated group has higher expression. But is the difference real, or did you just happen to pick 3 high-expression samples by luck?</p>
+      <p>That's it. That's the fundamental question behind every statistical test, every p-value, every confidence interval. The rest is just machinery for answering it rigorously.</p>
+
+      <h2>Variability is the Enemy</h2>
+      <p>If every mouse responded identically to a drug, you'd only need one mouse per group. But they don't. Biological variability means every measurement is a mix of signal (the real effect) and noise (random variation between individuals, technical variation, batch effects).</p>
+      <p>The job of statistics is to separate signal from noise. More replicates help because they average out the noise. Better experimental design helps because it reduces the noise in the first place.</p>
+
+      <h3>Sources of Variability in Genomics</h3>
+      <ul>
+        <li><strong>Biological variation</strong> between individuals (genetics, age, sex, environment)</li>
+        <li><strong>Technical variation</strong> in library prep, sequencing depth, batch effects</li>
+        <li><strong>Computational variation</strong> from alignment parameters, counting methods, normalization</li>
+      </ul>
+      <p>A good bioinformatician understands all three and designs analyses to account for them.</p>
+
+      <h2>Why Bioinformaticians Need Statistics</h2>
+      <p>Every major bioinformatics task involves statistics:</p>
+      <ul>
+        <li><strong>Differential expression</strong> uses negative binomial models and FDR correction</li>
+        <li><strong>Variant calling</strong> uses Bayesian probability to distinguish real variants from sequencing errors</li>
+        <li><strong>Clustering</strong> (single-cell, patient subtypes) uses distance metrics and dimensionality reduction</li>
+        <li><strong>GWAS</strong> tests millions of variants and needs extreme multiple testing correction</li>
+        <li><strong>Survival analysis</strong> compares patient outcomes between groups</li>
+      </ul>
+      <p>You don't need to derive the math. But you need to understand what each method assumes, when it breaks, and how to interpret the output. That's what this course teaches.</p>
+
+      <h2>What This Course Covers</h2>
+      <ol>
+        <li><strong>Chapters 1-6:</strong> Foundations. Distributions, confidence intervals, p-values, significance</li>
+        <li><strong>Chapters 7-9:</strong> Testing. Multiple testing, t-tests, ANOVA</li>
+        <li><strong>Chapters 10-11:</strong> Modeling. Regression, GLMs</li>
+        <li><strong>Chapters 12-13:</strong> Machine learning. Classification, clustering, PCA</li>
+        <li><strong>Chapters 14-15:</strong> Practice. Experimental design, common traps</li>
+        <li><strong>Project:</strong> Statistically analyze a real RNA-Seq dataset end to end</li>
+      </ol>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> The one thing to remember from this chapter</strong>
+        <p>Your intuition about data is unreliable. Statistics exists because we need a disciplined way to ask "is this real?" Every time you look at a result and think "that looks significant," stop and ask: what would I expect to see by chance alone?</p>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Quiz</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">1</span> You test 20,000 genes for differential expression at p < 0.05 with no real biological difference between groups. How many false positives do you expect?</h4>
+        <button class="quiz-option" data-value="a">0</button>
+        <button class="quiz-option" data-value="b">50</button>
+        <button class="quiz-option" data-value="c">1,000</button>
+        <button class="quiz-option" data-value="d">20,000</button>
+        <div class="quiz-explanation" data-text="At p < 0.05, you expect 5% false positives. 5% of 20,000 = 1,000 genes flagged as significant by chance alone. This is why multiple testing correction (FDR) exists."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">2</span> Two genes are co-expressed across 50 patient samples. What can you conclude?</h4>
+        <button class="quiz-option" data-value="a">Gene A regulates Gene B</button>
+        <button class="quiz-option" data-value="b">Their expression levels tend to move together, but you can't determine causation</button>
+        <button class="quiz-option" data-value="c">They are in the same pathway</button>
+        <button class="quiz-option" data-value="d">One is upstream of the other</button>
+        <div class="quiz-explanation" data-text="Correlation tells you two things move together. It says nothing about why. They could be co-regulated by a third factor, or the correlation could be coincidental."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">3</span> Why do we need more than 1 replicate per condition?</h4>
+        <button class="quiz-option" data-value="a">To estimate biological variability and distinguish signal from noise</button>
+        <button class="quiz-option" data-value="b">Because sequencing machines require multiple inputs</button>
+        <button class="quiz-option" data-value="c">To increase the total number of reads</button>
+        <button class="quiz-option" data-value="d">Because one sample might be contaminated</button>
+        <div class="quiz-explanation" data-text="Replicates let you measure how much natural variation exists between samples. Without that, you can't tell if a difference between groups is real or just random fluctuation."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">4</span> What is the fundamental question behind every statistical test?</h4>
+        <button class="quiz-option" data-value="a">Is my data normally distributed?</button>
+        <button class="quiz-option" data-value="b">What is the average value?</button>
+        <button class="quiz-option" data-value="c">How many samples do I need?</button>
+        <button class="quiz-option" data-value="d">Could the pattern I see be explained by chance alone?</button>
+        <div class="quiz-explanation" data-text="Every statistical test asks the same thing: if there were no real effect, how likely would I be to see data this extreme? That probability is the p-value."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">5</span> Which is NOT a source of variability in a genomics experiment?</h4>
+        <button class="quiz-option" data-value="a">Biological differences between individuals</button>
+        <button class="quiz-option" data-value="b">The programming language used for analysis</button>
+        <button class="quiz-option" data-value="c">Batch effects from different sequencing runs</button>
+        <button class="quiz-option" data-value="d">Differences in library preparation</button>
+        <div class="quiz-explanation" data-text="Whether you use R or Python doesn't add variability to the data. Biological variation, technical variation (batches, library prep), and sequencing depth all do."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your thoughts... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+
+  <div class="module-nav">
+    <div></div>
+    <button class="nav-btn" onclick="navigate('stat2')">Next: From Sample to Population <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+  </div>
+</div>

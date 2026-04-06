@@ -1,0 +1,158 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="bar-chart-3" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 2: From Sample to Population</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~35 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Beginner</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Sampling, Bias, Parameters, Inference</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>The Big Idea</h2>
+      <p>You can never measure every member of a population. You sequence 6 tumor samples, not every tumor on earth. You measure gene expression in 4 mice, not every mouse of that strain. Statistics lets you take what you learned from your small sample and make reasonable statements about the larger population it came from.</p>
+      <p>This leap from sample to population is called <strong>statistical inference</strong>, and it's the entire point of statistics.</p>
+
+      <h2>Population vs Sample</h2>
+      <p>The <strong>population</strong> is the complete group you care about. The <strong>sample</strong> is the subset you actually measured.</p>
+      <pre><code>Population: All humans with BRCA1 mutations
+Sample:     The 200 patients in your study
+
+Population: All possible RNA-Seq measurements of HeLa cells treated with Drug X
+Sample:     Your 3 treated replicates
+
+Population: All E. coli in a patient's gut
+Sample:     The colonies you picked and sequenced</code></pre>
+      <p>The population is often abstract or infinite. You'll never sequence every E. coli in someone's gut. But you want to say something about the population based on what you saw in your sample.</p>
+
+      <h2>Parameters vs Statistics</h2>
+      <p>A <strong>parameter</strong> is a number that describes the population. A <strong>statistic</strong> is a number calculated from your sample that estimates that parameter.</p>
+      <pre><code>Parameter (population)     Statistic (sample)
+─────────────────────      ──────────────────
+True mean expression       Sample mean (x̄)
+True proportion mutated    Sample proportion (p̂)
+True correlation           Sample correlation (r)</code></pre>
+      <p>You never know the true parameter. You only have the sample statistic. The gap between them is called <strong>sampling error</strong>, and it's unavoidable.</p>
+
+      <h2>Sampling Error</h2>
+      <p>Take 3 mice from a colony and measure their weight. The average is 22g. Take a different 3 mice from the same colony. The average might be 24g. Neither is wrong. Both are valid samples. They just happened to grab different mice.</p>
+      <p>This variation between samples is sampling error. It's not a mistake. It's a mathematical consequence of measuring a subset instead of the whole.</p>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Key insight</strong>
+        <p>Sampling error gets smaller as your sample gets larger. With 3 mice, the sample mean bounces around a lot. With 30 mice, it's much more stable. With 300, it barely moves. This is why sample size matters so much.</p>
+      </div>
+
+      <h2>Sampling Bias</h2>
+      <p>Sampling error is random and unavoidable. Sampling <strong>bias</strong> is systematic and avoidable. Bias means your sample doesn't represent the population.</p>
+      <p>Examples in bioinformatics:</p>
+      <ul>
+        <li>Sequencing only tumors from one hospital (geographic bias)</li>
+        <li>Running all treated samples in batch 1 and all controls in batch 2 (confounded batch effect)</li>
+        <li>Excluding samples that "look weird" before analysis (selection bias)</li>
+        <li>Using only cell lines instead of primary tissue (model bias)</li>
+      </ul>
+      <p>No amount of statistical analysis fixes a biased sample. If your treated and control samples were processed on different days, you can't tell whether the difference you see is from the treatment or from the batch. This is why experimental design matters more than any statistical test.</p>
+
+      <h2>Random Sampling</h2>
+      <p>The ideal is <strong>random sampling</strong>: every member of the population has an equal chance of being in your sample. In practice, this is almost never perfectly achieved in biology. You use the mice available in your colony, the patients who happen to visit your hospital, the cell lines in your freezer.</p>
+      <p>The question to always ask: <strong>is my sample representative of the population I want to generalize to?</strong> If you study gene expression in HeLa cells, your results apply to HeLa cells. Not to "human cells" in general. Not to cervical cancer in general. Just HeLa.</p>
+
+      <h2>Multiple Levels of Sampling</h2>
+      <p>In genomics, sampling happens at multiple levels:</p>
+      <pre><code>Level 1: Which patients/animals you select     (biological sampling)
+Level 2: Which cells you extract RNA from       (tissue sampling)
+Level 3: Which RNA molecules get sequenced       (library sampling)
+Level 4: Which reads pass quality filters        (computational sampling)</code></pre>
+      <p>Variability enters at every level. A good experiment controls for as many levels as possible through randomization, replication, and careful protocol.</p>
+
+      <h2>What This Means for Your Analysis</h2>
+      <ul>
+        <li>Your sample mean is an <strong>estimate</strong> of the true mean, not the true mean itself</li>
+        <li>Every estimate has <strong>uncertainty</strong>, which we quantify with confidence intervals</li>
+        <li>Bigger samples give <strong>more precise</strong> estimates (less sampling error)</li>
+        <li>Biased samples give <strong>wrong</strong> estimates no matter how large they are</li>
+        <li>Statistical tests ask: "given the sampling error I expect, is this result surprising?"</li>
+      </ul>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Quiz</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">1</span> You measure gene expression in 4 treated and 4 control mice. The "population" in this context is:</h4>
+        <button class="quiz-option" data-value="a">The 8 mice in your experiment</button>
+        <button class="quiz-option" data-value="b">All mice of that strain that could theoretically receive that treatment</button>
+        <button class="quiz-option" data-value="c">All mice in your animal facility</button>
+        <button class="quiz-option" data-value="d">All mammals</button>
+        <div class="quiz-explanation" data-text="The population is the larger group you want to generalize to. Your 8 mice are the sample. The population is all mice of that strain under those conditions."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">2</span> You run all treated samples on Monday and all controls on Tuesday. This is an example of:</h4>
+        <button class="quiz-option" data-value="a">Sampling error</button>
+        <button class="quiz-option" data-value="b">Random variation</button>
+        <button class="quiz-option" data-value="c">Confounded batch effect (sampling bias)</button>
+        <button class="quiz-option" data-value="d">Technical replication</button>
+        <div class="quiz-explanation" data-text="Treatment and batch are confounded. Any difference you see could be from the drug or from the day. This is bias, not random error, and no statistical test can fix it."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">3</span> What happens to sampling error as sample size increases?</h4>
+        <button class="quiz-option" data-value="a">It decreases</button>
+        <button class="quiz-option" data-value="b">It increases</button>
+        <button class="quiz-option" data-value="c">It stays the same</button>
+        <button class="quiz-option" data-value="d">It becomes bias</button>
+        <div class="quiz-explanation" data-text="Larger samples average out random variation, making the sample statistic closer to the true population parameter. This is the law of large numbers."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">4</span> The sample mean is 42.5. The true population mean is unknown. The difference between them is called:</h4>
+        <button class="quiz-option" data-value="a">Bias</button>
+        <button class="quiz-option" data-value="b">Standard deviation</button>
+        <button class="quiz-option" data-value="c">P-value</button>
+        <button class="quiz-option" data-value="d">Sampling error</button>
+        <div class="quiz-explanation" data-text="Sampling error is the random gap between your sample statistic and the true population parameter. It's not a mistake; it's an inevitable consequence of measuring a subset."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">5</span> You study gene expression in HeLa cells. Your results can be generalized to:</h4>
+        <button class="quiz-option" data-value="a">All human cells</button>
+        <button class="quiz-option" data-value="b">HeLa cells under similar conditions</button>
+        <button class="quiz-option" data-value="c">All cervical cancer cells</button>
+        <button class="quiz-option" data-value="d">All cancer cell lines</button>
+        <div class="quiz-explanation" data-text="Your sample represents the population it was drawn from. HeLa is one specific cell line. Results may or may not extend to other cell types, but you can't assume they do."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your thoughts... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+
+  <div class="module-nav">
+    <button class="nav-btn" onclick="navigate('stat1')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+    <button class="nav-btn" onclick="navigate('stat3')">Next: Distributions <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+  </div>
+</div>
