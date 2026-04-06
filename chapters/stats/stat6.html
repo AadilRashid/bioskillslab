@@ -1,0 +1,152 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="bar-chart-3" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 6: Statistical Significance is Not Biological Significance</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~35 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Beginner</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Effect Size, Power, Interpretation</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>The Two Meanings of "Significant"</h2>
+      <p>In everyday English, "significant" means "important." In statistics, it means "unlikely to be due to chance." These are not the same thing, and confusing them is one of the most common mistakes in science.</p>
+      <p>A result can be statistically significant but biologically trivial. A result can be statistically non-significant but biologically important. You need to think about both.</p>
+
+      <h2>When a Significant Result Doesn't Matter</h2>
+      <p>You run RNA-Seq on 100 samples per group. DESeq2 finds 5,000 genes with padj < 0.05. Exciting? Look closer. Most of them have log2 fold changes between -0.2 and 0.2. That's a 15% change in expression. Statistically real? Yes. Biologically meaningful? Almost certainly not. Cells have noise. A 15% fluctuation in a housekeeping gene isn't going to change anyone's biology.</p>
+
+      <h3>Why this happens</h3>
+      <p>With large sample sizes, you have enormous statistical power. You can detect tiny effects with high confidence. But "detectable" and "meaningful" are different things. The p-value tells you the effect is real. It doesn't tell you the effect matters.</p>
+
+      <h2>When a Non-Significant Result Does Matter</h2>
+      <p>You compare a new drug to placebo in 8 patients. The drug group improves by 40%, but p = 0.12. "Not significant." Does that mean the drug doesn't work?</p>
+      <p>No. It means you didn't have enough patients to detect the effect. With n=8, you have very low statistical power. The effect might be real and large, but your sample was too small to confirm it. A non-significant result is not evidence of no effect. It's evidence of insufficient data.</p>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Absence of evidence ≠ evidence of absence</strong>
+        <p>"We found no significant difference" does NOT mean "there is no difference." It means "we couldn't detect a difference with this sample size." Always check the confidence interval. If it's wide enough to include both "no effect" and "large effect," you simply don't know.</p>
+      </div>
+
+      <h2>Effect Size: What You Should Actually Report</h2>
+      <p>Effect size measures how big the difference is, independent of sample size. Common effect sizes in bioinformatics:</p>
+      <pre><code>Differential expression:  log2 fold change
+Correlation:              Pearson r or Spearman ρ
+Group comparison:         Cohen's d = (mean₁ - mean₂) / pooled SD
+Variant association:      Odds ratio
+Explained variance:       R²</code></pre>
+
+      <h3>Rules of thumb for log2 fold change</h3>
+      <pre><code>|log2FC| < 0.5    Small effect (< 1.4-fold change)
+|log2FC| 0.5-1.0  Moderate effect (1.4 to 2-fold)
+|log2FC| > 1.0    Large effect (> 2-fold)
+|log2FC| > 2.0    Very large effect (> 4-fold)</code></pre>
+      <p>Most DE analyses use |log2FC| > 1 as a biological significance cutoff alongside padj < 0.05 as a statistical significance cutoff. You need both.</p>
+
+      <h2>The Volcano Plot: Seeing Both at Once</h2>
+      <p>A volcano plot puts effect size (log2FC) on the x-axis and statistical significance (-log10 padj) on the y-axis. The interesting genes are in the upper corners: large effect AND statistically significant.</p>
+      <pre><code>        -log10(padj)
+            │
+     ★      │      ★       ← Significant AND large effect
+            │
+     •      │      •       ← Significant but small effect
+   ─────────┼──────────── padj = 0.05
+     •      │      •       ← Not significant
+            │
+   ─────────┼────────────
+        -log2FC    +log2FC
+            │
+       ← down    up →</code></pre>
+      <p>The dots in the middle top (small fold change, low p-value) are statistically significant but biologically boring. The dots in the far left/right but below the line are biologically interesting but not confirmed statistically. Only the upper corners give you both.</p>
+
+      <h2>Practical Guidelines</h2>
+      <ul>
+        <li>Always report effect size alongside p-values</li>
+        <li>Use both statistical (padj < 0.05) and biological (|log2FC| > 1) cutoffs for DE</li>
+        <li>Don't say "no effect" when you mean "not significant." Say "we did not detect a significant effect"</li>
+        <li>Look at confidence intervals. A wide CI means you don't have enough data to draw conclusions</li>
+        <li>A significant result with a tiny effect size is usually not worth following up on</li>
+        <li>A non-significant result with a large effect size and wide CI needs more replicates, not a different conclusion</li>
+      </ul>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Quiz</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">1</span> A gene has padj = 0.001 and log2FC = 0.05. This result is:</h4>
+        <button class="quiz-option" data-value="a">Biologically significant because the p-value is very small</button>
+        <button class="quiz-option" data-value="b">Statistically significant but biologically trivial (3.5% expression change)</button>
+        <button class="quiz-option" data-value="c">A false positive</button>
+        <button class="quiz-option" data-value="d">Not statistically significant</button>
+        <div class="quiz-explanation" data-text="padj = 0.001 means the effect is real. But log2FC = 0.05 is a 3.5% change. That's noise-level biology. Statistically real, biologically meaningless."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">2</span> You find p = 0.15 with n = 4 per group and a 3-fold change. The best interpretation is:</h4>
+        <button class="quiz-option" data-value="a">The treatment has no effect</button>
+        <button class="quiz-option" data-value="b">The result is wrong</button>
+        <button class="quiz-option" data-value="c">You should use a different statistical test</button>
+        <button class="quiz-option" data-value="d">The study was underpowered; the effect might be real but you can't confirm it with this sample size</button>
+        <div class="quiz-explanation" data-text="A 3-fold change is large. p = 0.15 with n=4 just means you don't have enough data to confirm it. More replicates would likely make it significant."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">3</span> On a volcano plot, the most interesting genes are in the:</h4>
+        <button class="quiz-option" data-value="a">Upper left and upper right corners (large effect + significant)</button>
+        <button class="quiz-option" data-value="b">Top center (most significant regardless of effect)</button>
+        <button class="quiz-option" data-value="c">Bottom corners (large effect regardless of significance)</button>
+        <button class="quiz-option" data-value="d">Center (average expression)</button>
+        <div class="quiz-explanation" data-text="Upper corners = large fold change (far from center) AND significant (high up). These genes have both statistical and biological significance."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">4</span> The standard cutoffs for calling a gene "differentially expressed" in RNA-Seq are:</h4>
+        <button class="quiz-option" data-value="a">pvalue < 0.05 only</button>
+        <button class="quiz-option" data-value="b">|log2FC| > 1 only</button>
+        <button class="quiz-option" data-value="c">padj < 0.05 AND |log2FC| > 1</button>
+        <button class="quiz-option" data-value="d">baseMean > 100</button>
+        <div class="quiz-explanation" data-text="You need both: padj for statistical significance (is it real?) and log2FC for biological significance (is it meaningful?). Using only one gives misleading results."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">5</span> "We found no significant difference between groups" means:</h4>
+        <button class="quiz-option" data-value="a">There is definitely no difference</button>
+        <button class="quiz-option" data-value="b">We couldn't detect a difference with this sample size and test</button>
+        <button class="quiz-option" data-value="c">The groups are identical</button>
+        <button class="quiz-option" data-value="d">The experiment failed</button>
+        <div class="quiz-explanation" data-text="Absence of evidence is not evidence of absence. You might have missed a real effect because your sample was too small (low power). Check the confidence interval to see what effects are still plausible."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your thoughts... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+
+  <div class="module-nav">
+    <button class="nav-btn" onclick="navigate('stat5')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+    <button class="nav-btn" onclick="navigate('stat7')">Next: Multiple Testing <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+  </div>
+</div>

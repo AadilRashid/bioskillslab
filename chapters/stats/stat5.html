@@ -1,0 +1,177 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="bar-chart-3" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 5: P-Values — The Most Misunderstood Number in Science</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~45 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Beginner</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> P-value, Null Hypothesis, Type I Error, Significance</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>What a P-Value Actually Is</h2>
+      <p>A p-value answers one specific question: <strong>if there were no real effect, how likely would I be to see data this extreme or more extreme?</strong></p>
+      <p>That's it. Nothing more. It's the probability of the data given the null hypothesis, not the probability of the hypothesis given the data.</p>
+
+      <h3>A concrete example</h3>
+      <p>You compare gene expression between 4 treated and 4 control mice. The treated group has higher expression. You run a t-test and get p = 0.03.</p>
+      <p>This means: if the treatment had zero effect (null hypothesis), there's a 3% chance you'd see a difference this large just from random sampling variation. That's pretty unlikely, so you suspect the treatment actually does something.</p>
+
+      <h2>What a P-Value is NOT</h2>
+      <p>Most people get this wrong. Even many published papers get it wrong.</p>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Common misinterpretations</strong>
+        <ul>
+          <li><strong>NOT</strong> the probability that the null hypothesis is true</li>
+          <li><strong>NOT</strong> the probability that your result is a fluke</li>
+          <li><strong>NOT</strong> the probability that you'll get the same result if you repeat the experiment</li>
+          <li><strong>NOT</strong> a measure of effect size (p = 0.001 doesn't mean a big effect)</li>
+        </ul>
+      </div>
+
+      <p>A small p-value means the data is unlikely under the null hypothesis. It does NOT tell you how likely the alternative hypothesis is. Those are completely different questions.</p>
+
+      <h2>The Null Hypothesis</h2>
+      <p>Every p-value is calculated against a null hypothesis. Usually the null says "there's no difference" or "there's no effect."</p>
+      <pre><code>Differential expression:  H₀: log2FC = 0 (no difference between groups)
+Variant calling:          H₀: this position matches the reference
+Correlation:              H₀: r = 0 (no linear relationship)
+GWAS:                     H₀: this SNP has no association with the trait</code></pre>
+      <p>The p-value tells you how surprising your data would be if the null were true. If it's very surprising (small p), you reject the null.</p>
+
+      <h2>The 0.05 Threshold</h2>
+      <p>The convention is to call results "statistically significant" if p < 0.05. This threshold is completely arbitrary. Ronald Fisher picked it in the 1920s because it felt reasonable. There's nothing magical about it.</p>
+      <p>p = 0.049 and p = 0.051 are practically identical. Treating one as "significant" and the other as "not significant" is absurd, but it happens in papers every day.</p>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Better practice</strong>
+        <p>Report the actual p-value, not just "significant" or "not significant." Let readers judge for themselves. And always report the effect size (fold change, correlation coefficient, etc.) alongside the p-value. A tiny effect can have a tiny p-value if you have enough data.</p>
+      </div>
+
+      <h2>Small P-Value ≠ Big Effect</h2>
+      <p>This trips up a lot of people. With enough samples, even a trivially small difference becomes "statistically significant."</p>
+      <pre><code>Study A: n = 5 per group,  log2FC = 3.0,  p = 0.08   (not significant)
+Study B: n = 500 per group, log2FC = 0.1, p = 0.001  (highly significant)</code></pre>
+      <p>Study A found a large effect but couldn't confirm it (too few samples). Study B found a tiny, biologically meaningless effect but confirmed it with high confidence (lots of samples). Which result is more interesting biologically? Study A, obviously.</p>
+      <p>P-values mix up effect size and sample size. Always look at both.</p>
+
+      <h2>Type I and Type II Errors</h2>
+      <pre><code>                    Reality
+                    No effect    Real effect
+Your decision:
+  "Significant"     Type I ✗     Correct ✓
+  "Not significant" Correct ✓    Type II ✗</code></pre>
+      <ul>
+        <li><strong>Type I error (false positive):</strong> You claim an effect exists when it doesn't. Controlled by your significance threshold (α, usually 0.05).</li>
+        <li><strong>Type II error (false negative):</strong> You miss a real effect. Related to statistical power (Chapter 14).</li>
+      </ul>
+      <p>In genomics, Type I errors are especially dangerous because you're testing thousands of genes simultaneously. Testing 20,000 genes at α = 0.05 gives you 1,000 expected false positives. This is why multiple testing correction exists (Chapter 7).</p>
+
+      <h2>P-Values in Bioinformatics</h2>
+
+      <h3>DESeq2 output</h3>
+      <pre><code># DESeq2 gives you two p-value columns:
+# pvalue  — raw p-value from the Wald test
+# padj   — adjusted p-value (Benjamini-Hochberg FDR)
+
+# ALWAYS use padj, never pvalue
+sig <- subset(res, padj < 0.05 & abs(log2FoldChange) > 1)</code></pre>
+
+      <h3>BLAST E-values</h3>
+      <p>BLAST reports E-values, not p-values. The E-value is the expected number of hits with this score or better that you'd find by chance in a database of that size. E = 1e-50 means you'd need to search 10⁵⁰ random databases to find one hit this good by chance. Very confident.</p>
+
+      <h3>GWAS</h3>
+      <p>Genome-wide association studies test millions of SNPs. The significance threshold is p < 5 × 10⁻⁸ (not 0.05) to account for the massive number of tests.</p>
+
+      <h2>The Bottom Line</h2>
+      <ul>
+        <li>A p-value is the probability of your data (or more extreme) under the null hypothesis</li>
+        <li>Small p means the data is surprising if there's no effect</li>
+        <li>It does NOT tell you the probability that the effect is real</li>
+        <li>Always report effect size alongside p-values</li>
+        <li>The 0.05 threshold is a convention, not a law of nature</li>
+        <li>In genomics, always use adjusted p-values (FDR) because you're testing thousands of things</li>
+      </ul>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Quiz</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">1</span> A p-value of 0.03 means:</h4>
+        <button class="quiz-option" data-value="a">There's a 3% chance the null hypothesis is true</button>
+        <button class="quiz-option" data-value="b">There's a 97% chance the treatment works</button>
+        <button class="quiz-option" data-value="c">If there were no real effect, there's a 3% chance of seeing data this extreme</button>
+        <button class="quiz-option" data-value="d">The effect size is 3%</button>
+        <div class="quiz-explanation" data-text="The p-value is the probability of the data given the null hypothesis, not the probability of the hypothesis given the data. A subtle but critical distinction."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">2</span> A study with n=10,000 finds a gene with log2FC = 0.01 and p = 0.0001. This result is:</h4>
+        <button class="quiz-option" data-value="a">Biologically important because the p-value is very small</button>
+        <button class="quiz-option" data-value="b">Statistically significant but biologically meaningless (tiny effect size)</button>
+        <button class="quiz-option" data-value="c">A false positive</button>
+        <button class="quiz-option" data-value="d">Impossible</button>
+        <div class="quiz-explanation" data-text="With enough samples, even trivial differences become statistically significant. A 0.01 log2FC is a 0.7% change in expression. Real? Probably. Meaningful? No. Always check effect size."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">3</span> You test 20,000 genes at p < 0.05 with no real biological difference. How many false positives do you expect?</h4>
+        <button class="quiz-option" data-value="a">0</button>
+        <button class="quiz-option" data-value="b">20</button>
+        <button class="quiz-option" data-value="c">100</button>
+        <button class="quiz-option" data-value="d">1,000</button>
+        <div class="quiz-explanation" data-text="5% of 20,000 = 1,000. This is why raw p-values are useless in genomics. You need FDR correction (padj in DESeq2)."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">4</span> In DESeq2 output, which column should you use for filtering significant genes?</h4>
+        <button class="quiz-option" data-value="a">padj (adjusted p-value)</button>
+        <button class="quiz-option" data-value="b">pvalue (raw p-value)</button>
+        <button class="quiz-option" data-value="c">log2FoldChange</button>
+        <button class="quiz-option" data-value="d">baseMean</button>
+        <div class="quiz-explanation" data-text="padj is the Benjamini-Hochberg adjusted p-value that controls the false discovery rate. Using raw pvalue on 20,000 genes gives you hundreds of false positives."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">5</span> A Type I error is:</h4>
+        <button class="quiz-option" data-value="a">Missing a real effect</button>
+        <button class="quiz-option" data-value="b">Using the wrong statistical test</button>
+        <button class="quiz-option" data-value="c">Claiming an effect exists when it doesn't (false positive)</button>
+        <button class="quiz-option" data-value="d">Having too few replicates</button>
+        <div class="quiz-explanation" data-text="Type I = false positive (you cry wolf). Type II = false negative (you miss the wolf). The significance threshold α controls the Type I error rate."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your thoughts... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+
+  <div class="module-nav">
+    <button class="nav-btn" onclick="navigate('stat4')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+    <button class="nav-btn" onclick="navigate('stat6')">Next: Significance <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+  </div>
+</div>

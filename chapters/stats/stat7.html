@@ -1,0 +1,169 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="bar-chart-3" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 7: Multiple Testing — The FDR Problem</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~45 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Intermediate</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> FDR, Bonferroni, Benjamini-Hochberg, padj</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>The Problem</h2>
+      <p>You test one gene at p < 0.05. There's a 5% chance of a false positive. Acceptable.</p>
+      <p>You test 20,000 genes at p < 0.05. You expect 1,000 false positives. Not acceptable.</p>
+      <p>This is the multiple testing problem. Every time you run another test, you roll the dice again. Run enough tests and you're guaranteed to find "significant" results even when nothing is going on.</p>
+
+      <h3>It's everywhere in genomics</h3>
+      <pre><code>RNA-Seq DE:     ~20,000 genes tested
+GWAS:           ~1,000,000 SNPs tested
+Single-cell:    ~20,000 genes × dozens of clusters
+ChIP-Seq:       ~100,000 peaks tested
+Metagenomics:   ~10,000 species tested</code></pre>
+      <p>If you don't correct for multiple testing, your results are mostly noise.</p>
+
+      <h2>Solution 1: Bonferroni Correction</h2>
+      <p>The simplest fix. Divide your significance threshold by the number of tests.</p>
+      <pre><code>Original threshold:  α = 0.05
+Number of tests:     m = 20,000
+Bonferroni threshold: α/m = 0.05/20,000 = 2.5 × 10⁻⁶</code></pre>
+      <p>Only call a gene significant if p < 0.0000025. This controls the <strong>family-wise error rate (FWER)</strong>: the probability of even one false positive across all tests.</p>
+
+      <h3>The problem with Bonferroni</h3>
+      <p>It's too conservative. By guarding so aggressively against false positives, you miss a lot of real effects. With 20,000 tests, Bonferroni demands extremely small p-values. Many truly differentially expressed genes won't make the cut.</p>
+
+      <h2>Solution 2: False Discovery Rate (FDR)</h2>
+      <p>Instead of controlling the chance of ANY false positive, FDR controls the PROPORTION of false positives among your significant results.</p>
+      <pre><code>Bonferroni (FWER): "I want less than 5% chance of even ONE false positive"
+FDR:               "I accept that up to 5% of my significant results might be false"</code></pre>
+      <p>FDR is much less conservative. If you call 500 genes significant at FDR < 0.05, you expect about 25 of them (5%) to be false positives. The other 475 are real. That's a much better deal than Bonferroni, which might only find 50 genes total.</p>
+
+      <h2>Benjamini-Hochberg Procedure</h2>
+      <p>The standard method for FDR correction. This is what DESeq2, edgeR, and most genomics tools use.</p>
+      <pre><code>How it works:
+1. Rank all p-values from smallest to largest
+2. For each p-value, calculate: adjusted_p = p × (total_tests / rank)
+3. Ensure adjusted p-values are monotonically increasing
+4. Call significant if adjusted_p < 0.05
+
+Example with 5 genes:
+Gene    p-value   Rank   Adjusted p    Significant?
+────    ───────   ────   ──────────    ────────────
+GeneA   0.001     1      0.005         Yes
+GeneB   0.008     2      0.020         Yes
+GeneC   0.030     3      0.050         Yes (borderline)
+GeneD   0.040     4      0.050         Yes (borderline)
+GeneE   0.200     5      0.200         No</code></pre>
+
+      <h3>In R:</h3>
+      <pre><code># Manual BH correction
+p_values <- c(0.001, 0.008, 0.030, 0.040, 0.200)
+p.adjust(p_values, method = "BH")
+# [1] 0.005 0.020 0.050 0.050 0.200
+
+# DESeq2 does this automatically in the padj column
+# You never need to do it manually for DE analysis</code></pre>
+
+      <h2>When to Use Which</h2>
+      <pre><code>Situation                          Method
+─────────                          ──────
+Testing 3-10 things (ANOVA post-hoc)  Bonferroni or Tukey
+Testing 100s-1000s (DE, GWAS)         Benjamini-Hochberg (FDR)
+Testing millions (GWAS)               Bonferroni at 5×10⁻⁸
+Exploratory analysis                  FDR < 0.10 is acceptable
+Confirmatory / clinical               FDR < 0.01 or Bonferroni</code></pre>
+
+      <h2>The Hidden Multiple Testing Problem</h2>
+      <p>Multiple testing isn't always obvious. These all count as multiple tests:</p>
+      <ul>
+        <li>Testing different gene sets until one is significant</li>
+        <li>Trying different normalization methods and picking the one that gives the best result</li>
+        <li>Splitting patients into subgroups until you find a significant difference</li>
+        <li>Running the analysis with and without outliers and reporting whichever looks better</li>
+      </ul>
+      <p>This is called <strong>p-hacking</strong> or <strong>data dredging</strong>. It inflates your false positive rate without any formal correction because the extra tests aren't reported. Pre-register your analysis plan to avoid this.</p>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> The one rule</strong>
+        <p>In genomics, never use raw p-values for calling significant results. Always use adjusted p-values (padj, q-value, FDR). If a paper reports raw p-values on a genome-wide analysis, be very skeptical.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Quiz</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">1</span> You test 10,000 genes with no real effect at p < 0.05. How many false positives do you expect?</h4>
+        <button class="quiz-option" data-value="a">50</button>
+        <button class="quiz-option" data-value="b">500</button>
+        <button class="quiz-option" data-value="c">5,000</button>
+        <button class="quiz-option" data-value="d">0</button>
+        <div class="quiz-explanation" data-text="5% of 10,000 = 500 expected false positives. This is why multiple testing correction is mandatory in genomics."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">2</span> FDR < 0.05 means:</h4>
+        <button class="quiz-option" data-value="a">Less than 5% chance of any false positive</button>
+        <button class="quiz-option" data-value="b">Exactly 5% of all genes are significant</button>
+        <button class="quiz-option" data-value="c">Among your significant results, you expect no more than 5% to be false positives</button>
+        <button class="quiz-option" data-value="d">The effect size is at least 5%</button>
+        <div class="quiz-explanation" data-text="FDR controls the proportion of false discoveries among significant results. If you call 200 genes significant at FDR 5%, about 10 are expected to be false."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">3</span> Why is Bonferroni correction too conservative for RNA-Seq?</h4>
+        <button class="quiz-option" data-value="a">It demands extremely small p-values, causing you to miss many real effects</button>
+        <button class="quiz-option" data-value="b">It doesn't work with count data</button>
+        <button class="quiz-option" data-value="c">It requires normally distributed data</button>
+        <button class="quiz-option" data-value="d">It only works with fewer than 100 tests</button>
+        <div class="quiz-explanation" data-text="With 20,000 tests, Bonferroni requires p < 2.5×10⁻⁶. Many truly DE genes have p-values between 10⁻⁶ and 10⁻², so Bonferroni misses them. BH/FDR is the better choice."></div>
+      </div>
+
+      <div class="quiz-question" data-type="fillin" data-answer="Benjamini-Hochberg||BH||benjamini-hochberg||bh">
+        <h4><span class="q-num">4</span> What FDR correction method does DESeq2 use by default?</h4>
+        <input type="text" class="quiz-fill-input" placeholder="Method name..." style="width:100%;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-explanation" data-text="DESeq2 uses Benjamini-Hochberg (BH) by default. The padj column in DESeq2 results is the BH-adjusted p-value."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">5</span> Which of these is an example of p-hacking?</h4>
+        <button class="quiz-option" data-value="a">Using FDR correction on 20,000 genes</button>
+        <button class="quiz-option" data-value="b">Pre-registering your analysis plan</button>
+        <button class="quiz-option" data-value="c">Reporting all results including non-significant ones</button>
+        <button class="quiz-option" data-value="d">Trying different subgroup splits until you find a significant result and only reporting that one</button>
+        <div class="quiz-explanation" data-text="Testing multiple subgroups and only reporting the one that 'works' inflates your false positive rate without any correction. This is p-hacking. Pre-registration and reporting all results prevent it."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your thoughts... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+
+  <div class="module-nav">
+    <button class="nav-btn" onclick="navigate('stat6')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+    <button class="nav-btn" onclick="navigate('stat8')">Next: t-tests <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+  </div>
+</div>
