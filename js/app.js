@@ -188,11 +188,16 @@ function renderHome(el) {
 
     <h2 style="margin-bottom:1rem;font-size:1.2rem;display:flex;align-items:center;gap:.5rem;"><i data-lucide="layers" style="width:20px;height:20px;color:var(--accent);"></i> Bioinformatics Chapters</h2>
     <div class="modules-grid">${cards}</div>
-    <h2 style="margin:1.5rem 0 1rem;font-size:1.2rem;display:flex;align-items:center;gap:.5rem;"><i data-lucide="bookmark" style="width:20px;height:20px;color:var(--accent);"></i> Quick Access</h2>
-    <div class="modules-grid">
-      <div class="module-card" onclick="navigate('resources')"><div class="icon"><i data-lucide="library"></i></div><h3>Resource Library</h3><p class="card-desc">Curated books, online courses, databases, tools, and communities.</p></div>
-      <div class="module-card" onclick="navigate('glossary')"><div class="icon"><i data-lucide="scroll-text"></i></div><h3>Glossary</h3><p class="card-desc">50+ searchable bioinformatics terms with clear definitions.</p></div>
-      <div class="module-card" onclick="navigate('cheatsheets')"><div class="icon"><i data-lucide="clipboard-list"></i></div><h3>Cheat Sheets</h3><p class="card-desc">Quick references for Unix, samtools, R, Python, and file formats.</p></div>
+    <div class="section-toggle" onclick="toggleSection('quick-access')">
+      <h2 style="margin:0;font-size:1rem;display:flex;align-items:center;gap:.5rem;"><i data-lucide="bookmark" style="width:16px;height:16px;color:var(--accent);"></i> Quick Access</h2>
+      <i data-lucide="chevron-down" class="toggle-icon" style="width:16px;height:16px;color:var(--text-muted);"></i>
+    </div>
+    <div class="section-body collapsed" id="quick-access" style="max-height:0;">
+      <div class="modules-grid" style="padding-top:.75rem;">
+        <div class="module-card" onclick="navigate('resources')"><div class="icon"><i data-lucide="library"></i></div><h3>Resource Library</h3><p class="card-desc">Curated books, courses, databases, tools.</p></div>
+        <div class="module-card" onclick="navigate('glossary')"><div class="icon"><i data-lucide="scroll-text"></i></div><h3>Glossary</h3><p class="card-desc">50+ searchable bioinformatics terms.</p></div>
+        <div class="module-card" onclick="navigate('cheatsheets')"><div class="icon"><i data-lucide="clipboard-list"></i></div><h3>Cheat Sheets</h3><p class="card-desc">Unix, samtools, R, Python quick refs.</p></div>
+      </div>
     </div>
 
     <!-- EMAIL CAPTURE -->
@@ -207,43 +212,53 @@ function renderHome(el) {
       <p style="color:var(--text-muted);font-size:.7rem;margin-top:.5rem;">No spam. Unsubscribe anytime.</p>
     </div>
 
-    <!-- SOCIAL PROOF / WHAT YOU'LL LEARN -->
-    <div style="margin-top:2rem;padding:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;">
-      <h3 style="margin-bottom:1rem;display:flex;align-items:center;gap:.5rem;"><i data-lucide="target" style="width:20px;height:20px;color:var(--green);"></i> By the End of This Course, You Will</h3>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:.75rem;">
-        <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="check-circle" style="width:18px;height:18px;color:var(--green);flex-shrink:0;margin-top:2px;"></i> Navigate Linux and process files with grep, awk, sed, and pipes</div>
-        <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="check-circle" style="width:18px;height:18px;color:var(--green);flex-shrink:0;margin-top:2px;"></i> Parse FASTA/FASTQ files and automate tasks with Python &amp; Biopython</div>
-        <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="check-circle" style="width:18px;height:18px;color:var(--green);flex-shrink:0;margin-top:2px;"></i> Visualize data and run DE analysis with R, ggplot2, and DESeq2</div>
-        <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="check-circle" style="width:18px;height:18px;color:var(--green);flex-shrink:0;margin-top:2px;"></i> Align reads with BWA/STAR and manipulate BAM files with samtools</div>
-        <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="check-circle" style="width:18px;height:18px;color:var(--green);flex-shrink:0;margin-top:2px;"></i> Call variants with GATK and annotate VCF files</div>
-        <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="check-circle" style="width:18px;height:18px;color:var(--green);flex-shrink:0;margin-top:2px;"></i> Build reproducible pipelines with Snakemake, Git, and Docker</div>
+    <div class="section-toggle" onclick="toggleSection('learning-outcomes')" style="margin-top:2rem;">
+      <h2 style="margin:0;font-size:1rem;display:flex;align-items:center;gap:.5rem;"><i data-lucide="target" style="width:16px;height:16px;color:var(--green);"></i> What You Will Learn</h2>
+      <i data-lucide="chevron-down" class="toggle-icon" style="width:16px;height:16px;color:var(--text-muted);"></i>
+    </div>
+    <div class="section-body collapsed" id="learning-outcomes" style="max-height:0;">
+      <div style="padding:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;margin-top:.5rem;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:.75rem;">
+          <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="check-circle" style="width:18px;height:18px;color:var(--green);flex-shrink:0;margin-top:2px;"></i> Navigate Linux and process files with grep, awk, sed, and pipes</div>
+          <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="check-circle" style="width:18px;height:18px;color:var(--green);flex-shrink:0;margin-top:2px;"></i> Parse FASTA/FASTQ files and automate tasks with Python and Biopython</div>
+          <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="check-circle" style="width:18px;height:18px;color:var(--green);flex-shrink:0;margin-top:2px;"></i> Visualize data and run DE analysis with R, ggplot2, and DESeq2</div>
+          <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="check-circle" style="width:18px;height:18px;color:var(--green);flex-shrink:0;margin-top:2px;"></i> Align reads with BWA/STAR and manipulate BAM files with samtools</div>
+          <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="check-circle" style="width:18px;height:18px;color:var(--green);flex-shrink:0;margin-top:2px;"></i> Call variants with GATK and annotate VCF files</div>
+          <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="check-circle" style="width:18px;height:18px;color:var(--green);flex-shrink:0;margin-top:2px;"></i> Build reproducible pipelines with Snakemake, Git, and Docker</div>
+        </div>
       </div>
     </div>
 
-    <!-- LEARNING ROADMAP -->
-    <div style="margin-top:2rem;padding:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;">
-      <h3 style="margin-bottom:1rem;display:flex;align-items:center;gap:.5rem;"><i data-lucide="map" style="width:20px;height:20px;color:var(--accent);"></i> Learning Roadmap</h3>
-      <div style="position:relative;padding-left:2rem;">
-        <div style="position:absolute;left:.55rem;top:0;bottom:0;width:2px;background:var(--border);"></div>
-        <div style="margin-bottom:1.25rem;position:relative;"><div style="position:absolute;left:-1.65rem;top:.15rem;width:12px;height:12px;border-radius:50%;background:var(--accent);"></div><div style="font-weight:700;font-size:.9rem;color:var(--accent);">Phase 1: Foundations</div><div style="font-size:.8rem;color:var(--text-muted);">Unix command line → Shell scripting → Git version control → Project setup</div></div>
-        <div style="margin-bottom:1.25rem;position:relative;"><div style="position:absolute;left:-1.65rem;top:.15rem;width:12px;height:12px;border-radius:50%;background:var(--purple);"></div><div style="font-weight:700;font-size:.9rem;color:var(--purple);">Phase 2: Programming</div><div style="font-size:.8rem;color:var(--text-muted);">Python + Biopython → R + ggplot2 + Bioconductor</div></div>
-        <div style="margin-bottom:1.25rem;position:relative;"><div style="position:absolute;left:-1.65rem;top:.15rem;width:12px;height:12px;border-radius:50%;background:var(--green);"></div><div style="font-weight:700;font-size:.9rem;color:var(--green);">Phase 3: Data &amp; Formats</div><div style="font-size:.8rem;color:var(--text-muted);">FASTA/FASTQ → Quality control → Alignment (SAM/BAM) → Genomic ranges (BED)</div></div>
-        <div style="position:relative;"><div style="position:absolute;left:-1.65rem;top:.15rem;width:12px;height:12px;border-radius:50%;background:var(--orange);"></div><div style="font-weight:700;font-size:.9rem;color:var(--orange);">Phase 4: Real Analysis</div><div style="font-size:.8rem;color:var(--text-muted);">RNA-Seq differential expression → Variant calling → Reproducible pipelines</div></div>
+    <div class="section-toggle" onclick="toggleSection('roadmap')" style="margin-top:2rem;">
+      <h2 style="margin:0;font-size:1rem;display:flex;align-items:center;gap:.5rem;"><i data-lucide="map" style="width:16px;height:16px;color:var(--accent);"></i> Learning Roadmap</h2>
+      <i data-lucide="chevron-down" class="toggle-icon" style="width:16px;height:16px;color:var(--text-muted);"></i>
+    </div>
+    <div class="section-body collapsed" id="roadmap" style="max-height:0;">
+      <div style="padding:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;margin-top:.5rem;">
+        <div style="position:relative;padding-left:2rem;">
+          <div style="position:absolute;left:.55rem;top:0;bottom:0;width:2px;background:var(--border);"></div>
+          <div style="margin-bottom:1.25rem;position:relative;"><div style="position:absolute;left:-1.65rem;top:.15rem;width:12px;height:12px;border-radius:50%;background:var(--accent);"></div><div style="font-weight:700;font-size:.9rem;color:var(--accent);">Phase 1: Foundations</div><div style="font-size:.8rem;color:var(--text-muted);">Unix, Shell scripting, Git, Project setup</div></div>
+          <div style="margin-bottom:1.25rem;position:relative;"><div style="position:absolute;left:-1.65rem;top:.15rem;width:12px;height:12px;border-radius:50%;background:var(--purple);"></div><div style="font-weight:700;font-size:.9rem;color:var(--purple);">Phase 2: Programming</div><div style="font-size:.8rem;color:var(--text-muted);">Python + Biopython, R + ggplot2 + Bioconductor</div></div>
+          <div style="margin-bottom:1.25rem;position:relative;"><div style="position:absolute;left:-1.65rem;top:.15rem;width:12px;height:12px;border-radius:50%;background:var(--green);"></div><div style="font-weight:700;font-size:.9rem;color:var(--green);">Phase 3: Data and Formats</div><div style="font-size:.8rem;color:var(--text-muted);">FASTA/FASTQ, QC, Alignment (SAM/BAM), Genomic ranges</div></div>
+          <div style="position:relative;"><div style="position:absolute;left:-1.65rem;top:.15rem;width:12px;height:12px;border-radius:50%;background:var(--orange);"></div><div style="font-weight:700;font-size:.9rem;color:var(--orange);">Phase 4: Real Analysis</div><div style="font-size:.8rem;color:var(--text-muted);">RNA-Seq, Variant calling, Reproducible pipelines</div></div>
+        </div>
       </div>
     </div>
 
-    <!-- COMMON BEGINNER MISTAKES -->
-    <div style="margin-top:2rem;padding:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;">
-      <h3 style="margin-bottom:1rem;display:flex;align-items:center;gap:.5rem;"><i data-lucide="alert-triangle" style="width:20px;height:20px;color:var(--orange);"></i> Common Beginner Mistakes We Help You Avoid</h3>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:.75rem;">
-        <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="x-circle" style="width:18px;height:18px;color:var(--red);flex-shrink:0;margin-top:2px;"></i> Confusing FASTA and FASTQ formats</div>
-        <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="x-circle" style="width:18px;height:18px;color:var(--red);flex-shrink:0;margin-top:2px;"></i> Using the wrong reference genome build (hg19 vs hg38)</div>
-        <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="x-circle" style="width:18px;height:18px;color:var(--red);flex-shrink:0;margin-top:2px;"></i> Mixing up 0-based (BED) and 1-based (VCF/GFF) coordinates</div>
-        <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="x-circle" style="width:18px;height:18px;color:var(--red);flex-shrink:0;margin-top:2px;"></i> Using raw p-values instead of adjusted p-values (FDR)</div>
-        <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="x-circle" style="width:18px;height:18px;color:var(--red);flex-shrink:0;margin-top:2px;"></i> Feeding normalized counts to DESeq2 (it needs raw counts)</div>
-        <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="x-circle" style="width:18px;height:18px;color:var(--red);flex-shrink:0;margin-top:2px;"></i> Modifying raw data files instead of treating them as read-only</div>
-        <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="x-circle" style="width:18px;height:18px;color:var(--red);flex-shrink:0;margin-top:2px;"></i> Confusing samtools -f and -F flags (include vs exclude)</div>
-        <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="x-circle" style="width:18px;height:18px;color:var(--red);flex-shrink:0;margin-top:2px;"></i> Running RNA-Seq alignment with BWA instead of a splice-aware aligner</div>
+    <div class="section-toggle" onclick="toggleSection('mistakes')" style="margin-top:2rem;">
+      <h2 style="margin:0;font-size:1rem;display:flex;align-items:center;gap:.5rem;"><i data-lucide="alert-triangle" style="width:16px;height:16px;color:var(--orange);"></i> Common Beginner Mistakes</h2>
+      <i data-lucide="chevron-down" class="toggle-icon" style="width:16px;height:16px;color:var(--text-muted);"></i>
+    </div>
+    <div class="section-body collapsed" id="mistakes" style="max-height:0;">
+      <div style="padding:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;margin-top:.5rem;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:.75rem;">
+          <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="x-circle" style="width:18px;height:18px;color:var(--red);flex-shrink:0;margin-top:2px;"></i> Confusing FASTA and FASTQ formats</div>
+          <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="x-circle" style="width:18px;height:18px;color:var(--red);flex-shrink:0;margin-top:2px;"></i> Using the wrong reference genome build (hg19 vs hg38)</div>
+          <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="x-circle" style="width:18px;height:18px;color:var(--red);flex-shrink:0;margin-top:2px;"></i> Mixing up 0-based (BED) and 1-based (VCF/GFF) coordinates</div>
+          <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="x-circle" style="width:18px;height:18px;color:var(--red);flex-shrink:0;margin-top:2px;"></i> Using raw p-values instead of adjusted p-values (FDR)</div>
+          <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="x-circle" style="width:18px;height:18px;color:var(--red);flex-shrink:0;margin-top:2px;"></i> Feeding normalized counts to DESeq2 (it needs raw counts)</div>
+          <div style="display:flex;gap:.5rem;align-items:start;font-size:.85rem;"><i data-lucide="x-circle" style="width:18px;height:18px;color:var(--red);flex-shrink:0;margin-top:2px;"></i> Modifying raw data files instead of treating them as read-only</div>
+        </div>
       </div>
     </div>
 
@@ -642,3 +657,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+// Collapsible homepage sections
+window.toggleSection = function(id) {
+  const body = document.getElementById(id);
+  const toggle = body.previousElementSibling;
+  if (!body) return;
+  const isCollapsed = body.classList.contains('collapsed');
+  if (isCollapsed) {
+    body.classList.remove('collapsed');
+    body.style.maxHeight = body.scrollHeight + 'px';
+    body.style.opacity = '1';
+    toggle.classList.add('open');
+  } else {
+    body.style.maxHeight = '0';
+    body.style.opacity = '0';
+    toggle.classList.remove('open');
+    setTimeout(() => body.classList.add('collapsed'), 400);
+  }
+};

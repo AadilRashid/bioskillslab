@@ -675,8 +675,22 @@ a:hover { color: var(--accent-hover); }
 }
 .nav-btn:hover { border-color: var(--accent); background: var(--bg-card-hover); }
 
-/* Card description */
-.card-desc { font-size: .8rem; color: var(--text-muted); margin-bottom: .75rem; flex: 1; }
+/* Collapsible homepage sections */
+.section-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  padding: .5rem 0;
+  user-select: none;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1rem;
+}
+.section-toggle h2 { margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: .5rem; }
+.section-toggle .toggle-icon { transition: transform .3s cubic-bezier(.22,1,.36,1); color: var(--text-muted); }
+.section-toggle.open .toggle-icon { transform: rotate(180deg); }
+.section-body { overflow: hidden; transition: max-height .4s cubic-bezier(.22,1,.36,1), opacity .3s ease; }
+.section-body.collapsed { max-height: 0 !important; opacity: 0; pointer-events: none; }
 
 /* Focus styles */
 *:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
