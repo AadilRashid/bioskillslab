@@ -1,0 +1,191 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="bar-chart-3" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 8: Comparing Two Groups — t-tests and Beyond</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~40 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Intermediate</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> t-test, Paired, Unpaired, Wilcoxon, Assumptions</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>The Simplest Question in Statistics</h2>
+      <p>Are these two groups different? Treated vs control. Tumor vs normal. Wildtype vs knockout. You have measurements from both groups and you want to know if the difference is real or just noise.</p>
+      <p>The t-test is the workhorse for this. It's been around since 1908 and it's still the right tool for most two-group comparisons.</p>
+
+      <h2>Unpaired (Independent) t-test</h2>
+      <p>Use this when the two groups are independent. Different mice, different patients, different cell cultures.</p>
+      <pre><code># In R:
+t.test(expression ~ group, data = df)
+
+# Or explicitly:
+t.test(treated_values, control_values)
+
+# Example output:
+#   t = 3.42, df = 8, p-value = 0.009
+#   95% CI: [1.2, 6.8]
+#   mean of treated: 12.5, mean of control: 8.5</code></pre>
+
+      <h3>What the t-test actually computes</h3>
+      <pre><code>t = (mean₁ - mean₂) / SE_difference
+
+SE_difference = √(s₁²/n₁ + s₂²/n₂)</code></pre>
+      <p>The t-statistic is just the difference between means divided by how much you'd expect that difference to vary by chance. Big t = big difference relative to noise = small p-value.</p>
+
+      <h2>Paired t-test</h2>
+      <p>Use this when measurements are naturally paired. Same patient before and after treatment. Same cell line with and without drug. Same tissue, two different stains.</p>
+      <p>Pairing removes between-subject variability. If Patient A has naturally high expression and Patient B has naturally low expression, pairing accounts for that. You're only looking at the within-subject change.</p>
+      <pre><code># In R:
+t.test(before, after, paired = TRUE)
+
+# This is equivalent to a one-sample t-test on the differences:
+differences <- after - before
+t.test(differences, mu = 0)</code></pre>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> When to use paired vs unpaired</strong>
+        <p>If you can draw a line connecting each observation in group 1 to a specific observation in group 2, use paired. If the observations are independent, use unpaired. Using unpaired when data is paired throws away information and reduces your power.</p>
+      </div>
+
+      <h2>Assumptions of the t-test</h2>
+      <ol>
+        <li><strong>Data is continuous</strong> (not counts or categories)</li>
+        <li><strong>Observations are independent</strong> (for unpaired) or properly paired</li>
+        <li><strong>Data is approximately Gaussian</strong> in each group</li>
+        <li><strong>Variances are roughly equal</strong> between groups (for classic t-test; Welch's t-test relaxes this)</li>
+      </ol>
+
+      <h3>What if assumptions are violated?</h3>
+      <pre><code>Problem                          Solution
+──────                           ────────
+Data is skewed                   Log-transform, then t-test
+Data is not Gaussian             Wilcoxon rank-sum test (nonparametric)
+Unequal variances                Welch's t-test (default in R)
+Data is counts                   Use a count-based test (DESeq2, not t-test)
+Very small sample (n < 5)        Consider nonparametric or exact tests</code></pre>
+
+      <h2>Welch's t-test</h2>
+      <p>The standard t-test assumes equal variances. Welch's version doesn't. It adjusts the degrees of freedom to account for unequal variances. In R, <code>t.test()</code> uses Welch's by default. There's almost never a reason to use the classic version.</p>
+
+      <h2>Wilcoxon Rank-Sum Test (Mann-Whitney U)</h2>
+      <p>The nonparametric alternative to the unpaired t-test. Instead of comparing means, it compares the ranks of the values. Doesn't assume Gaussian data.</p>
+      <pre><code># In R:
+wilcox.test(treated_values, control_values)
+
+# Paired version (Wilcoxon signed-rank):
+wilcox.test(before, after, paired = TRUE)</code></pre>
+      <p>Use this when your data is clearly non-Gaussian and log-transformation doesn't help, or when you have ordinal data (rankings, scores).</p>
+
+      <h2>t-tests in Bioinformatics</h2>
+
+      <h3>When you DO use t-tests</h3>
+      <ul>
+        <li>Comparing a single gene's expression between two groups (qPCR data)</li>
+        <li>Comparing a summary metric (total read count, mapping rate) between batches</li>
+        <li>Comparing protein abundance between conditions (mass spec)</li>
+      </ul>
+
+      <h3>When you DON'T use t-tests</h3>
+      <ul>
+        <li><strong>RNA-Seq differential expression.</strong> Use DESeq2 or edgeR. They use the negative binomial model, not t-tests. Running t-tests on RNA-Seq counts gives wrong results.</li>
+        <li><strong>Comparing proportions.</strong> Use Fisher's exact test or chi-squared.</li>
+        <li><strong>More than two groups.</strong> Use ANOVA (Chapter 9).</li>
+      </ul>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Don't run 20,000 t-tests on RNA-Seq data</strong>
+        <p>Some people run a t-test on each gene independently. This ignores the count nature of the data, doesn't share information across genes (which DESeq2 does to stabilize variance estimates), and gives unreliable results for low-count genes. Use the right tool.</p>
+      </div>
+
+      <h2>Choosing the Right Test: Decision Tree</h2>
+      <pre><code>Comparing two groups?
+├── Data is paired?
+│   ├── Yes → Gaussian? → Paired t-test
+│   │                  → Not Gaussian? → Wilcoxon signed-rank
+│   └── No (independent)
+│       ├── Gaussian? → Welch's t-test
+│       └── Not Gaussian? → Wilcoxon rank-sum (Mann-Whitney)
+│
+Comparing more than two groups? → ANOVA (Chapter 9)</code></pre>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Quiz</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">1</span> You measure blood pressure in 20 patients before and after a drug. Which test?</h4>
+        <button class="quiz-option" data-value="a">Unpaired t-test</button>
+        <button class="quiz-option" data-value="b">Paired t-test</button>
+        <button class="quiz-option" data-value="c">ANOVA</button>
+        <button class="quiz-option" data-value="d">Chi-squared test</button>
+        <div class="quiz-explanation" data-text="Same patients measured twice (before/after). The measurements are paired. A paired t-test removes between-patient variability and focuses on the within-patient change."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">2</span> Why shouldn't you use t-tests for RNA-Seq differential expression?</h4>
+        <button class="quiz-option" data-value="a">t-tests are too slow for 20,000 genes</button>
+        <button class="quiz-option" data-value="b">RNA-Seq data is always paired</button>
+        <button class="quiz-option" data-value="c">RNA-Seq counts follow a negative binomial distribution, not Gaussian, and t-tests don't share information across genes</button>
+        <button class="quiz-option" data-value="d">t-tests can only compare means, not medians</button>
+        <div class="quiz-explanation" data-text="RNA-Seq counts are overdispersed and non-Gaussian. DESeq2 models this correctly with the negative binomial and borrows strength across genes to estimate variance for low-count genes."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">3</span> Your data is right-skewed. What should you try before switching to a nonparametric test?</h4>
+        <button class="quiz-option" data-value="a">Log-transform the data and check if it becomes Gaussian</button>
+        <button class="quiz-option" data-value="b">Remove the outliers</button>
+        <button class="quiz-option" data-value="c">Increase the sample size</button>
+        <button class="quiz-option" data-value="d">Use Bonferroni correction</button>
+        <div class="quiz-explanation" data-text="Right-skewed data is often lognormal. Log-transforming it can make it approximately Gaussian, letting you use the more powerful t-test instead of a nonparametric alternative."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">4</span> Welch's t-test differs from the classic t-test because it:</h4>
+        <button class="quiz-option" data-value="a">Works with paired data</button>
+        <button class="quiz-option" data-value="b">Uses ranks instead of raw values</button>
+        <button class="quiz-option" data-value="c">Requires equal sample sizes</button>
+        <button class="quiz-option" data-value="d">Does not assume equal variances between groups</button>
+        <div class="quiz-explanation" data-text="Welch's adjusts the degrees of freedom for unequal variances. It's the default in R's t.test() and is almost always the better choice."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">5</span> The nonparametric alternative to the unpaired t-test is:</h4>
+        <button class="quiz-option" data-value="a">Paired t-test</button>
+        <button class="quiz-option" data-value="b">Wilcoxon rank-sum test (Mann-Whitney U)</button>
+        <button class="quiz-option" data-value="c">ANOVA</button>
+        <button class="quiz-option" data-value="d">Fisher's exact test</button>
+        <div class="quiz-explanation" data-text="Wilcoxon rank-sum (also called Mann-Whitney U) compares ranks instead of raw values. It doesn't assume Gaussian data and is robust to outliers."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your thoughts... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+
+  <div class="module-nav">
+    <button class="nav-btn" onclick="navigate('stat7')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+    <button class="nav-btn" onclick="navigate('stat9')">Next: ANOVA <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+  </div>
+</div>
