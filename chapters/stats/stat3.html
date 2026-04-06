@@ -1,0 +1,220 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="bar-chart-3" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 3: Distributions — The Shape of Your Data</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~40 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Beginner</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Gaussian, Lognormal, Poisson, Skewness</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>Why Distributions Matter</h2>
+      <p>Before you run any statistical test, you need to know what shape your data takes. Most tests assume a specific distribution. Use the wrong one and your p-values, confidence intervals, and conclusions are all garbage.</p>
+      <p>The good news: biological data tends to follow a handful of well-understood distributions. Learn these and you'll know which test to reach for in almost any situation.</p>
+
+      <h2>The Gaussian (Normal) Distribution</h2>
+      <p>The bell curve. Symmetric, centered on the mean, with most values clustered in the middle and fewer values in the tails.</p>
+      <pre><code>        ▄▄████▄▄
+      ▄██████████▄
+    ▄██████████████▄
+  ▄██████████████████▄
+▄██████████████████████▄
+━━━━━━━━━━━━━━━━━━━━━━━━━
+       μ-2σ  μ  μ+2σ
+
+68% of values fall within 1 SD of the mean
+95% of values fall within 2 SD of the mean
+99.7% of values fall within 3 SD of the mean</code></pre>
+
+      <h3>Where you see it in bioinformatics:</h3>
+      <ul>
+        <li>Log2 fold changes from differential expression (roughly Gaussian)</li>
+        <li>Quality scores across a sequencing run</li>
+        <li>Measurement errors in quantitative assays</li>
+      </ul>
+
+      <h3>Key properties:</h3>
+      <ul>
+        <li>Defined by two numbers: mean (μ) and standard deviation (σ)</li>
+        <li>Symmetric around the mean</li>
+        <li>Tails extend to infinity but values far from the mean are rare</li>
+      </ul>
+
+      <h2>The Lognormal Distribution</h2>
+      <p>Take a Gaussian distribution and exponentiate it. You get a lognormal: right-skewed, always positive, with a long tail of high values.</p>
+      <pre><code>█
+██
+████
+██████▄
+█████████▄▄▄▄▄▄
+━━━━━━━━━━━━━━━━━━━━━
+0        median      → long tail</code></pre>
+
+      <h3>Where you see it in bioinformatics:</h3>
+      <ul>
+        <li><strong>Gene expression counts.</strong> Most genes have low expression. A few are highly expressed. This is the classic lognormal shape.</li>
+        <li><strong>Protein abundance</strong> across a proteome</li>
+        <li><strong>Genome sizes</strong> across species</li>
+        <li><strong>Read depths</strong> across genomic positions</li>
+      </ul>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Practical tip</strong>
+        <p>If your data is right-skewed (long tail to the right), try taking the log. If the logged data looks Gaussian, your original data is lognormal. This is why we use log2 fold changes and log-transformed expression values everywhere in genomics.</p>
+      </div>
+
+      <h2>The Poisson Distribution</h2>
+      <p>Counts of rare events in a fixed interval. How many reads map to a given position? How many mutations in a gene? How many cells express a marker?</p>
+      <pre><code>For λ = 3 (average 3 events):
+
+P(0) = ▌         5%
+P(1) = ███       15%
+P(2) = █████     22%
+P(3) = █████     22%
+P(4) = ████      17%
+P(5) = ██        10%
+P(6) = █          5%
+P(7) = ▌          2%</code></pre>
+
+      <h3>Key properties:</h3>
+      <ul>
+        <li>Defined by one number: λ (the average rate)</li>
+        <li>Mean equals variance (if mean = 5, variance ≈ 5)</li>
+        <li>Only produces non-negative integers (0, 1, 2, 3...)</li>
+        <li>Approaches Gaussian as λ gets large</li>
+      </ul>
+
+      <h3>Where you see it in bioinformatics:</h3>
+      <ul>
+        <li>Read counts at a genomic position (idealized)</li>
+        <li>Number of mutations per gene</li>
+        <li>Number of reads in a ChIP-Seq peak</li>
+      </ul>
+
+      <h2>The Negative Binomial Distribution</h2>
+      <p>In reality, RNA-Seq count data has more variability than Poisson predicts. The variance is larger than the mean. This is called <strong>overdispersion</strong>, and it's why DESeq2 and edgeR use the negative binomial distribution instead of Poisson.</p>
+      <pre><code>Poisson:            variance = mean
+Negative binomial:  variance = mean + α × mean²
+
+α (dispersion) captures the extra biological variability
+between replicates that Poisson can't account for.</code></pre>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> This is why Poisson is wrong for RNA-Seq</strong>
+        <p>If you model RNA-Seq counts as Poisson, you underestimate the variance, which inflates your test statistics and gives you too many false positives. DESeq2 exists specifically to handle this overdispersion correctly.</p>
+      </div>
+
+      <h2>The Binomial Distribution</h2>
+      <p>How many successes in a fixed number of trials? Flip a coin 10 times, how many heads? Sequence 100 reads at a heterozygous SNP, how many show the alternate allele?</p>
+
+      <h3>Where you see it:</h3>
+      <ul>
+        <li>Allele frequencies at a variant site</li>
+        <li>Proportion of reads supporting a variant (variant allele frequency)</li>
+        <li>Proportion of cells expressing a gene (single-cell)</li>
+      </ul>
+
+      <h2>How to Tell Which Distribution Your Data Follows</h2>
+      <pre><code>1. Plot a histogram. What shape do you see?
+   - Symmetric bell → probably Gaussian
+   - Right-skewed → try log transform, might be lognormal
+   - Counts of things → Poisson or negative binomial
+
+2. Q-Q plot: plot your data quantiles against theoretical quantiles
+   - Points on the diagonal line → data matches that distribution
+   - Curved away → doesn't match
+
+3. In R:
+   hist(x)                    # histogram
+   qqnorm(x); qqline(x)      # Q-Q plot against Gaussian
+   shapiro.test(x)            # formal normality test (small samples only)</code></pre>
+
+      <h2>Summary Table</h2>
+      <pre><code>Distribution       Data type        Example in bioinformatics
+──────────────     ─────────        ─────────────────────────
+Gaussian           Continuous       Log2 fold changes
+Lognormal          Continuous, >0   Raw gene expression
+Poisson            Counts           Mutations per gene
+Neg. Binomial      Counts (overdispersed)  RNA-Seq read counts
+Binomial           Proportions      Variant allele frequency</code></pre>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Quiz</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">1</span> Most genes have low expression, but a few are very highly expressed. This distribution shape is:</h4>
+        <button class="quiz-option" data-value="a">Gaussian</button>
+        <button class="quiz-option" data-value="b">Lognormal (right-skewed)</button>
+        <button class="quiz-option" data-value="c">Uniform</button>
+        <button class="quiz-option" data-value="d">Binomial</button>
+        <div class="quiz-explanation" data-text="Gene expression is classic lognormal: most values are low, with a long tail of highly expressed genes. Taking the log makes it roughly Gaussian."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">2</span> Why does DESeq2 use the negative binomial distribution instead of Poisson for RNA-Seq data?</h4>
+        <button class="quiz-option" data-value="a">Poisson is too slow to compute</button>
+        <button class="quiz-option" data-value="b">RNA-Seq data is always Gaussian</button>
+        <button class="quiz-option" data-value="c">RNA-Seq counts have more variability than Poisson predicts (overdispersion)</button>
+        <button class="quiz-option" data-value="d">Negative binomial only works with large samples</button>
+        <div class="quiz-explanation" data-text="Biological replicates vary more than Poisson expects. The negative binomial adds a dispersion parameter to capture this extra variability. Using Poisson would give too many false positives."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">3</span> In a Gaussian distribution, approximately what percentage of values fall within 2 standard deviations of the mean?</h4>
+        <button class="quiz-option" data-value="a">95%</button>
+        <button class="quiz-option" data-value="b">68%</button>
+        <button class="quiz-option" data-value="c">99.7%</button>
+        <button class="quiz-option" data-value="d">50%</button>
+        <div class="quiz-explanation" data-text="The 68-95-99.7 rule: 68% within 1 SD, 95% within 2 SD, 99.7% within 3 SD. This is worth memorizing."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">4</span> Your data is right-skewed. What should you try first?</h4>
+        <button class="quiz-option" data-value="a">Run a t-test anyway</button>
+        <button class="quiz-option" data-value="b">Remove the outliers</button>
+        <button class="quiz-option" data-value="c">Collect more data</button>
+        <button class="quiz-option" data-value="d">Log-transform the data and check if it becomes Gaussian</button>
+        <div class="quiz-explanation" data-text="Right-skewed data is often lognormal. Log-transforming it can make it approximately Gaussian, which lets you use standard parametric tests."></div>
+      </div>
+
+      <div class="quiz-question" data-type="fillin" data-answer="poisson||Poisson">
+        <h4><span class="q-num">5</span> Which distribution has the property that mean equals variance?</h4>
+        <input type="text" class="quiz-fill-input" placeholder="Distribution name..." style="width:100%;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-explanation" data-text="In a Poisson distribution, the mean and variance are equal. When variance exceeds the mean, you have overdispersion and need the negative binomial."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your thoughts... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+
+  <div class="module-nav">
+    <button class="nav-btn" onclick="navigate('stat2')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+    <button class="nav-btn" onclick="navigate('stat4')">Next: Confidence Intervals <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+  </div>
+</div>

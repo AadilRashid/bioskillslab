@@ -97,7 +97,9 @@ async function loadPage(page) {
   if (page === 'glossary') { renderGlossary(el); return; }
   if (page === 'cheatsheets') { renderCheatSheets(el); return; }
   try {
-    const resp = await fetch(`chapters/${page}.html`);
+    let chapterPath = `chapters/${page}.html`;
+    if (page.startsWith('stat')) chapterPath = `chapters/stats/${page}.html`;
+    const resp = await fetch(chapterPath);
     if (!resp.ok) throw new Error();
     el.innerHTML = await resp.text();
     initChapterPage(page);
