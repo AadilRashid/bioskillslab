@@ -1,0 +1,199 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="bar-chart-3" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 10: Correlation and Linear Regression</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~45 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Intermediate</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Pearson, Spearman, Regression, R², Residuals</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>Correlation: Do Two Things Move Together?</h2>
+      <p>Correlation measures the strength and direction of a linear relationship between two variables. It doesn't tell you why they're related, just that they are.</p>
+
+      <h3>Pearson correlation (r)</h3>
+      <p>Measures linear association. Ranges from -1 to +1.</p>
+      <pre><code>r = +1.0   Perfect positive linear relationship
+r = +0.7   Strong positive
+r = +0.3   Weak positive
+r =  0.0   No linear relationship
+r = -0.3   Weak negative
+r = -0.7   Strong negative
+r = -1.0   Perfect negative linear relationship</code></pre>
+
+      <pre><code># In R:
+cor(x, y)                          # Pearson r
+cor.test(x, y)                     # r with p-value and CI
+cor(x, y, method = "spearman")     # Spearman rank correlation</code></pre>
+
+      <h3>Spearman correlation (ρ)</h3>
+      <p>Uses ranks instead of raw values. Measures monotonic (not just linear) relationships. More robust to outliers and non-Gaussian data.</p>
+      <p>Use Spearman when:</p>
+      <ul>
+        <li>Data is skewed or has outliers</li>
+        <li>The relationship is monotonic but not linear (e.g., logarithmic)</li>
+        <li>Data is ordinal (rankings, scores)</li>
+      </ul>
+
+      <h3>Correlation in bioinformatics</h3>
+      <ul>
+        <li><strong>Sample-sample correlation:</strong> Do replicates agree? Pearson r > 0.95 between replicates is typical for RNA-Seq.</li>
+        <li><strong>Gene co-expression:</strong> Which genes have correlated expression across samples? (WGCNA networks)</li>
+        <li><strong>QC metric:</strong> Does mapping rate correlate with total reads? (It shouldn't.)</li>
+      </ul>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Correlation ≠ causation</strong>
+        <p>Two genes being co-expressed doesn't mean one regulates the other. They might both be regulated by a third factor. Or the correlation might be driven by a confounding variable like cell type composition. Always think about what's driving the correlation.</p>
+      </div>
+
+      <h2>Linear Regression: Predicting One Variable from Another</h2>
+      <p>Correlation tells you the strength of a relationship. Regression gives you the equation.</p>
+      <pre><code>y = β₀ + β₁x + ε
+
+β₀ = intercept (value of y when x = 0)
+β₁ = slope (how much y changes per unit change in x)
+ε  = residual error (what the model can't explain)</code></pre>
+
+      <h3>In R:</h3>
+      <pre><code>model <- lm(expression ~ age, data = df)
+summary(model)
+
+# Coefficients:
+#             Estimate Std. Error t value Pr(>|t|)
+# (Intercept)  120.5      15.2     7.93   0.0001 ***
+# age            2.3       0.8     2.88   0.012  *
+#
+# R-squared: 0.34
+
+# Interpretation: expression increases by 2.3 units per year of age.
+# Age explains 34% of the variance in expression.</code></pre>
+
+      <h2>R² — How Good is the Fit?</h2>
+      <p>R² (coefficient of determination) tells you what fraction of the variance in y is explained by x.</p>
+      <pre><code>R² = 0.0    x explains nothing about y
+R² = 0.3    x explains 30% of the variance in y
+R² = 0.7    x explains 70%
+R² = 1.0    x perfectly predicts y (never happens with real data)</code></pre>
+      <p>Note: R² = r² for simple linear regression. A Pearson correlation of 0.7 means R² = 0.49, so x explains about half the variance in y.</p>
+
+      <h2>Checking Your Regression</h2>
+      <p>A regression line can be misleading. Always check the residuals.</p>
+      <pre><code># In R:
+par(mfrow = c(2,2))
+plot(model)
+
+# What to look for:
+# 1. Residuals vs Fitted: should be random scatter, no pattern
+# 2. Q-Q plot: residuals should follow the diagonal (normality)
+# 3. Scale-Location: spread should be constant (homoscedasticity)
+# 4. Residuals vs Leverage: no points with extreme influence</code></pre>
+
+      <h3>Common problems:</h3>
+      <ul>
+        <li><strong>Curved pattern in residuals:</strong> relationship isn't linear. Try a polynomial or log transform.</li>
+        <li><strong>Fan shape in residuals:</strong> variance increases with fitted values. Try log-transforming y.</li>
+        <li><strong>Outliers with high leverage:</strong> one point is pulling the line. Investigate that sample.</li>
+      </ul>
+
+      <h2>Regression in Bioinformatics</h2>
+      <ul>
+        <li><strong>Normalization:</strong> Loess regression for MA-plot normalization in RNA-Seq</li>
+        <li><strong>Batch correction:</strong> Linear models to regress out batch effects (ComBat, limma)</li>
+        <li><strong>Age/sex correction:</strong> Include covariates in the DESeq2 design formula: <code>~age + sex + condition</code></li>
+        <li><strong>Standard curves:</strong> qPCR quantification uses linear regression on Ct vs log(concentration)</li>
+        <li><strong>Dose-response:</strong> Fitting drug response curves (nonlinear regression, Chapter 11)</li>
+      </ul>
+
+      <h2>Correlation vs Regression: When to Use Which</h2>
+      <pre><code>Question                                    Tool
+────────                                    ────
+"Are these two things related?"             Correlation
+"How strong is the relationship?"           Correlation (r)
+"Can I predict y from x?"                   Regression
+"How much does y change per unit of x?"     Regression (slope)
+"How much variance does x explain?"         Regression (R²)
+"I want to adjust for confounders"          Multiple regression (Ch 11)</code></pre>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Quiz</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">1</span> Pearson r = 0.7 between two variables. What is R²?</h4>
+        <button class="quiz-option" data-value="a">0.7</button>
+        <button class="quiz-option" data-value="b">0.35</button>
+        <button class="quiz-option" data-value="c">0.49</button>
+        <button class="quiz-option" data-value="d">1.4</button>
+        <div class="quiz-explanation" data-text="R² = r² = 0.7² = 0.49. So x explains 49% of the variance in y. The other 51% is unexplained."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">2</span> When should you use Spearman instead of Pearson correlation?</h4>
+        <button class="quiz-option" data-value="a">When you have more than 100 data points</button>
+        <button class="quiz-option" data-value="b">When data is skewed, has outliers, or the relationship is monotonic but not linear</button>
+        <button class="quiz-option" data-value="c">When both variables are normally distributed</button>
+        <button class="quiz-option" data-value="d">When you want a higher correlation value</button>
+        <div class="quiz-explanation" data-text="Spearman uses ranks, making it robust to outliers and non-linear monotonic relationships. Pearson assumes linearity and is sensitive to outliers."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">3</span> Your regression residuals show a curved pattern. This means:</h4>
+        <button class="quiz-option" data-value="a">The relationship between x and y is not linear</button>
+        <button class="quiz-option" data-value="b">You have too many data points</button>
+        <button class="quiz-option" data-value="c">The correlation is negative</button>
+        <button class="quiz-option" data-value="d">The p-value is too large</button>
+        <div class="quiz-explanation" data-text="A pattern in residuals means the linear model doesn't capture the true relationship. Try a polynomial term, log transform, or a different model."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">4</span> Two genes are highly correlated (r = 0.9) across 50 tumor samples. You can conclude:</h4>
+        <button class="quiz-option" data-value="a">Gene A regulates Gene B</button>
+        <button class="quiz-option" data-value="b">They are in the same pathway</button>
+        <button class="quiz-option" data-value="c">Knocking out one will affect the other</button>
+        <button class="quiz-option" data-value="d">Their expression levels tend to move together, but you can't determine causation</button>
+        <div class="quiz-explanation" data-text="Correlation never implies causation. The co-expression could be driven by cell type composition, a shared upstream regulator, or pure coincidence."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">5</span> In DESeq2, you add age to the design formula: ~age + condition. This is an example of:</h4>
+        <button class="quiz-option" data-value="a">ANOVA</button>
+        <button class="quiz-option" data-value="b">Adjusting for a covariate using regression</button>
+        <button class="quiz-option" data-value="c">Paired t-test</button>
+        <button class="quiz-option" data-value="d">Correlation analysis</button>
+        <div class="quiz-explanation" data-text="Adding age to the design formula tells DESeq2 to account for age-related expression differences before testing for the condition effect. This is multiple regression under the hood."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your thoughts... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+
+  <div class="module-nav">
+    <button class="nav-btn" onclick="navigate('stat9')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+    <button class="nav-btn" onclick="navigate('stat11')">Next: Multiple Regression <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+  </div>
+</div>

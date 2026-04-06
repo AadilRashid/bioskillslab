@@ -1,0 +1,176 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="bar-chart-3" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 9: ANOVA — Comparing Many Groups</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~40 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Intermediate</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ANOVA, Post-hoc, Tukey, Kruskal-Wallis</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>Why Not Just Run Multiple t-tests?</h2>
+      <p>You have 4 treatment groups and want to know if any differ. You could run t-tests on every pair: A vs B, A vs C, A vs D, B vs C, B vs D, C vs D. That's 6 tests. At p < 0.05 each, your chance of at least one false positive is about 26%. With 10 groups, it's 90 pairwise tests and you're almost guaranteed false positives.</p>
+      <p>ANOVA solves this by asking one question first: <strong>is there any difference among the groups?</strong> Only if the answer is yes do you dig into which specific groups differ.</p>
+
+      <h2>How ANOVA Works</h2>
+      <p>ANOVA compares two sources of variation:</p>
+      <pre><code>Between-group variance:  How much do the group means differ from each other?
+Within-group variance:   How much do individual values vary within each group?
+
+F = between-group variance / within-group variance</code></pre>
+      <p>If the groups are truly different, between-group variance will be large relative to within-group variance, giving a large F statistic and a small p-value.</p>
+      <p>If there's no real difference, both variances are just random noise and F will be close to 1.</p>
+
+      <h3>In R:</h3>
+      <pre><code># One-way ANOVA
+model <- aov(expression ~ treatment, data = df)
+summary(model)
+
+#              Df Sum Sq Mean Sq F value  Pr(>F)
+# treatment     3   1250   416.7   8.33  0.0012 **
+# Residuals    16    800    50.0</code></pre>
+      <p>p = 0.0012 tells you at least one group differs. But which one? ANOVA doesn't tell you that. You need post-hoc tests.</p>
+
+      <h2>Post-hoc Tests: Which Groups Differ?</h2>
+
+      <h3>Tukey's HSD (Honest Significant Difference)</h3>
+      <p>The most common post-hoc test. Compares every pair of groups while controlling for multiple comparisons.</p>
+      <pre><code>TukeyHSD(model)
+
+#                    diff    lwr    upr    p adj
+# B-A               8.5     2.1   14.9    0.007
+# C-A               2.0    -4.4    8.4    0.820
+# D-A              12.0     5.6   18.4    0.001
+# C-B              -6.5   -12.9   -0.1    0.045
+# D-B               3.5    -2.9    9.9    0.450
+# D-C              10.0     3.6   16.4    0.002</code></pre>
+      <p>Now you can see: A differs from B and D. C differs from D. B and D are similar. C and A are similar.</p>
+
+      <h3>Other post-hoc options</h3>
+      <pre><code>Tukey's HSD:     All pairwise comparisons, balanced designs
+Dunnett's test:  Compare all groups to one control group
+Bonferroni:      Conservative, works for any comparison
+Scheffé:         Most conservative, works for any contrast</code></pre>
+
+      <h2>Two-way ANOVA</h2>
+      <p>When you have two factors. For example: treatment (drug A, drug B, placebo) AND sex (male, female). Two-way ANOVA tests three things:</p>
+      <ol>
+        <li>Does treatment matter? (main effect of treatment)</li>
+        <li>Does sex matter? (main effect of sex)</li>
+        <li>Does the treatment effect depend on sex? (interaction)</li>
+      </ol>
+      <pre><code># In R:
+model <- aov(expression ~ treatment * sex, data = df)
+summary(model)
+
+# The interaction term (treatment:sex) is often the most interesting.
+# If significant, the drug works differently in males vs females.</code></pre>
+
+      <h2>Assumptions of ANOVA</h2>
+      <ul>
+        <li><strong>Independence</strong> of observations</li>
+        <li><strong>Normality</strong> within each group (check with Q-Q plots or Shapiro-Wilk)</li>
+        <li><strong>Homogeneity of variance</strong> across groups (check with Levene's test)</li>
+      </ul>
+      <p>ANOVA is fairly robust to mild violations of normality, especially with balanced designs and n > 10 per group. Unequal variances are more problematic.</p>
+
+      <h2>Kruskal-Wallis Test</h2>
+      <p>The nonparametric alternative to one-way ANOVA. Uses ranks instead of raw values. No normality assumption.</p>
+      <pre><code># In R:
+kruskal.test(expression ~ treatment, data = df)
+
+# Post-hoc pairwise comparisons:
+pairwise.wilcox.test(df$expression, df$treatment, p.adjust.method = "BH")</code></pre>
+
+      <h2>ANOVA in Bioinformatics</h2>
+      <ul>
+        <li><strong>Comparing expression across multiple conditions</strong> (e.g., 4 time points, 3 drug doses)</li>
+        <li><strong>Batch effect assessment:</strong> is there a significant difference in a QC metric across sequencing batches?</li>
+        <li><strong>Cell type comparisons</strong> in single-cell: does a gene differ across 5 clusters?</li>
+      </ul>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> ANOVA vs DESeq2</strong>
+        <p>For RNA-Seq with more than 2 conditions, DESeq2 handles this internally using likelihood ratio tests (LRT). You don't need to run ANOVA on RNA-Seq counts. Use <code>DESeq(dds, test="LRT", reduced=~1)</code> to test if any condition differs.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Quiz</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">1</span> You have 5 treatment groups. Running t-tests on all pairs gives you how many comparisons?</h4>
+        <button class="quiz-option" data-value="a">5</button>
+        <button class="quiz-option" data-value="b">25</button>
+        <button class="quiz-option" data-value="c">10</button>
+        <button class="quiz-option" data-value="d">20</button>
+        <div class="quiz-explanation" data-text="n×(n-1)/2 = 5×4/2 = 10 pairwise comparisons. Each one has a 5% false positive rate, so the overall rate is much higher than 5%. ANOVA avoids this."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">2</span> ANOVA gives p = 0.003. This tells you:</h4>
+        <button class="quiz-option" data-value="a">At least one group differs from the others</button>
+        <button class="quiz-option" data-value="b">All groups differ from each other</button>
+        <button class="quiz-option" data-value="c">Group A is different from Group B specifically</button>
+        <button class="quiz-option" data-value="d">The effect size is large</button>
+        <div class="quiz-explanation" data-text="ANOVA is an omnibus test. It tells you something differs but not what. You need post-hoc tests (Tukey, Dunnett) to find which specific pairs differ."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">3</span> You want to compare 4 drug groups to a single placebo control. The best post-hoc test is:</h4>
+        <button class="quiz-option" data-value="a">Tukey's HSD</button>
+        <button class="quiz-option" data-value="b">Dunnett's test</button>
+        <button class="quiz-option" data-value="c">Bonferroni</button>
+        <button class="quiz-option" data-value="d">Kruskal-Wallis</button>
+        <div class="quiz-explanation" data-text="Dunnett's is designed for comparing multiple groups to one control. It's more powerful than Tukey for this specific scenario because it only tests 4 comparisons instead of all 10 pairs."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">4</span> In a two-way ANOVA, the interaction term tests whether:</h4>
+        <button class="quiz-option" data-value="a">Both factors are significant</button>
+        <button class="quiz-option" data-value="b">The sample sizes are equal</button>
+        <button class="quiz-option" data-value="c">The data is normally distributed</button>
+        <button class="quiz-option" data-value="d">The effect of one factor depends on the level of the other factor</button>
+        <div class="quiz-explanation" data-text="A significant interaction means the effect isn't additive. For example, a drug might work in males but not females. The interaction term captures this."></div>
+      </div>
+
+      <div class="quiz-question" data-type="fillin" data-answer="Kruskal-Wallis||kruskal-wallis||kruskal wallis">
+        <h4><span class="q-num">5</span> What is the nonparametric alternative to one-way ANOVA?</h4>
+        <input type="text" class="quiz-fill-input" placeholder="Test name..." style="width:100%;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:monospace;">
+        <button class="quiz-check" style="margin-top:.5rem;padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Check</button>
+        <div class="quiz-explanation" data-text="Kruskal-Wallis uses ranks instead of raw values and doesn't assume normality. Follow up with pairwise Wilcoxon tests for specific comparisons."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container">
+      <div class="comment-form">
+        <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Discussion</h4>
+        <input type="text" placeholder="Your name (optional)">
+        <textarea placeholder="Share your thoughts... (Ctrl+Enter to submit)"></textarea>
+        <button class="comment-submit">Post Comment</button>
+      </div>
+      <div class="comment-list"></div>
+    </div>
+  </div>
+
+  <div class="module-nav">
+    <button class="nav-btn" onclick="navigate('stat8')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+    <button class="nav-btn" onclick="navigate('stat10')">Next: Regression <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+  </div>
+</div>
