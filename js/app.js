@@ -275,7 +275,7 @@ function renderResources(el) {
   <ul>
     <li><strong>Bioinformatics Data Skills</strong> — Vince Buffalo (O'Reilly) — The practical skills bible</li>
     <li><strong>Biological Sequence Analysis</strong> — Durbin et al. — HMMs, alignments, probabilistic models</li>
-    <li><strong>Bioinformatics and Functional Genomics</strong> — Pevsner — Comprehensive textbook</li>
+    <li><strong>Bioinformatics and Functional Genomics</strong> — Pevsner — Full-scope textbook</li>
     <li><strong>R for Data Science</strong> — Wickham &amp; Grolemund — Essential R skills</li>
     <li><strong>Python for Biologists</strong> — Martin Jones — Gentle Python intro for biologists</li>
     <li><strong>The Biostar Handbook</strong> — Istvan Albert — Practical genomics guide</li>
@@ -370,7 +370,7 @@ function renderGlossary(el) {
     ['SNP','Single Nucleotide Polymorphism — a variation at a single position in DNA.'],
     ['Transcriptome','The complete set of RNA transcripts produced by the genome at a given time.'],
     ['Trimming','Removing low-quality bases or adapter sequences from sequencing reads.'],
-    ['UniProt','Comprehensive protein sequence and functional information database.'],
+    ['UniProt','Protein sequence and functional information database.'],
     ['VCF','Variant Call Format — standard for storing gene sequence variations.'],
     ['Variant','A difference between a sample sequence and the reference genome.'],
   ];
