@@ -40,43 +40,74 @@
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <div class="logo"><i data-lucide="dna" style="width:28px;height:28px;color:var(--accent)"></i></div>
-      <h2><span class="brand-bio">BioSkills</span> <span class="brand-rest">Lab</span></h2>
+      <div style="flex:1;">
+        <h2><span class="brand-bio">BioSkills</span> <span class="brand-rest">Lab</span></h2>
+        <select id="courseSelector" style="width:100%;margin-top:.4rem;padding:.3rem .5rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.75rem;cursor:pointer;">
+          <option value="bioinfo">Bioinformatics Data Skills</option>
+          <option value="stats">Statistics for Biology</option>
+          <option value="aiml" disabled>AI/ML for Genomics (Coming Soon)</option>
+        </select>
+      </div>
     </div>
     <nav class="sidebar-nav" id="sidebarNav">
       <a href="#" data-page="home" class="active"><i data-lucide="home"></i> Home</a>
 
-      <div class="nav-section" data-part="1">Part I — Foundations</div>
-      <a href="#" data-page="ch1" data-part="1"><i data-lucide="book-open"></i> 1. What is Bioinformatics?</a>
-      <a href="#" data-page="ch2" data-part="1"><i data-lucide="settings"></i> 2. Setting Up Your Environment</a>
-      <a href="#" data-page="ch3" data-part="1"><i data-lucide="terminal"></i> 3. Unix Fundamentals</a>
-      <a href="#" data-page="ch4" data-part="1"><i data-lucide="file-code-2"></i> 4. Advanced Shell &amp; Scripting</a>
-      <a href="#" data-page="ch5" data-part="1"><i data-lucide="git-branch"></i> 5. Version Control with Git</a>
+      <!-- BIOINFORMATICS COURSE -->
+      <div id="nav-bioinfo">
+        <div class="nav-section" data-part="1">Part I — Foundations</div>
+        <a href="#" data-page="ch1" data-part="1"><i data-lucide="book-open"></i> 1. What is Bioinformatics?</a>
+        <a href="#" data-page="ch2" data-part="1"><i data-lucide="settings"></i> 2. Setting Up Your Environment</a>
+        <a href="#" data-page="ch3" data-part="1"><i data-lucide="terminal"></i> 3. Unix Fundamentals</a>
+        <a href="#" data-page="ch4" data-part="1"><i data-lucide="file-code-2"></i> 4. Advanced Shell &amp; Scripting</a>
+        <a href="#" data-page="ch5" data-part="1"><i data-lucide="git-branch"></i> 5. Version Control with Git</a>
 
-      <div class="nav-section" data-part="2">Part II — Programming</div>
-      <a href="#" data-page="ch6" data-part="2"><i data-lucide="code-2"></i> 6. Python for Bioinformatics</a>
-      <a href="#" data-page="ch7" data-part="2"><i data-lucide="bar-chart-3"></i> 7. R &amp; Bioconductor</a>
+        <div class="nav-section" data-part="2">Part II — Programming</div>
+        <a href="#" data-page="ch6" data-part="2"><i data-lucide="code-2"></i> 6. Python for Bioinformatics</a>
+        <a href="#" data-page="ch7" data-part="2"><i data-lucide="bar-chart-3"></i> 7. R &amp; Bioconductor</a>
 
-      <div class="nav-section" data-part="3">Part III — Data &amp; Formats</div>
-      <a href="#" data-page="ch8" data-part="3"><i data-lucide="database"></i> 8. Biological Databases</a>
-      <a href="#" data-page="ch9" data-part="3"><i data-lucide="flask-conical"></i> 9. Sequence Formats &amp; QC</a>
-      <a href="#" data-page="ch10" data-part="3"><i data-lucide="crosshair"></i> 10. Sequence Alignment</a>
-      <a href="#" data-page="ch11" data-part="3"><i data-lucide="ruler"></i> 11. Genomic Ranges &amp; BEDTools</a>
+        <div class="nav-section" data-part="3">Part III — Data &amp; Formats</div>
+        <a href="#" data-page="ch8" data-part="3"><i data-lucide="database"></i> 8. Biological Databases</a>
+        <a href="#" data-page="ch9" data-part="3"><i data-lucide="flask-conical"></i> 9. Sequence Formats &amp; QC</a>
+        <a href="#" data-page="ch10" data-part="3"><i data-lucide="crosshair"></i> 10. Sequence Alignment</a>
+        <a href="#" data-page="ch11" data-part="3"><i data-lucide="ruler"></i> 11. Genomic Ranges &amp; BEDTools</a>
 
-      <div class="nav-section" data-part="4">Part IV — Analysis</div>
-      <a href="#" data-page="ch12" data-part="4"><i data-lucide="dna"></i> 12. RNA-Seq Analysis</a>
-      <a href="#" data-page="ch13" data-part="4"><i data-lucide="microscope"></i> 13. Variant Calling</a>
-      <a href="#" data-page="ch14" data-part="4"><i data-lucide="package"></i> 14. Reproducibility &amp; Pipelines</a>
+        <div class="nav-section" data-part="4">Part IV — Analysis</div>
+        <a href="#" data-page="ch12" data-part="4"><i data-lucide="dna"></i> 12. RNA-Seq Analysis</a>
+        <a href="#" data-page="ch13" data-part="4"><i data-lucide="microscope"></i> 13. Variant Calling</a>
+        <a href="#" data-page="ch14" data-part="4"><i data-lucide="package"></i> 14. Reproducibility &amp; Pipelines</a>
 
-      <div class="nav-section" data-part="extras">Projects</div>
-      <a href="#" data-page="project1" data-part="extras"><i data-lucide="flask-conical"></i> Project 1: Mystery Microbe</a>
-      <a href="#" data-page="project2" data-part="extras"><i data-lucide="dna"></i> Project 2: RNA-Seq</a>
-      <a href="#" data-page="project3" data-part="extras"><i data-lucide="microscope"></i> Project 3: Variant Calling</a>
+        <div class="nav-section" data-part="extras">Projects</div>
+        <a href="#" data-page="project1" data-part="extras"><i data-lucide="flask-conical"></i> Project 1: Mystery Microbe</a>
+        <a href="#" data-page="project2" data-part="extras"><i data-lucide="dna"></i> Project 2: RNA-Seq</a>
+        <a href="#" data-page="project3" data-part="extras"><i data-lucide="microscope"></i> Project 3: Variant Calling</a>
+      </div>
 
-      <div class="nav-section" data-part="2">Statistics Course</div>
-      <a href="#" data-page="stat1" data-part="2"><i data-lucide="bar-chart-3"></i> S1. Why Statistics?</a>
-      <a href="#" data-page="stat2" data-part="2"><i data-lucide="bar-chart-3"></i> S2. Sample to Population</a>
-      <a href="#" data-page="stat3" data-part="2"><i data-lucide="bar-chart-3"></i> S3. Distributions</a>
-      <a href="#" data-page="stat4" data-part="2"><i data-lucide="bar-chart-3"></i> S4. Confidence Intervals</a>
+      <!-- STATISTICS COURSE -->
+      <div id="nav-stats" style="display:none;">
+        <div class="nav-section" data-part="2">Foundations</div>
+        <a href="#" data-page="stat1" data-part="2"><i data-lucide="bar-chart-3"></i> S1. Why Statistics?</a>
+        <a href="#" data-page="stat2" data-part="2"><i data-lucide="bar-chart-3"></i> S2. Sample to Population</a>
+        <a href="#" data-page="stat3" data-part="2"><i data-lucide="bar-chart-3"></i> S3. Distributions</a>
+        <a href="#" data-page="stat4" data-part="2"><i data-lucide="bar-chart-3"></i> S4. Confidence Intervals</a>
+        <div class="nav-section" data-part="2">Coming Soon</div>
+        <a href="#" data-page="stat5" data-part="2" style="opacity:.5;pointer-events:none;"><i data-lucide="bar-chart-3"></i> S5. P-Values</a>
+        <a href="#" data-page="stat6" data-part="2" style="opacity:.5;pointer-events:none;"><i data-lucide="bar-chart-3"></i> S6. Significance</a>
+        <a href="#" data-page="stat7" data-part="2" style="opacity:.5;pointer-events:none;"><i data-lucide="bar-chart-3"></i> S7. Multiple Testing</a>
+        <a href="#" data-page="stat8" data-part="2" style="opacity:.5;pointer-events:none;"><i data-lucide="bar-chart-3"></i> S8. t-tests</a>
+        <a href="#" data-page="stat9" data-part="2" style="opacity:.5;pointer-events:none;"><i data-lucide="bar-chart-3"></i> S9. ANOVA</a>
+        <a href="#" data-page="stat10" data-part="2" style="opacity:.5;pointer-events:none;"><i data-lucide="bar-chart-3"></i> S10. Regression</a>
+        <a href="#" data-page="stat11" data-part="2" style="opacity:.5;pointer-events:none;"><i data-lucide="bar-chart-3"></i> S11. GLMs</a>
+        <a href="#" data-page="stat12" data-part="2" style="opacity:.5;pointer-events:none;"><i data-lucide="bar-chart-3"></i> S12. Classification</a>
+        <a href="#" data-page="stat13" data-part="2" style="opacity:.5;pointer-events:none;"><i data-lucide="bar-chart-3"></i> S13. PCA &amp; Clustering</a>
+        <a href="#" data-page="stat14" data-part="2" style="opacity:.5;pointer-events:none;"><i data-lucide="bar-chart-3"></i> S14. Experimental Design</a>
+        <a href="#" data-page="stat15" data-part="2" style="opacity:.5;pointer-events:none;"><i data-lucide="bar-chart-3"></i> S15. Statistical Traps</a>
+      </div>
+
+      <!-- AI/ML COURSE (placeholder) -->
+      <div id="nav-aiml" style="display:none;">
+        <div class="nav-section" data-part="3">Coming Soon</div>
+        <a href="#" style="opacity:.5;pointer-events:none;"><i data-lucide="cpu"></i> Course under development</a>
+      </div>
 
       <div class="nav-section" data-part="extras">Resources</div>
       <a href="#" data-page="resources" data-part="extras"><i data-lucide="library"></i> Resource Library</a>

@@ -158,7 +158,35 @@ function renderHome(el) {
       </div>
     </div>
 
-    <h2 style="margin-bottom:1rem;font-size:1.2rem;display:flex;align-items:center;gap:.5rem;"><i data-lucide="layers" style="width:20px;height:20px;color:var(--accent);"></i> Course Chapters</h2>
+    <h2 style="margin-bottom:1rem;font-size:1.2rem;display:flex;align-items:center;gap:.5rem;"><i data-lucide="layers" style="width:20px;height:20px;color:var(--accent);"></i> Courses</h2>
+    <div class="modules-grid" style="grid-template-columns:repeat(auto-fill,minmax(250px,1fr));margin-bottom:2rem;">
+      <div class="module-card" data-part="Foundations" onclick="document.getElementById('courseSelector').value='bioinfo';document.getElementById('courseSelector').dispatchEvent(new Event('change'));navigate('ch1');" style="border-left:3px solid var(--accent);">
+        <div class="icon"><i data-lucide="dna"></i></div>
+        <h3>Bioinformatics Data Skills</h3>
+        <p class="card-desc">Unix, Python, R, file formats, alignment, RNA-Seq, variant calling, reproducible pipelines.</p>
+        <div style="margin-top:auto;display:flex;gap:.5rem;flex-wrap:wrap;">
+          <span class="tag">14 Chapters</span><span class="tag">3 Projects</span><span class="tag">150+ Quizzes</span>
+        </div>
+      </div>
+      <div class="module-card" data-part="Programming" onclick="document.getElementById('courseSelector').value='stats';document.getElementById('courseSelector').dispatchEvent(new Event('change'));navigate('stat1');" style="border-left:3px solid var(--purple);">
+        <div class="icon"><i data-lucide="bar-chart-3"></i></div>
+        <h3>Statistics for Biology</h3>
+        <p class="card-desc">Distributions, confidence intervals, p-values, regression, PCA, experimental design. No heavy math.</p>
+        <div style="margin-top:auto;display:flex;gap:.5rem;flex-wrap:wrap;">
+          <span class="tag">15 Chapters</span><span class="tag">1 Project</span><span class="tag">In Progress</span>
+        </div>
+      </div>
+      <div class="module-card" style="border-left:3px solid var(--green);opacity:.6;cursor:default;" onmouseover="" onclick="">
+        <div class="icon"><i data-lucide="cpu"></i></div>
+        <h3>AI/ML for Genomics</h3>
+        <p class="card-desc">Classification, clustering, neural networks, single-cell analysis, protein structure prediction.</p>
+        <div style="margin-top:auto;display:flex;gap:.5rem;flex-wrap:wrap;">
+          <span class="tag">Coming Soon</span>
+        </div>
+      </div>
+    </div>
+
+    <h2 style="margin-bottom:1rem;font-size:1.2rem;display:flex;align-items:center;gap:.5rem;"><i data-lucide="layers" style="width:20px;height:20px;color:var(--accent);"></i> Bioinformatics Chapters</h2>
     <div class="modules-grid">${cards}</div>
     <h2 style="margin:1.5rem 0 1rem;font-size:1.2rem;display:flex;align-items:center;gap:.5rem;"><i data-lucide="bookmark" style="width:20px;height:20px;color:var(--accent);"></i> Quick Access</h2>
     <div class="modules-grid">
@@ -599,3 +627,18 @@ function initHelixCanvas() {
   }
   draw();
 }
+
+
+// Course switcher
+document.addEventListener('DOMContentLoaded', () => {
+  const sel = document.getElementById('courseSelector');
+  if (sel) {
+    sel.addEventListener('change', () => {
+      const course = sel.value;
+      document.getElementById('nav-bioinfo').style.display = course === 'bioinfo' ? '' : 'none';
+      document.getElementById('nav-stats').style.display = course === 'stats' ? '' : 'none';
+      document.getElementById('nav-aiml').style.display = course === 'aiml' ? '' : 'none';
+      navigate('home');
+    });
+  }
+});
