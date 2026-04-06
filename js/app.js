@@ -94,6 +94,8 @@ async function loadPage(page) {
   const el = document.getElementById('content');
   if (page === 'home') { renderHome(el); return; }
   if (page === 'resources') { renderResources(el); return; }
+  if (page === 'stat-resources') { renderStatResources(el); return; }
+  if (page === 'stat-glossary') { renderStatGlossary(el); return; }
   if (page === 'glossary') { renderGlossary(el); return; }
   if (page === 'cheatsheets') { renderCheatSheets(el); return; }
   try {
@@ -681,3 +683,109 @@ window.toggleSection = function(id) {
     setTimeout(() => body.classList.add('collapsed'), 400);
   }
 };
+
+function renderStatResources(el) {
+  el.innerHTML = `<div class="module-page"><div class="module-header"><h1><i data-lucide="library" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Statistics Resources</h1></div>
+  <div class="lesson">
+  <h2>Books</h2>
+  <ul>
+    <li><strong>Intuitive Biostatistics</strong> — Harvey Motulsky — The best non-mathematical stats book for biologists. Covers everything from p-values to regression with real biological examples.</li>
+    <li><strong>An Introduction to Statistical Learning (ISLR)</strong> — James, Witten, Hastie, Tibshirani — Free PDF at statlearning.com. The gold standard for applied ML/stats in R.</li>
+    <li><strong>Modern Statistics for Modern Biology</strong> — Holmes &amp; Huber — Free online at huber.embl.de/msmb. Written by Bioconductor developers, covers genomics-specific methods.</li>
+    <li><strong>Statistics for Biologists</strong> — Nature Methods collection — Free articles covering key statistical concepts for biologists.</li>
+    <li><strong>The Elements of Statistical Learning</strong> — Hastie, Tibshirani, Friedman — Advanced. Free PDF at web.stanford.edu/~hastie/ElemStatLearn/</li>
+  </ul>
+  <h2>Online Courses</h2>
+  <ul>
+    <li><a href="https://www.coursera.org/learn/statistical-inference" target="_blank">Statistical Inference</a> — Johns Hopkins / Coursera</li>
+    <li><a href="https://www.edx.org/course/statistics-and-r" target="_blank">Statistics and R</a> — HarvardX / edX — Free</li>
+    <li><a href="https://www.statlearning.com/" target="_blank">ISLR Course</a> — Free videos from the book authors</li>
+    <li><a href="https://seeing-theory.brown.edu/" target="_blank">Seeing Theory</a> — Beautiful visual introduction to probability and statistics</li>
+  </ul>
+  <h2>Key Papers to Read</h2>
+  <ul>
+    <li>Nuzzo (2014) — "Statistical errors" — Nature. The best short read on p-value misuse.</li>
+    <li>Ioannidis (2005) — "Why most published research findings are false" — PLoS Medicine</li>
+    <li>Benjamini &amp; Hochberg (1995) — The original FDR paper</li>
+    <li>Love, Huber &amp; Anders (2014) — The DESeq2 paper — explains the negative binomial model</li>
+  </ul>
+  <h2>R Packages for Statistics</h2>
+  <ul>
+    <li><strong>stats</strong> — Base R. t.test, aov, lm, glm, cor.test</li>
+    <li><strong>ggplot2</strong> — Visualization</li>
+    <li><strong>dplyr</strong> — Data manipulation</li>
+    <li><strong>broom</strong> — Tidy model outputs</li>
+    <li><strong>pROC</strong> — ROC curves and AUC</li>
+    <li><strong>randomForest</strong> — Random forest classification</li>
+    <li><strong>caret</strong> — Unified ML framework with cross-validation</li>
+    <li><strong>RNASeqPower</strong> — Power analysis for RNA-Seq</li>
+  </ul>
+  </div></div>`;
+  lucide.createIcons();
+}
+
+function renderStatGlossary(el) {
+  const terms = [
+    ['Alpha (α)','The significance threshold. The probability of a false positive you are willing to accept. Usually 0.05.'],
+    ['ANOVA','Analysis of Variance. Tests whether means differ across 3+ groups by comparing between-group to within-group variance.'],
+    ['AUC','Area Under the ROC Curve. Measures classifier performance. 0.5 = random, 1.0 = perfect.'],
+    ['Bayesian statistics','Statistical framework that combines prior beliefs with observed data to update probabilities.'],
+    ['Benjamini-Hochberg','The standard FDR correction method. Controls the expected proportion of false discoveries among significant results.'],
+    ['Beta (β)','The probability of a false negative (missing a real effect). Power = 1 - β.'],
+    ['Bonferroni correction','Divide α by the number of tests. Controls family-wise error rate. Conservative.'],
+    ['Coefficient of variation (CV)','SD / mean. Measures relative variability. Used in RNA-Seq power calculations.'],
+    ['Confidence interval (CI)','A range of plausible values for a parameter. A 95% CI means 95% of such intervals would contain the true value.'],
+    ['Confounder','A variable associated with both the predictor and outcome that can bias results if not accounted for.'],
+    ['Cross-validation','Splitting data into training and test sets to get honest performance estimates. Prevents overfitting.'],
+    ['Effect size','A measure of the magnitude of an effect, independent of sample size. Examples: log2FC, Cohen\'s d, odds ratio.'],
+    ['False Discovery Rate (FDR)','The expected proportion of false positives among significant results. Controlled by Benjamini-Hochberg.'],
+    ['False negative','Missing a real effect. Type II error. Rate = β.'],
+    ['False positive','Claiming an effect exists when it doesn\'t. Type I error. Rate = α.'],
+    ['F-statistic','The ratio of between-group to within-group variance in ANOVA.'],
+    ['Gaussian distribution','The bell curve. Symmetric, defined by mean and SD. Many statistical tests assume this.'],
+    ['GLM','Generalized Linear Model. Extends linear regression to non-Gaussian outcomes (binary, counts, etc.).'],
+    ['HARKing','Hypothesizing After Results are Known. Presenting data-driven hypotheses as if pre-specified.'],
+    ['Logistic regression','GLM for binary outcomes. Predicts probability of an event. Coefficients are log-odds.'],
+    ['Lognormal distribution','Right-skewed distribution. Log-transforming it gives a Gaussian. Common for gene expression.'],
+    ['Multiple testing','Running many statistical tests simultaneously. Inflates false positive rate without correction.'],
+    ['Negative binomial','Distribution for overdispersed count data. Used by DESeq2 and edgeR for RNA-Seq.'],
+    ['Null hypothesis','The default assumption of no effect. Statistical tests ask how surprising the data is under this assumption.'],
+    ['Odds ratio','Effect size for binary outcomes. OR > 1 means increased odds, OR < 1 means decreased odds.'],
+    ['Overdispersion','When variance exceeds the mean in count data. Violates Poisson assumption. Requires negative binomial.'],
+    ['P-value','The probability of observing data this extreme or more extreme if the null hypothesis were true.'],
+    ['Paired t-test','Compares two related measurements (same subject before/after). Removes between-subject variability.'],
+    ['PCA','Principal Component Analysis. Reduces high-dimensional data to 2-3 dimensions preserving maximum variance.'],
+    ['Pearson correlation (r)','Measures linear association between two variables. Ranges from -1 to +1.'],
+    ['Poisson distribution','Distribution for counts of rare events. Mean equals variance.'],
+    ['Power','Probability of detecting a real effect when it exists. Power = 1 - β. Target: 0.80.'],
+    ['Pseudoreplication','Treating multiple measurements from the same biological unit as independent samples.'],
+    ['R²','Coefficient of determination. Fraction of variance in y explained by x.'],
+    ['Random forest','Ensemble of decision trees. Robust, handles many features, provides feature importance.'],
+    ['Regression to the mean','Extreme values tend to be less extreme on remeasurement. Can mimic treatment effects.'],
+    ['ROC curve','Receiver Operating Characteristic. Plots sensitivity vs (1-specificity) across all thresholds.'],
+    ['Sampling error','Random variation between a sample statistic and the true population parameter. Decreases with larger n.'],
+    ['Sensitivity','TP/(TP+FN). Proportion of true cases correctly detected.'],
+    ['Spearman correlation (ρ)','Rank-based correlation. Robust to outliers and non-linear monotonic relationships.'],
+    ['Specificity','TN/(TN+FP). Proportion of true negatives correctly identified.'],
+    ['Standard deviation (SD)','Measures spread of individual values around the mean.'],
+    ['Standard error (SE)','Measures precision of the sample mean. SE = SD/√n.'],
+    ['t-test','Tests whether two group means differ. Assumes Gaussian data.'],
+    ['Type I error','False positive. Claiming an effect exists when it doesn\'t. Rate controlled by α.'],
+    ['Type II error','False negative. Missing a real effect. Rate = β. Power = 1 - β.'],
+    ['UMAP','Nonlinear dimensionality reduction. Standard for single-cell RNA-Seq visualization.'],
+    ['Wilcoxon test','Nonparametric alternative to t-test. Uses ranks instead of raw values.'],
+  ];
+  const rows = terms.map(([t,d]) => `<tr><td><strong>${t}</strong></td><td>${d}</td></tr>`).join('');
+  el.innerHTML = `<div class="module-page"><div class="module-header"><h1><i data-lucide="scroll-text" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Statistics Glossary</h1></div>
+  <input type="text" id="glossarySearch" placeholder="Search terms..." style="width:100%;padding:.75rem 1rem;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.9rem;margin-bottom:1rem;">
+  <table style="width:100%;border-collapse:collapse;" id="glossaryTable">
+  <thead><tr><th style="text-align:left;padding:.75rem;border-bottom:2px solid var(--border);width:220px;">Term</th><th style="text-align:left;padding:.75rem;border-bottom:2px solid var(--border);">Definition</th></tr></thead>
+  <tbody>${rows}</tbody></table></div>`;
+  document.getElementById('glossarySearch').addEventListener('input', e => {
+    const q = e.target.value.toLowerCase();
+    document.querySelectorAll('#glossaryTable tbody tr').forEach(r => {
+      r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  });
+  lucide.createIcons();
+}
