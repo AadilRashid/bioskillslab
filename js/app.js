@@ -175,7 +175,7 @@ function renderHome(el) {
         <h3>Statistics for Biology</h3>
         <p class="card-desc">Distributions, confidence intervals, p-values, regression, PCA, experimental design. No heavy math.</p>
         <div style="margin-top:auto;display:flex;gap:.5rem;flex-wrap:wrap;">
-          <span class="tag">15 Chapters</span><span class="tag">1 Project</span><span class="tag">In Progress</span>
+          <span class="tag">15 Chapters</span><span class="tag">1 Project</span><span class="tag">Complete</span>
         </div>
       </div>
       <div class="module-card" style="border-left:3px solid var(--green);opacity:.6;cursor:default;" onmouseover="" onclick="">
