@@ -809,12 +809,12 @@ fetch('/api/session.php').then(r=>r.json()).then(s => {
 
 function updateUserUI() {
   const tb = document.querySelector('.topbar-right');
-  if (!tb || !currentUser) return;
+  if (!tb || !window.currentUser) return;
   if (!document.getElementById('userBadge')) {
     const badge = document.createElement('div');
     badge.id = 'userBadge';
     badge.style.cssText = 'display:flex;align-items:center;gap:.5rem;font-size:.8rem;';
-    badge.innerHTML = `<span style="color:var(--text-muted);">${currentUser.display_name}</span><button onclick="logoutUser()" style="padding:.3rem .75rem;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);cursor:pointer;font-size:.75rem;">Logout</button>`;
+    badge.innerHTML = `<span style="color:var(--text-muted);">${window.currentUser.display_name}</span><button onclick="logoutUser()" style="padding:.3rem .75rem;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);cursor:pointer;font-size:.75rem;">Logout</button>`;
     tb.insertBefore(badge, tb.firstChild);
   }
 }
@@ -969,3 +969,4 @@ window.verifyCert = function() {
       }
     });
 };
+
