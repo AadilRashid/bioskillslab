@@ -985,3 +985,20 @@ window.submitLogin = function() {
       } else { msg.innerHTML = `<span style="color:var(--red)">${res.error}</span>`; }
     });
 };
+
+// Clean SPA fix for exam page
+async function loadExamPage(el) {
+  const resp = await fetch('chapters/exam.html');
+  el.innerHTML = await resp.text();
+  initExamPage(el);
+}
+
+function initExamPage(el) {
+  const authGate = el.querySelector('#examAuthGate');
+  const intro    = el.querySelector('#examIntro');
+  if (window.currentUser && authGate && intro) {
+    authGate.style.display = 'none';
+    intro.style.display    = 'block';
+  }
+  lucide.createIcons();
+}
