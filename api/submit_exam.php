@@ -57,6 +57,13 @@ if ($existing->fetch()) {
   echo json_encode(['error' => 'You already have a certificate for this course']); exit;
 }
 
+// Check if already attempted and failed
+$attempted = $db->prepare('SELECT id FROM exam_attempts WHERE user_id = ? AND course = ?');
+$attempted->execute([$_SESSION['user_id'], $course]);
+if ($attempted->fetch()) {
+  echo json_encode(['error' => 'You have already attempted this exam. To request a reexam, email contact@bioskillslab.dev']); exit;
+}
+
 // Record attempt
 $stmt = $db->prepare('INSERT INTO exam_attempts (user_id, course, score, passed) VALUES (?, ?, ?, ?)');
 $stmt->execute([$_SESSION['user_id'], $course, $score, $passed ? 1 : 0]);
