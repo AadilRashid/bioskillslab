@@ -1070,7 +1070,7 @@ window.submitExam = function() {
     if (res.passed) {
       document.getElementById('examResult').innerHTML = `
         <div style="background:linear-gradient(135deg,rgba(74,222,128,.1),rgba(56,189,248,.1));border:1px solid var(--green);border-radius:16px;padding:2.5rem;">
-          <div style="font-size:3rem;margin-bottom:1rem;">🎉</div>
+          <div style="margin-bottom:1.5rem;"><i data-lucide="trophy" style="width:56px;height:56px;color:var(--green);"></i></div>
           <h2 style="color:var(--green);margin-bottom:.5rem;">Congratulations!</h2>
           <p style="font-size:1.1rem;margin-bottom:.5rem;">You passed with <strong>${res.score}%</strong></p>
           <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:1rem;margin-bottom:1.5rem;">
@@ -1082,7 +1082,7 @@ window.submitExam = function() {
     } else {
       document.getElementById('examResult').innerHTML = `
         <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:2.5rem;">
-          <div style="font-size:3rem;margin-bottom:1rem;">📚</div>
+          <div style="margin-bottom:1.5rem;"><i data-lucide="rotate-ccw" style="width:56px;height:56px;color:var(--orange);"></i></div>
           <h2 style="margin-bottom:.5rem;">Not quite there yet</h2>
           <p style="font-size:1.1rem;margin-bottom:.5rem;">You scored <strong style="color:var(--orange);">${res.score}%</strong> (${res.correct}/${res.total} correct)</p>
           <p style="color:var(--text-muted);font-size:.9rem;margin-bottom:1.5rem;">You need 80% to pass. Review the chapters and try again.</p>
@@ -1092,3 +1092,4 @@ window.submitExam = function() {
   })
   .catch(() => { document.getElementById('examResult').innerHTML = '<p style="color:var(--red);">Network error. Please contact contact@bioskillslab.dev</p>'; });
 };
+
