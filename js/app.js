@@ -870,7 +870,7 @@ window.submitLogin = function() {
     .then(r=>r.json()).then(res => {
       if (res.success) {
         currentUser = res; updateUserUI(); closeAuthModal();
-        if (authCallback === 'exam') navigate('exam');
+        navigate('exam');
       } else { msg.innerHTML = `<span style="color:var(--red)">${res.error}</span>`; }
     });
 };
