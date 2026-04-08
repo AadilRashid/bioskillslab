@@ -1,19 +1,99 @@
-function initForum(container) {
-  container.innerHTML = `<div id="giscus-container"></div>`;
-  const script = document.createElement('script');
-  script.src = 'https://giscus.app/client.js';
-  script.setAttribute('data-repo', 'AadilRashid/bioskillslab');
-  script.setAttribute('data-repo-id', 'R_kgDOR2wptw');
-  script.setAttribute('data-category', 'General');
-  script.setAttribute('data-category-id', 'DIC_kwDOR2wpt84C6Vgu');
-  script.setAttribute('data-mapping', 'url');
-  script.setAttribute('data-strict', '0');
-  script.setAttribute('data-reactions-enabled', '1');
-  script.setAttribute('data-emit-metadata', '0');
-  script.setAttribute('data-input-position', 'bottom');
-  script.setAttribute('data-theme', 'dark_dimmed');
-  script.setAttribute('data-lang', 'en');
-  script.setAttribute('crossorigin', 'anonymous');
-  script.async = true;
-  container.appendChild(script);
+const FORUM_API = '/api';
+
+function initForum(container, chId) {
+  container.innerHTML = `
+    <div class="comment-form">
+      <h4><i data-lucide="message-circle" style="width:18px;height:18px;display:inline;vertical-align:middle;"></i> Join the Discussion</h4>
+      <div style="display:flex;gap:.75rem;flex-wrap:wrap;">
+        <input id="cf-name" type="text" placeholder="Your name (optional)" style="flex:1;min-width:140px;padding:.65rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.9rem;">
+        <input id="cf-email" type="email" placeholder="Email (optional, never shown)" style="flex:1;min-width:180px;padding:.65rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.9rem;">
+      </div>
+      <textarea id="cf-text" placeholder="Share your thoughts, ask a question, or help others..." rows="4" style="width:100%;margin-top:.75rem;padding:.75rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.9rem;resize:vertical;box-sizing:border-box;"></textarea>
+      <div style="display:flex;align-items:center;gap:1rem;margin-top:.75rem;">
+        <button id="cf-submit" style="padding:.6rem 1.5rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:.9rem;">Post Comment</button>
+        <span id="cf-msg" style="font-size:.85rem;"></span>
+      </div>
+    </div>
+    <div id="cf-list" style="margin-top:1.5rem;"></div>
+  `;
+  lucide.createIcons();
+  loadComments(chId);
+
+  document.getElementById('cf-submit').addEventListener('click', () => postComment(chId));
+  document.getElementById('cf-text').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.ctrlKey) postComment(chId);
+  });
+}
+
+function loadComments(chId) {
+  const list = document.getElementById('cf-list');
+  if (!list) return;
+  list.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem;">Loading comments...</p>';
+  fetch(`${FORUM_API}/get_comments.php?chapter=${encodeURIComponent(chId)}`)
+    .then(r => r.json())
+    .then(comments => {
+      if (!comments.length) {
+        list.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem;">No comments yet. Be the first!</p>';
+        return;
+      }
+      list.innerHTML = comments.map(c => `
+        <div style="padding:1rem;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;margin-bottom:.75rem;">
+          <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem;">
+            <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--purple));display:flex;align-items:center;justify-content:center;font-weight:700;color:#0f172a;flex-shrink:0;">${c.name.charAt(0).toUpperCase()}</div>
+            <div>
+              <div style="font-weight:600;font-size:.9rem;">${c.name}</div>
+              <div style="font-size:.75rem;color:var(--text-muted);">${timeAgo(c.created_at)}</div>
+            </div>
+          </div>
+          <p style="font-size:.9rem;margin:0;line-height:1.6;">${c.text}</p>
+        </div>
+      `).join('');
+    })
+    .catch(() => {
+      list.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem;">Could not load comments.</p>';
+    });
+}
+
+function postComment(chId) {
+  const name  = (document.getElementById('cf-name').value.trim()  || 'Anonymous');
+  const email = document.getElementById('cf-email').value.trim();
+  const text  = document.getElementById('cf-text').value.trim();
+  const msg   = document.getElementById('cf-msg');
+
+  if (!text) { msg.innerHTML = '<span style="color:var(--red)">Please write something first.</span>'; return; }
+
+  msg.innerHTML = '<span style="color:var(--text-muted)">Posting...</span>';
+  document.getElementById('cf-submit').disabled = true;
+
+  fetch(`${FORUM_API}/post_comment.php`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chapter: chId, name, email, text })
+  })
+    .then(r => r.json())
+    .then(res => {
+      if (res.success) {
+        msg.innerHTML = '<span style="color:var(--green)">✓ Comment posted!</span>';
+        document.getElementById('cf-text').value = '';
+        document.getElementById('cf-name').value = '';
+        document.getElementById('cf-email').value = '';
+        loadComments(chId);
+      } else {
+        msg.innerHTML = `<span style="color:var(--red)">${res.error || 'Something went wrong.'}</span>`;
+      }
+    })
+    .catch(() => {
+      msg.innerHTML = '<span style="color:var(--red)">Network error. Try again.</span>';
+    })
+    .finally(() => { document.getElementById('cf-submit').disabled = false; });
+}
+
+function timeAgo(ts) {
+  const diff = Date.now() - new Date(ts).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + 'm ago';
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + 'h ago';
+  return Math.floor(hrs / 24) + 'd ago';
 }
