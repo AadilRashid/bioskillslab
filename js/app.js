@@ -1323,3 +1323,53 @@ async function loadStatExamPage(el) {
   lucide.createIcons();
   checkAndInitExam(el, 'stats');
 }
+
+// Fix reexam message — show email text not button
+function checkAndInitExam(el, course) {
+  const authGate = el.querySelector('#' + (course === 'stats' ? 'statExamAuthGate' : 'examAuthGate'));
+  const intro    = el.querySelector('#' + (course === 'stats' ? 'statExamIntro'    : 'examIntro'));
+  const result   = el.querySelector('#' + (course === 'stats' ? 'statExamResult'   : 'examResult'));
+  if (!authGate || !intro) return;
+
+  if (!window.currentUser) {
+    authGate.style.display = 'block';
+    intro.style.display    = 'none';
+    return;
+  }
+
+  authGate.style.display = 'none';
+  fetch('/api/check_attempt.php?course=' + course)
+    .then(r => r.json())
+    .then(data => {
+      if (data.passed) {
+        intro.style.display  = 'none';
+        result.style.display = 'block';
+        result.innerHTML = `
+          <div style="background:linear-gradient(135deg,rgba(74,222,128,.1),rgba(56,189,248,.1));border:1px solid var(--green);border-radius:16px;padding:2.5rem;">
+            <div style="margin-bottom:1.5rem;"><i data-lucide="trophy" style="width:56px;height:56px;color:var(--green);"></i></div>
+            <h2 style="color:var(--green);margin-bottom:.5rem;">You already passed!</h2>
+            <p style="font-size:.9rem;color:var(--text-muted);margin-bottom:1.5rem;">Score: ${data.score}%</p>
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:1rem;margin-bottom:1.5rem;">
+              <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:.25rem;">Certificate ID</p>
+              <p style="font-family:monospace;font-size:1.1rem;font-weight:700;color:var(--accent);">${data.cert_code}</p>
+            </div>
+            <button onclick="navigate('cert-${data.cert_code}')" style="padding:.75rem 2rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;font-weight:700;cursor:pointer;">View Certificate</button>
+          </div>`;
+        lucide.createIcons();
+      } else if (data.attempted) {
+        intro.style.display  = 'none';
+        result.style.display = 'block';
+        result.innerHTML = `
+          <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:2.5rem;">
+            <div style="margin-bottom:1.5rem;"><i data-lucide="rotate-ccw" style="width:56px;height:56px;color:var(--orange);"></i></div>
+            <h2 style="margin-bottom:.5rem;">Exam already attempted</h2>
+            <p style="font-size:1rem;margin-bottom:.75rem;">You scored <strong style="color:var(--orange);">${data.score}%</strong></p>
+            <p style="color:var(--text-muted);font-size:.9rem;margin-bottom:.5rem;">To request a reexam, email:</p>
+            <p style="font-size:1rem;font-weight:600;color:var(--accent);">contact@bioskillslab.dev</p>
+          </div>`;
+        lucide.createIcons();
+      } else {
+        intro.style.display = 'block';
+      }
+    });
+}
