@@ -8,6 +8,7 @@ $chapter = isset($_GET['chapter']) ? trim($_GET['chapter']) : '';
 if (!$chapter) { echo json_encode([]); exit; }
 
 $db = getDB();
+$db->exec("SET time_zone = '+00:00'");
 $stmt = $db->prepare('SELECT id, name, text, created_at, updated_at FROM comments WHERE chapter = ? ORDER BY created_at DESC');
 $stmt->execute([$chapter]);
 echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));

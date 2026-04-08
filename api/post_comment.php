@@ -36,6 +36,7 @@ $text  = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
 $token = bin2hex(random_bytes(32));
 
 $db = getDB();
+$db->exec("SET time_zone = '+00:00'");
 $stmt = $db->prepare('INSERT INTO comments (chapter, name, email, text, token) VALUES (?, ?, ?, ?, ?)');
 $stmt->execute([$chapter, $name, $email, $text, $token]);
 $id = $db->lastInsertId();
