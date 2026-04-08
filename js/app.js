@@ -802,9 +802,9 @@ function renderStatGlossary(el) {
 }
 
 // ── AUTH STATE ──────────────────────────────────────────────
-let currentUser = null;
+window.currentUser = null;
 fetch('/api/session.php').then(r=>r.json()).then(s => {
-  if (s.loggedIn) { currentUser = s; updateUserUI(); }
+  if (s.loggedIn) { window.currentUser = s; updateUserUI(); }
 });
 
 function updateUserUI() {
@@ -820,7 +820,7 @@ function updateUserUI() {
 }
 
 function logoutUser() {
-  fetch('/api/logout.php').then(() => { currentUser = null; const b = document.getElementById('userBadge'); if(b) b.remove(); });
+  fetch('/api/logout.php').then(() => { window.currentUser = null; const b = document.getElementById('userBadge'); if(b) b.remove(); });
 }
 
 // ── AUTH MODAL ──────────────────────────────────────────────
@@ -869,8 +869,9 @@ window.submitLogin = function() {
   fetch('/api/login.php', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username:user, password:pass}) })
     .then(r=>r.json()).then(res => {
       if (res.success) {
-        currentUser = res; updateUserUI(); closeAuthModal();
+        window.currentUser = res; updateUserUI(); closeAuthModal();
         navigate('exam');
+        requestAnimationFrame(() => updateExamAuthState());
       } else { msg.innerHTML = `<span style="color:var(--red)">${res.error}</span>`; }
     });
 };
@@ -886,7 +887,7 @@ window.submitRegister = function() {
   fetch('/api/register.php', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username:user, display_name:display, password:pass, email}) })
     .then(r=>r.json()).then(res => {
       if (res.success) {
-        currentUser = res; updateUserUI();
+        window.currentUser = res; updateUserUI();
         // Show recovery phrase before closing
         document.getElementById('authModalContent').innerHTML = `
           <h3 style="margin-bottom:1rem;color:var(--green);">Account Created!</h3>
@@ -906,13 +907,19 @@ async function loadExamPage(el) {
 }
 
 function initExamPage(el) {
+  lucide.createIcons();
+  updateExamAuthState(el);
+}
+
+function updateExamAuthState(el) {
+  el = el || document.getElementById('content');
+  if (!el) return;
   const authGate = el.querySelector('#examAuthGate');
   const intro    = el.querySelector('#examIntro');
-  if (window.currentUser && authGate && intro) {
-    authGate.style.display = 'none';
-    intro.style.display    = 'block';
-  }
-  lucide.createIcons();
+  if (!authGate || !intro) return;
+  const isAuthed = !!window.currentUser;
+  authGate.style.display = isAuthed ? 'none'  : 'block';
+  intro.style.display    = isAuthed ? 'block' : 'none';
 }
 
 async function loadCertPage(el, code) {
