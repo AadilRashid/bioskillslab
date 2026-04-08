@@ -914,3 +914,51 @@ function initExamPage(el) {
   }
   lucide.createIcons();
 }
+
+async function loadCertPage(el, code) {
+  const resp = await fetch('chapters/certificate.html');
+  el.innerHTML = await resp.text();
+  lucide.createIcons();
+  el.querySelectorAll('script').forEach(s => { const ns = document.createElement('script'); ns.textContent = s.textContent; document.body.appendChild(ns); });
+  setTimeout(() => { if (typeof loadCert === 'function') loadCert(code); }, 100);
+}
+
+function renderVerify(el) {
+  el.innerHTML = `<div class="module-page">
+    <div class="module-header"><h1><i data-lucide="shield-check" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Verify Certificate</h1></div>
+    <div style="max-width:480px;margin:2rem auto;text-align:center;">
+      <p style="color:var(--text-muted);margin-bottom:1.5rem;">Enter a certificate ID to verify its authenticity.</p>
+      <div style="display:flex;gap:.75rem;">
+        <input id="verifyInput" type="text" placeholder="e.g. A1B2C3D4E5F6G7H8" style="flex:1;padding:.65rem 1rem;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:monospace;font-size:.9rem;">
+        <button onclick="verifyCert()" style="padding:.65rem 1.25rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;font-weight:600;cursor:pointer;">Verify</button>
+      </div>
+      <div id="verifyResult" style="margin-top:1.5rem;"></div>
+    </div>
+  </div>`;
+  lucide.createIcons();
+}
+
+window.verifyCert = function() {
+  const code = document.getElementById('verifyInput').value.trim().toUpperCase();
+  const res  = document.getElementById('verifyResult');
+  if (!code) return;
+  res.innerHTML = '<p style="color:var(--text-muted);">Checking...</p>';
+  fetch('/api/verify_cert.php?code=' + encodeURIComponent(code))
+    .then(r=>r.json()).then(data => {
+      if (data.valid) {
+        const course = data.course === 'bioinfo' ? 'Bioinformatics Data Skills' : 'Statistics for Biology';
+        const date   = new Date(data.issued_at + 'Z').toLocaleDateString(undefined, {year:'numeric',month:'long',day:'numeric'});
+        res.innerHTML = `<div style="background:linear-gradient(135deg,rgba(74,222,128,.1),rgba(56,189,248,.1));border:1px solid var(--green);border-radius:12px;padding:1.5rem;">
+          <div style="font-size:1.5rem;margin-bottom:.5rem;">✅</div>
+          <p style="font-weight:700;color:var(--green);margin-bottom:.25rem;">Valid Certificate</p>
+          <p style="font-size:.9rem;"><strong>${data.display_name}</strong> completed <strong>${course}</strong></p>
+          <p style="font-size:.85rem;color:var(--text-muted);">Score: ${data.score}% · Issued: ${date}</p>
+        </div>`;
+      } else {
+        res.innerHTML = `<div style="background:rgba(248,113,113,.1);border:1px solid var(--red);border-radius:12px;padding:1.5rem;">
+          <div style="font-size:1.5rem;margin-bottom:.5rem;">❌</div>
+          <p style="color:var(--red);">Certificate not found. Please check the ID and try again.</p>
+        </div>`;
+      }
+    });
+};
