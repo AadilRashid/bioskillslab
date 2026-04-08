@@ -969,3 +969,19 @@ async function loadExamPage(el) {
     }, 50);
   }
 }
+
+// Fix: delay navigate so currentUser is set before loadExamPage runs
+window.submitLogin = function() {
+  const user = document.getElementById('auth-user').value.trim();
+  const pass = document.getElementById('auth-pass').value;
+  const msg  = document.getElementById('auth-msg');
+  if (!user || !pass) { msg.innerHTML = '<span style="color:var(--red)">Fill in all fields.</span>'; return; }
+  msg.innerHTML = '<span style="color:var(--text-muted)">Logging in...</span>';
+  fetch('/api/login.php', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username:user, password:pass}) })
+    .then(r=>r.json()).then(res => {
+      if (res.success) {
+        currentUser = res; updateUserUI(); closeAuthModal();
+        setTimeout(() => navigate('exam'), 150);
+      } else { msg.innerHTML = `<span style="color:var(--red)">${res.error}</span>`; }
+    });
+};
