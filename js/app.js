@@ -107,6 +107,7 @@ async function loadPage(page) {
   if (page === 'glossary') { renderGlossary(el); return; }
   if (page === 'cheatsheets') { renderCheatSheets(el); return; }
   if (page === 'exam') { loadExamPage(el); return; }
+  if (page === 'stat-exam') { loadStatExamPage(el); return; }
   if (page.startsWith('cert-')) { loadCertPage(el, page.replace('cert-','')); return; }
   if (page === 'verify') { renderVerify(el); return; }
   try {
@@ -1093,3 +1094,167 @@ window.submitExam = function() {
   .catch(() => { document.getElementById('examResult').innerHTML = '<p style="color:var(--red);">Network error. Please contact contact@bioskillslab.dev</p>'; });
 };
 
+
+// ── STATS EXAM ──────────────────────────────────────────────
+async function loadStatExamPage(el) {
+  const resp = await fetch('chapters/stats/statexam.html');
+  el.innerHTML = await resp.text();
+  initStatExamPage(el);
+}
+
+function initStatExamPage(el) {
+  lucide.createIcons();
+  const authGate = el.querySelector('#statExamAuthGate');
+  const intro    = el.querySelector('#statExamIntro');
+  if (!authGate || !intro) return;
+  const isAuthed = !!window.currentUser;
+  authGate.style.display = isAuthed ? 'none'  : 'block';
+  intro.style.display    = isAuthed ? 'block' : 'none';
+}
+
+const STAT_EXAM_QUESTIONS = [
+  // --- RECYCLED ---
+  {q:'You test 20,000 genes at p < 0.05 with no real biological difference. How many false positives do you expect?', opts:['0','50','1,000','20,000'], ans:'c'},
+  {q:'Two genes are co-expressed across 50 patient samples. What can you conclude?', opts:['Gene A regulates Gene B','Their expression levels tend to move together, but you cannot determine causation','They are in the same pathway','One is upstream of the other'], ans:'b'},
+  {q:'Why do we need more than 1 replicate per condition?', opts:['To estimate biological variability and distinguish signal from noise','Because sequencing machines require multiple inputs','To increase the total number of reads','Because one sample might be contaminated'], ans:'a'},
+  {q:'A p-value of 0.03 means:', opts:['There is a 3% chance the null hypothesis is true','There is a 97% chance the treatment works','If there were no real effect, there is a 3% chance of seeing data this extreme','The effect size is 3%'], ans:'c'},
+  {q:'FDR < 0.05 means:', opts:['Less than 5% chance of any false positive','Exactly 5% of all genes are significant','Among your significant results, you expect no more than 5% to be false positives','The effect size is at least 5%'], ans:'c'},
+  {q:'In DESeq2 output, which column should you use for filtering significant genes?', opts:['padj (adjusted p-value)','pvalue (raw p-value)','log2FoldChange','baseMean'], ans:'a'},
+  {q:'A Type I error is:', opts:['Missing a real effect','Using the wrong statistical test','Claiming an effect exists when it does not (false positive)','Having too few replicates'], ans:'c'},
+  {q:'A cancer classifier has 95% accuracy on a dataset where 95% of samples are healthy. This classifier is:', opts:['Excellent','Useless — it probably just predicts healthy for everything','Good but could be improved','Overfitted'], ans:'b'},
+  {q:'Sensitivity measures:', opts:['How many true negatives you correctly identified','How many of your positive predictions were correct','How many true positive cases you correctly detected','The overall accuracy of the classifier'], ans:'c'},
+  {q:'AUC = 0.5 means:', opts:['The classifier performs no better than random chance','The classifier is 50% accurate','The classifier has 50% sensitivity','The model is overfitted'], ans:'a'},
+  {q:'Why are random forests better than single decision trees?', opts:['They are faster to train','They are easier to interpret','They require less data','They average many trees, reducing variance and overfitting'], ans:'d'},
+  {q:'Cross-validation is used to:', opts:['Speed up model training','Get an honest estimate of model performance on unseen data','Select the best features','Correct for multiple testing'], ans:'b'},
+  {q:'Why is Bonferroni correction too conservative for RNA-Seq?', opts:['It demands extremely small p-values, causing you to miss many real effects','It does not work with count data','It requires normally distributed data','It only works with fewer than 100 tests'], ans:'a'},
+  {q:'A study with n=10,000 finds a gene with log2FC = 0.01 and p = 0.0001. This result is:', opts:['Biologically important because the p-value is very small','Statistically significant but biologically meaningless (tiny effect size)','A false positive','Impossible'], ans:'b'},
+  {q:'Which is NOT a source of variability in a genomics experiment?', opts:['Biological differences between individuals','The programming language used for analysis','Batch effects from different sequencing runs','Differences in library preparation'], ans:'b'},
+  // --- NEW HARDER ---
+  {q:'A 95% confidence interval for a mean gene expression difference is [1.2, 4.8]. What does this mean?', opts:['There is a 95% probability the true mean is in this range','If you repeated the experiment many times, 95% of such intervals would contain the true mean','The p-value is 0.05','The effect size is between 1.2 and 4.8 fold'], ans:'b'},
+  {q:'In a paired t-test vs an unpaired t-test, the paired test is preferred when:', opts:['Sample sizes are unequal','The same subjects are measured before and after treatment','Data is not normally distributed','You have more than 2 groups'], ans:'b'},
+  {q:'ANOVA tests whether:', opts:['Two groups have equal variance','Means differ across 3 or more groups','Data follows a normal distribution','Two variables are correlated'], ans:'b'},
+  {q:'In linear regression, R² = 0.75 means:', opts:['The slope is 0.75','75% of the variance in y is explained by x','The p-value is 0.25','The correlation is 0.75'], ans:'a'},
+  {q:'A logistic regression coefficient of 1.5 for a gene means:', opts:['The gene increases expression by 1.5 fold','The log-odds of the outcome increase by 1.5 for each unit increase in the gene','The probability of disease is 1.5%','The gene is 1.5 times more expressed'], ans:'b'},
+  {q:'Pseudoreplication occurs when:', opts:['You use too many replicates','Multiple measurements from the same biological unit are treated as independent samples','You apply the wrong statistical test','You fail to correct for multiple testing'], ans:'b'},
+  {q:'In PCA, the first principal component:', opts:['Has the smallest variance','Explains the most variance in the data','Is always correlated with batch effects','Represents the mean of all variables'], ans:'b'},
+  {q:'The negative binomial distribution is used in RNA-Seq because:', opts:['Read counts are always normally distributed','It handles overdispersion where variance exceeds the mean','It is simpler than the Poisson distribution','It does not require replicates'], ans:'b'},
+  {q:'HARKing stands for:', opts:['High Accuracy Ranking of Known Genes','Hypothesizing After Results are Known','Hierarchical Analysis of RNA-seq Kinetics','Haplotype Association with Regulatory Knockouts'], ans:'b'},
+  {q:'Statistical power is:', opts:['The probability of a Type I error','The probability of detecting a real effect when it exists','The sample size needed for significance','The effect size divided by standard deviation'], ans:'b'},
+  {q:'In experimental design, a confounder is:', opts:['A variable you are testing','A variable associated with both the predictor and outcome that can bias results','A technical replicate','A batch effect that has been corrected'], ans:'b'},
+  {q:'The Wilcoxon rank-sum test is preferred over a t-test when:', opts:['Sample sizes are large','Data is heavily skewed or has outliers','You have more than 2 groups','You need to correct for multiple testing'], ans:'b'},
+  {q:'Regression to the mean means:', opts:['All values eventually converge to the population mean','Extreme values on first measurement tend to be less extreme on remeasurement','Linear regression always predicts the mean','The regression coefficient equals the mean'], ans:'b'},
+  {q:'In a GWAS, the significance threshold is p < 5×10⁻⁸ rather than 0.05 because:', opts:['GWAS data is noisier than RNA-Seq','Millions of SNPs are tested simultaneously requiring extreme multiple testing correction','The effect sizes are smaller','The sample sizes are larger'], ans:'b'},
+  {q:'Overfitting in a machine learning model is best detected by:', opts:['High training accuracy','Large difference between training accuracy and test/cross-validation accuracy','Low p-values','High AUC on training data'], ans:'b'},
+];
+
+let statExamTimer = null;
+let statExamSeconds = 45 * 60;
+let statExamAnswers = {};
+
+window.startStatExam = function() {
+  document.getElementById('statExamIntro').style.display = 'none';
+  document.getElementById('statExamQuestions').style.display = 'block';
+  renderStatExamQuestions();
+  startStatTimer();
+};
+
+function renderStatExamQuestions() {
+  const container = document.getElementById('statExamQList');
+  container.innerHTML = STAT_EXAM_QUESTIONS.map((q, i) => `
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin-bottom:1rem;">
+      <p style="font-weight:600;margin-bottom:1rem;"><span style="color:var(--accent);">${i+1}.</span> ${q.q}</p>
+      ${['a','b','c','d'].map((opt, j) => `
+        <label style="display:flex;align-items:center;gap:.75rem;padding:.6rem .75rem;border-radius:8px;cursor:pointer;margin-bottom:.4rem;border:1px solid transparent;">
+          <input type="radio" name="seq${i+1}" value="${opt}" onchange="statExamAnswers[${i+1}]='${opt}';updateStatExamProgress();" style="accent-color:var(--accent);">
+          <span style="font-size:.9rem;">${q.opts[j]}</span>
+        </label>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+window.updateStatExamProgress = function() {
+  const el = document.getElementById('statExamProgress');
+  if (el) el.textContent = `${Object.keys(statExamAnswers).length} of 30 answered`;
+};
+
+function startStatTimer() {
+  statExamSeconds = 45 * 60;
+  statExamTimer = setInterval(() => {
+    statExamSeconds--;
+    const m = Math.floor(statExamSeconds / 60);
+    const s = statExamSeconds % 60;
+    const el = document.getElementById('statExamTimer');
+    if (el) {
+      el.textContent = `${m}:${s.toString().padStart(2,'0')}`;
+      if (statExamSeconds <= 300) el.style.color = 'var(--red)';
+    }
+    if (statExamSeconds <= 0) { clearInterval(statExamTimer); window.submitStatExam(); }
+  }, 1000);
+}
+
+window.submitStatExam = function() {
+  clearInterval(statExamTimer);
+  const unanswered = 30 - Object.keys(statExamAnswers).length;
+  if (unanswered > 0 && statExamSeconds > 0) {
+    if (!confirm(`You have ${unanswered} unanswered questions. Submit anyway?`)) { startStatTimer(); return; }
+  }
+  document.getElementById('statExamQuestions').style.display = 'none';
+  document.getElementById('statExamResult').style.display = 'block';
+  document.getElementById('statExamResult').innerHTML = '<p style="color:var(--text-muted);">Grading...</p>';
+  fetch('/api/submit_exam.php', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({answers: statExamAnswers, course: 'stats'})
+  })
+  .then(r => r.json())
+  .then(res => {
+    if (res.error) { document.getElementById('statExamResult').innerHTML = `<p style="color:var(--red);">${res.error}</p>`; return; }
+    if (res.passed) {
+      document.getElementById('statExamResult').innerHTML = `
+        <div style="background:linear-gradient(135deg,rgba(74,222,128,.1),rgba(56,189,248,.1));border:1px solid var(--green);border-radius:16px;padding:2.5rem;">
+          <div style="margin-bottom:1.5rem;"><i data-lucide="trophy" style="width:56px;height:56px;color:var(--green);"></i></div>
+          <h2 style="color:var(--green);margin-bottom:.5rem;">Congratulations!</h2>
+          <p style="font-size:1.1rem;margin-bottom:.5rem;">You passed with <strong>${res.score}%</strong></p>
+          <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:1rem;margin-bottom:1.5rem;">
+            <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:.25rem;">Certificate ID</p>
+            <p style="font-family:monospace;font-size:1.1rem;font-weight:700;color:var(--accent);">${res.cert_code}</p>
+          </div>
+          <button onclick="navigate('cert-${res.cert_code}')" style="padding:.75rem 2rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;font-weight:700;cursor:pointer;">View Certificate</button>
+        </div>`;
+      lucide.createIcons();
+    } else {
+      document.getElementById('statExamResult').innerHTML = `
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:2.5rem;">
+          <div style="margin-bottom:1.5rem;"><i data-lucide="rotate-ccw" style="width:56px;height:56px;color:var(--orange);"></i></div>
+          <h2 style="margin-bottom:.5rem;">Not quite there yet</h2>
+          <p style="font-size:1.1rem;margin-bottom:.5rem;">You scored <strong style="color:var(--orange);">${res.score}%</strong> (${res.correct}/${res.total} correct)</p>
+          <p style="color:var(--text-muted);font-size:.9rem;margin-bottom:1.5rem;">You need 80% to pass. Review the chapters and try again.</p>
+          <p style="font-size:.9rem;">To request a reexam, email <a href="mailto:contact@bioskillslab.dev" style="color:var(--accent);">contact@bioskillslab.dev</a></p>
+        </div>`;
+      lucide.createIcons();
+    }
+  })
+  .catch(() => { document.getElementById('statExamResult').innerHTML = '<p style="color:var(--red);">Network error. Please contact contact@bioskillslab.dev</p>'; });
+};
+
+// Handle stat-exam login redirect
+const _origSubmitLogin = window.submitLogin;
+window.submitLogin = function() {
+  const user = document.getElementById('auth-user').value.trim();
+  const pass = document.getElementById('auth-pass').value;
+  const msg  = document.getElementById('auth-msg');
+  if (!user || !pass) { msg.innerHTML = '<span style="color:var(--red)">Fill in all fields.</span>'; return; }
+  msg.innerHTML = '<span style="color:var(--text-muted)">Logging in...</span>';
+  fetch('/api/login.php', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username:user, password:pass}) })
+    .then(r=>r.json()).then(res => {
+      if (res.success) {
+        window.currentUser = res; updateUserUI(); closeAuthModal();
+        const dest = authCallback === 'stat-exam' ? 'stat-exam' : 'exam';
+        navigate(dest);
+        requestAnimationFrame(() => {
+          updateExamAuthState();
+          initStatExamPage(document.getElementById('content'));
+        });
+      } else { msg.innerHTML = `<span style="color:var(--red)">${res.error}</span>`; }
+    });
+};

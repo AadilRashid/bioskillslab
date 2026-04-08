@@ -1,0 +1,43 @@
+<div class="module-page" id="statExamPage">
+  <div class="module-header">
+    <h1><i data-lucide="award" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Statistics for Biology — Final Exam</h1>
+    <p style="color:var(--text-muted);margin-top:.5rem;">30 questions · 45 minutes · Pass mark: 80%</p>
+  </div>
+
+  <div id="statExamAuthGate">
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:2rem;max-width:420px;margin:2rem auto;text-align:center;">
+      <i data-lucide="lock" style="width:40px;height:40px;color:var(--accent);margin-bottom:1rem;"></i>
+      <h3 style="margin-bottom:.5rem;">Login Required</h3>
+      <p style="color:var(--text-muted);font-size:.9rem;margin-bottom:1.5rem;">You need an account to take the exam and receive your certificate.</p>
+      <div style="display:flex;gap:.75rem;justify-content:center;">
+        <button onclick="showAuthModal('login','stat-exam')" style="padding:.65rem 1.5rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;font-weight:600;cursor:pointer;">Login</button>
+        <button onclick="showAuthModal('register','stat-exam')" style="padding:.65rem 1.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);cursor:pointer;">Register</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="statExamIntro" style="display:none;">
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:2rem;margin-bottom:2rem;">
+      <h3 style="margin-bottom:1rem;color:var(--accent);">Before You Begin</h3>
+      <ul style="color:var(--text-muted);font-size:.9rem;line-height:2;">
+        <li>30 multiple choice questions covering all 15 statistics chapters</li>
+        <li>45 minute time limit — timer starts when you click Start</li>
+        <li>You must score ≥ 80% (24/30) to pass</li>
+        <li>If you fail, contact <strong>contact@bioskillslab.dev</strong> to request a reexam</li>
+        <li>Do not refresh the page during the exam</li>
+      </ul>
+      <button onclick="startStatExam()" style="margin-top:1.5rem;padding:.75rem 2rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:1rem;">Start Exam</button>
+    </div>
+  </div>
+
+  <div id="statExamQuestions" style="display:none;">
+    <div style="position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--border);padding:.75rem 0;margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:center;z-index:10;">
+      <span id="statExamProgress" style="font-size:.9rem;color:var(--text-muted);">0 of 30 answered</span>
+      <span id="statExamTimer" style="font-weight:700;color:var(--accent);font-size:1.1rem;">45:00</span>
+    </div>
+    <div id="statExamQList"></div>
+    <button onclick="submitStatExam()" style="margin-top:2rem;padding:.75rem 2rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:1rem;width:100%;">Submit Exam</button>
+  </div>
+
+  <div id="statExamResult" style="display:none;text-align:center;padding:2rem;"></div>
+</div>
