@@ -953,3 +953,19 @@ window.verifyCert = function() {
       }
     });
 };
+
+// Override loadExamPage to handle already-logged-in state
+async function loadExamPage(el) {
+  const resp = await fetch('chapters/exam.html');
+  el.innerHTML = await resp.text();
+  lucide.createIcons();
+  el.querySelectorAll('script').forEach(s => { const ns = document.createElement('script'); ns.textContent = s.textContent; document.body.appendChild(ns); });
+  if (currentUser) {
+    setTimeout(() => {
+      const gate = document.getElementById('examAuthGate');
+      const intro = document.getElementById('examIntro');
+      if (gate) gate.style.display = 'none';
+      if (intro) intro.style.display = 'block';
+    }, 50);
+  }
+}
