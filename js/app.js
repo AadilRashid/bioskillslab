@@ -926,8 +926,7 @@ async function loadCertPage(el, code) {
   const resp = await fetch('chapters/certificate.html');
   el.innerHTML = await resp.text();
   lucide.createIcons();
-  el.querySelectorAll('script').forEach(s => { const ns = document.createElement('script'); ns.textContent = s.textContent; document.body.appendChild(ns); });
-  setTimeout(() => { if (typeof loadCert === 'function') loadCert(code); }, 100);
+    setTimeout(() => { if (typeof loadCert === 'function') loadCert(code); }, 100);
 }
 
 function renderVerify(el) {
@@ -969,4 +968,5 @@ window.verifyCert = function() {
       }
     });
 };
+
 
