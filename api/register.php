@@ -8,7 +8,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { exit; }
 require 'config.php';
 session_start();
 
-$data = json_decode(file_get_contents('php://input'), true);
+$raw = file_get_contents('php://input');
+$data = json_decode($raw, true);
+if (!$data) $data = [];
 $username     = isset($data['username'])     ? trim($data['username'])     : '';
 $display_name = isset($data['display_name']) ? trim($data['display_name']) : '';
 $password     = isset($data['password'])     ? $data['password']           : '';
