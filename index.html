@@ -80,6 +80,9 @@
         <a href="#" data-page="project1" data-part="extras"><i data-lucide="flask-conical"></i> Project 1: Mystery Microbe</a>
         <a href="#" data-page="project2" data-part="extras"><i data-lucide="dna"></i> Project 2: RNA-Seq</a>
         <a href="#" data-page="project3" data-part="extras"><i data-lucide="microscope"></i> Project 3: Variant Calling</a>
+        <div class="nav-section" data-part="extras">Certificate</div>
+        <a href="#" data-page="exam" data-part="extras"><i data-lucide="award"></i> Final Exam &amp; Certificate</a>
+        <a href="#" data-page="verify" data-part="extras"><i data-lucide="shield-check"></i> Verify Certificate</a>
         <div class="nav-section" data-part="extras">Resources</div>
         <a href="#" data-page="resources" data-part="extras"><i data-lucide="library"></i> Resource Library</a>
         <a href="#" data-page="glossary" data-part="extras"><i data-lucide="scroll-text"></i> Glossary</a>
@@ -122,6 +125,14 @@
 
     </nav>
   </aside>
+
+  <!-- AUTH MODAL -->
+  <div id="authModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:none;align-items:center;justify-content:center;">
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:2rem;width:100%;max-width:400px;margin:1rem;position:relative;">
+      <button onclick="closeAuthModal()" style="position:absolute;top:1rem;right:1rem;background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1.2rem;">✕</button>
+      <div id="authModalContent"></div>
+    </div>
+  </div>
 
   <div class="main">
     <header class="topbar">

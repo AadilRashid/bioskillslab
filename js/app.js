@@ -106,6 +106,9 @@ async function loadPage(page) {
   if (page === 'stat-glossary') { renderStatGlossary(el); return; }
   if (page === 'glossary') { renderGlossary(el); return; }
   if (page === 'cheatsheets') { renderCheatSheets(el); return; }
+  if (page === 'exam') { loadExamPage(el); return; }
+  if (page.startsWith('cert-')) { loadCertPage(el, page.replace('cert-','')); return; }
+  if (page === 'verify') { renderVerify(el); return; }
   try {
     let chapterPath = `chapters/${page}.html`;
     if (page.startsWith('stat')) chapterPath = `chapters/stats/${page}.html`;
@@ -797,3 +800,156 @@ function renderStatGlossary(el) {
   });
   lucide.createIcons();
 }
+
+// ── AUTH STATE ──────────────────────────────────────────────
+let currentUser = null;
+fetch('/api/session.php').then(r=>r.json()).then(s => {
+  if (s.loggedIn) { currentUser = s; updateUserUI(); }
+});
+
+function updateUserUI() {
+  const tb = document.querySelector('.topbar-right');
+  if (!tb || !currentUser) return;
+  if (!document.getElementById('userBadge')) {
+    const badge = document.createElement('div');
+    badge.id = 'userBadge';
+    badge.style.cssText = 'display:flex;align-items:center;gap:.5rem;font-size:.8rem;';
+    badge.innerHTML = `<span style="color:var(--text-muted);">${currentUser.display_name}</span><button onclick="logoutUser()" style="padding:.3rem .75rem;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);cursor:pointer;font-size:.75rem;">Logout</button>`;
+    tb.insertBefore(badge, tb.firstChild);
+  }
+}
+
+function logoutUser() {
+  fetch('/api/logout.php').then(() => { currentUser = null; const b = document.getElementById('userBadge'); if(b) b.remove(); });
+}
+
+// ── AUTH MODAL ──────────────────────────────────────────────
+let authCallback = null;
+
+window.showAuthModal = function(mode, callback) {
+  authCallback = callback;
+  const modal = document.getElementById('authModal');
+  modal.style.display = 'flex';
+  renderAuthForm(mode);
+};
+
+window.closeAuthModal = function() {
+  document.getElementById('authModal').style.display = 'none';
+};
+
+function renderAuthForm(mode) {
+  const c = document.getElementById('authModalContent');
+  if (mode === 'login') {
+    c.innerHTML = `
+      <h3 style="margin-bottom:1.5rem;">Login</h3>
+      <input id="auth-user" type="text" placeholder="Username" style="width:100%;padding:.65rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.9rem;box-sizing:border-box;margin-bottom:.75rem;">
+      <input id="auth-pass" type="password" placeholder="Password" style="width:100%;padding:.65rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.9rem;box-sizing:border-box;margin-bottom:.75rem;">
+      <span id="auth-msg" style="font-size:.85rem;display:block;margin-bottom:.75rem;min-height:1.2em;"></span>
+      <button onclick="submitLogin()" style="width:100%;padding:.7rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;font-weight:600;cursor:pointer;margin-bottom:.75rem;">Login</button>
+      <p style="text-align:center;font-size:.85rem;color:var(--text-muted);">No account? <a href="#" onclick="renderAuthForm('register');return false;" style="color:var(--accent);">Register</a></p>`;
+  } else {
+    c.innerHTML = `
+      <h3 style="margin-bottom:1.5rem;">Create Account</h3>
+      <input id="auth-user" type="text" placeholder="Username (letters, numbers, _)" style="width:100%;padding:.65rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.9rem;box-sizing:border-box;margin-bottom:.75rem;">
+      <input id="auth-display" type="text" placeholder="Full name (appears on certificate)" style="width:100%;padding:.65rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.9rem;box-sizing:border-box;margin-bottom:.75rem;">
+      <input id="auth-pass" type="password" placeholder="Password (min 8 characters)" style="width:100%;padding:.65rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.9rem;box-sizing:border-box;margin-bottom:.75rem;">
+      <input id="auth-email" type="email" placeholder="Email (optional — for password recovery)" style="width:100%;padding:.65rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.9rem;box-sizing:border-box;margin-bottom:.75rem;">
+      <span id="auth-msg" style="font-size:.85rem;display:block;margin-bottom:.75rem;min-height:1.2em;"></span>
+      <button onclick="submitRegister()" style="width:100%;padding:.7rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;font-weight:600;cursor:pointer;margin-bottom:.75rem;">Create Account</button>
+      <p style="text-align:center;font-size:.85rem;color:var(--text-muted);">Have an account? <a href="#" onclick="renderAuthForm('login');return false;" style="color:var(--accent);">Login</a></p>`;
+  }
+}
+
+window.submitLogin = function() {
+  const user = document.getElementById('auth-user').value.trim();
+  const pass = document.getElementById('auth-pass').value;
+  const msg  = document.getElementById('auth-msg');
+  if (!user || !pass) { msg.innerHTML = '<span style="color:var(--red)">Fill in all fields.</span>'; return; }
+  msg.innerHTML = '<span style="color:var(--text-muted)">Logging in...</span>';
+  fetch('/api/login.php', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username:user, password:pass}) })
+    .then(r=>r.json()).then(res => {
+      if (res.success) {
+        currentUser = res; updateUserUI(); closeAuthModal();
+        if (authCallback === 'exam') navigate('exam');
+      } else { msg.innerHTML = `<span style="color:var(--red)">${res.error}</span>`; }
+    });
+};
+
+window.submitRegister = function() {
+  const user    = document.getElementById('auth-user').value.trim();
+  const display = document.getElementById('auth-display').value.trim();
+  const pass    = document.getElementById('auth-pass').value;
+  const email   = document.getElementById('auth-email').value.trim();
+  const msg     = document.getElementById('auth-msg');
+  if (!user || !display || !pass) { msg.innerHTML = '<span style="color:var(--red)">Username, name and password are required.</span>'; return; }
+  msg.innerHTML = '<span style="color:var(--text-muted)">Creating account...</span>';
+  fetch('/api/register.php', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username:user, display_name:display, password:pass, email}) })
+    .then(r=>r.json()).then(res => {
+      if (res.success) {
+        currentUser = res; updateUserUI();
+        // Show recovery phrase before closing
+        document.getElementById('authModalContent').innerHTML = `
+          <h3 style="margin-bottom:1rem;color:var(--green);">Account Created!</h3>
+          <p style="font-size:.9rem;color:var(--text-muted);margin-bottom:1rem;">Save your recovery phrase — it's the only way to reset your password if you didn't add an email:</p>
+          <div style="background:var(--bg);border:1px solid var(--accent);border-radius:8px;padding:1rem;font-family:monospace;font-size:.95rem;color:var(--accent);text-align:center;margin-bottom:1.5rem;">${res.recovery_phrase}</div>
+          <button onclick="closeAuthModal();${authCallback==='exam'?'navigate(\'exam\');':''}" style="width:100%;padding:.7rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;font-weight:600;cursor:pointer;">I've saved it — Continue</button>`;
+      } else { msg.innerHTML = `<span style="color:var(--red)">${res.error}</span>`; }
+    });
+};
+
+// ── EXAM & CERT LOADERS ─────────────────────────────────────
+async function loadExamPage(el) {
+  const resp = await fetch('chapters/exam.html');
+  el.innerHTML = await resp.text();
+  lucide.createIcons();
+  // Run inline scripts
+  el.querySelectorAll('script').forEach(s => { const ns = document.createElement('script'); ns.textContent = s.textContent; document.body.appendChild(ns); });
+}
+
+async function loadCertPage(el, code) {
+  const resp = await fetch('chapters/certificate.html');
+  el.innerHTML = await resp.text();
+  lucide.createIcons();
+  el.querySelectorAll('script').forEach(s => { const ns = document.createElement('script'); ns.textContent = s.textContent; document.body.appendChild(ns); });
+  setTimeout(() => { if (typeof loadCert === 'function') loadCert(code); }, 100);
+}
+
+function renderVerify(el) {
+  el.innerHTML = `<div class="module-page">
+    <div class="module-header"><h1><i data-lucide="shield-check" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Verify Certificate</h1></div>
+    <div style="max-width:480px;margin:2rem auto;text-align:center;">
+      <p style="color:var(--text-muted);margin-bottom:1.5rem;">Enter a certificate ID to verify its authenticity.</p>
+      <div style="display:flex;gap:.75rem;">
+        <input id="verifyInput" type="text" placeholder="e.g. A1B2C3D4E5F6G7H8" style="flex:1;padding:.65rem 1rem;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:monospace;font-size:.9rem;">
+        <button onclick="verifyCert()" style="padding:.65rem 1.25rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;font-weight:600;cursor:pointer;">Verify</button>
+      </div>
+      <div id="verifyResult" style="margin-top:1.5rem;"></div>
+    </div>
+  </div>`;
+  lucide.createIcons();
+}
+
+window.verifyCert = function() {
+  const code = document.getElementById('verifyInput').value.trim().toUpperCase();
+  const res  = document.getElementById('verifyResult');
+  if (!code) return;
+  res.innerHTML = '<p style="color:var(--text-muted);">Checking...</p>';
+  fetch('/api/verify_cert.php?code=' + encodeURIComponent(code))
+    .then(r=>r.json()).then(data => {
+      if (data.valid) {
+        const course = data.course === 'bioinfo' ? 'Bioinformatics Data Skills' : 'Statistics for Biology';
+        const date   = new Date(data.issued_at + 'Z').toLocaleDateString(undefined, {year:'numeric',month:'long',day:'numeric'});
+        res.innerHTML = `<div style="background:linear-gradient(135deg,rgba(74,222,128,.1),rgba(56,189,248,.1));border:1px solid var(--green);border-radius:12px;padding:1.5rem;">
+          <div style="font-size:1.5rem;margin-bottom:.5rem;">✅</div>
+          <p style="font-weight:700;color:var(--green);margin-bottom:.25rem;">Valid Certificate</p>
+          <p style="font-size:.9rem;"><strong>${data.display_name}</strong> completed <strong>${course}</strong></p>
+          <p style="font-size:.85rem;color:var(--text-muted);">Score: ${data.score}% · Issued: ${date}</p>
+        </div>`;
+      } else {
+        res.innerHTML = `<div style="background:rgba(248,113,113,.1);border:1px solid var(--red);border-radius:12px;padding:1.5rem;">
+          <div style="font-size:1.5rem;margin-bottom:.5rem;">❌</div>
+          <p style="color:var(--red);">Certificate not found. Please check the ID and try again.</p>
+        </div>`;
+      }
+    });
+};

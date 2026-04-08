@@ -1,0 +1,67 @@
+<div class="module-page" id="certPage">
+  <div id="certLoading" style="text-align:center;padding:3rem;color:var(--text-muted);">Loading certificate...</div>
+  <div id="certContent" style="display:none;">
+    <div id="certPDF" style="max-width:700px;margin:0 auto;background:#fff;color:#1a1a2e;border-radius:16px;padding:3rem;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);position:relative;overflow:hidden;">
+      <!-- Border decoration -->
+      <div style="position:absolute;inset:12px;border:2px solid #c9a84c;border-radius:10px;pointer-events:none;"></div>
+      <div style="position:absolute;inset:16px;border:1px solid #e8d5a3;border-radius:8px;pointer-events:none;"></div>
+      <!-- Header -->
+      <div style="margin-bottom:1.5rem;">
+        <div style="font-size:2rem;margin-bottom:.25rem;">🧬</div>
+        <div style="font-size:.75rem;letter-spacing:.2em;color:#666;text-transform:uppercase;">BioSkills Lab</div>
+      </div>
+      <div style="font-size:.8rem;letter-spacing:.15em;color:#888;text-transform:uppercase;margin-bottom:.5rem;">Certificate of Completion</div>
+      <div style="width:60px;height:2px;background:linear-gradient(90deg,#c9a84c,#f0d080);margin:.75rem auto;"></div>
+      <p style="color:#555;font-size:.9rem;margin-bottom:.5rem;">This certifies that</p>
+      <h2 id="certName" style="font-size:2rem;font-weight:700;color:#1a1a2e;margin:.5rem 0;font-family:'Caveat',cursive;"></h2>
+      <p style="color:#555;font-size:.9rem;margin-bottom:.25rem;">has successfully completed</p>
+      <h3 id="certCourse" style="font-size:1.2rem;color:#1a1a2e;margin:.5rem 0;"></h3>
+      <p id="certScore" style="color:#666;font-size:.85rem;margin-bottom:1.5rem;"></p>
+      <div style="width:60px;height:2px;background:linear-gradient(90deg,#c9a84c,#f0d080);margin:.75rem auto 1.5rem;"></div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:1rem;padding:0 1rem;">
+        <div style="text-align:center;">
+          <div style="font-family:'Caveat',cursive;font-size:1.4rem;color:#1a1a2e;border-bottom:1px solid #999;padding-bottom:.25rem;margin-bottom:.25rem;">Aadil Bhat, PhD</div>
+          <div style="font-size:.7rem;color:#888;">Instructor, BioSkills Lab</div>
+        </div>
+        <div style="text-align:center;">
+          <div id="certDate" style="font-size:.8rem;color:#888;margin-bottom:.25rem;"></div>
+          <div id="certCode" style="font-family:monospace;font-size:.7rem;color:#aaa;"></div>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:1.5rem;display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
+      <button onclick="printCert()" style="padding:.65rem 1.5rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:.5rem;"><i data-lucide="download" style="width:16px;height:16px;"></i> Download PDF</button>
+      <button onclick="navigator.clipboard.writeText('https://bioskillslab.dev/#verify/'+certCode).then(()=>alert('Link copied!'))" style="padding:.65rem 1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:.5rem;"><i data-lucide="share-2" style="width:16px;height:16px;"></i> Share</button>
+    </div>
+    <p style="text-align:center;color:var(--text-muted);font-size:.8rem;margin-top:1rem;">Verify this certificate at <a href="https://bioskillslab.dev/#verify" style="color:var(--accent);">bioskillslab.dev/#verify</a></p>
+  </div>
+  <div id="certError" style="display:none;text-align:center;padding:3rem;">
+    <p style="color:var(--red);">Certificate not found.</p>
+  </div>
+</div>
+
+<script>
+let certCode = '';
+function loadCert(code) {
+  certCode = code;
+  fetch('/api/verify_cert.php?code=' + encodeURIComponent(code))
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('certLoading').style.display = 'none';
+      if (!data.valid) { document.getElementById('certError').style.display = 'block'; return; }
+      document.getElementById('certContent').style.display = 'block';
+      document.getElementById('certName').textContent = data.display_name;
+      document.getElementById('certCourse').textContent = data.course === 'bioinfo' ? 'Bioinformatics Data Skills' : 'Statistics for Biology';
+      document.getElementById('certScore').textContent = `Final Exam Score: ${data.score}%`;
+      document.getElementById('certDate').textContent = new Date(data.issued_at + 'Z').toLocaleDateString(undefined, {year:'numeric',month:'long',day:'numeric'});
+      document.getElementById('certCode').textContent = 'ID: ' + code;
+      lucide.createIcons();
+    });
+}
+function printCert() {
+  const el = document.getElementById('certPDF');
+  const w = window.open('', '_blank');
+  w.document.write(`<html><head><title>Certificate</title><link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap" rel="stylesheet"><style>body{margin:0;padding:2rem;background:#fff;}@media print{body{padding:0;}}</style></head><body>${el.outerHTML}<script>window.onload=()=>window.print();<\/script></body></html>`);
+  w.document.close();
+}
+</script>
