@@ -1002,3 +1002,20 @@ function initExamPage(el) {
   }
   lucide.createIcons();
 }
+
+// Final clean loadExamPage
+async function loadExamPage(el) {
+  const resp = await fetch('chapters/exam.html');
+  el.innerHTML = await resp.text();
+  lucide.createIcons();
+  const authGate = el.querySelector('#examAuthGate');
+  const intro    = el.querySelector('#examIntro');
+  if (window.currentUser && authGate && intro) {
+    authGate.style.display = 'none';
+    intro.style.display    = 'block';
+  }
+  // Reset exam state on each load
+  examAnswers = {};
+  examSeconds = 45 * 60;
+  if (examTimer) { clearInterval(examTimer); examTimer = null; }
+}
