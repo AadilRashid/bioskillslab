@@ -34,7 +34,7 @@ foreach ($answer_key as $q => $correct_ans) {
 }
 
 $score  = round(($correct / 30) * 100);
-$passed = $score >= 75;
+$passed = $score >= 80;
 
 $db = getDB();
 $db->exec("SET time_zone = '+00:00'");
