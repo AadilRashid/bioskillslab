@@ -181,11 +181,5 @@ function submitExam() {
   });
 }
 
-// Check login state on load
-fetch('/api/session.php').then(r=>r.json()).then(s => {
-  if (s.loggedIn) {
-    document.getElementById('examAuthGate').style.display = 'none';
-    document.getElementById('examIntro').style.display = 'block';
-  }
-});
+// login handled by app.js
 </script>
