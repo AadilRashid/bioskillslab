@@ -4,6 +4,8 @@ CREATE TABLE IF NOT EXISTS comments (
   name       VARCHAR(100)  NOT NULL DEFAULT 'Anonymous',
   email      VARCHAR(255)  DEFAULT NULL,
   text       TEXT          NOT NULL,
+  token      VARCHAR(64)   NOT NULL,
   created_at TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_chapter (chapter)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
