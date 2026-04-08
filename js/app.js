@@ -39,6 +39,14 @@ function applyTheme() {
   const btn = document.getElementById('themeToggle');
   if (btn) btn.innerHTML = state.theme === 'dark' ? '<i data-lucide="sun"></i>' : '<i data-lucide="moon"></i>';
   lucide.createIcons();
+  // Sync Giscus theme
+  const giscusFrame = document.querySelector('iframe.giscus-frame');
+  if (giscusFrame) {
+    giscusFrame.contentWindow.postMessage(
+      { giscus: { setConfig: { theme: state.theme === 'dark' ? 'dark_dimmed' : 'light' } } },
+      'https://giscus.app'
+    );
+  }
 }
 
 function setupThemeToggle() {
@@ -273,9 +281,9 @@ function renderHome(el) {
     <div style="margin-top:2rem;padding:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;display:flex;gap:1.5rem;align-items:center;flex-wrap:wrap;">
       <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--purple));display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:800;color:#fff;flex-shrink:0;">AB</div>
       <div style="flex:1;min-width:200px;">
-        <h3 style="font-size:1rem;margin-bottom:.25rem;">Built by Aadil Bhat</h3>
+        <h3 style="font-size:1rem;margin-bottom:.25rem;">Built by Aadil Bhat, PhD</h3>
         <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:.5rem;">Bioinformatics developer and educator. Passionate about making genomics accessible to everyone.</p>
-        <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;"><a href="mailto:contact@bioskillslab.dev" style="font-size:.8rem;display:flex;align-items:center;gap:.3rem;"><i data-lucide="mail" style="width:14px;height:14px;"></i> contact@bioskillslab.dev</a><a href="https://razorpay.me/@bioskillslab" target="_blank" style="font-size:.8rem;display:flex;align-items:center;gap:.3rem;color:var(--orange);"><i data-lucide="coffee" style="width:14px;height:14px;"></i> Support this project</a></div>
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;"><a href="mailto:contact@bioskillslab.dev" style="font-size:.8rem;display:flex;align-items:center;gap:.3rem;"><i data-lucide="mail" style="width:14px;height:14px;"></i> contact@bioskillslab.dev</a><a href="https://www.linkedin.com/in/aadil-bhat-phd-ba212b12a/" target="_blank" style="font-size:.8rem;display:flex;align-items:center;gap:.3rem;color:var(--accent);"><i data-lucide="linkedin" style="width:14px;height:14px;"></i> LinkedIn</a><a href="https://razorpay.me/@bioskillslab" target="_blank" style="font-size:.8rem;display:flex;align-items:center;gap:.3rem;color:var(--orange);"><i data-lucide="coffee" style="width:14px;height:14px;"></i> Support this project</a></div>
       </div>
     </div>
   `;
