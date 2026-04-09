@@ -22,6 +22,7 @@ const chapters = [
   {id:'project1', title:'Project: Mystery Microbe', icon:'flask-conical', part:'Projects', tags:['BLAST','QC','Species ID'], desc:'Identify an unknown bacterial species from raw sequencing data using BLAST.'},
   {id:'project2', title:'Project: RNA-Seq Analysis', icon:'dna', part:'Projects', tags:['STAR','DESeq2','Volcano'], desc:'Full RNA-Seq pipeline on real published data — find dexamethasone-responsive genes.'},
   {id:'project3', title:'Project: Variant Calling', icon:'microscope', part:'Projects', tags:['GATK','VCF','Clinical'], desc:'GATK best practices on NA12878 — call, filter, annotate, and validate variants.'},
+  {id:'project4', title:'Project: Single-Cell RNA-Seq', icon:'scan-line', part:'Projects', tags:['Seurat','Scanpy','UMAP','Cell Types'], desc:'Cluster 2,700 human blood cells and annotate cell types using the PBMC 3k dataset.'},
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
