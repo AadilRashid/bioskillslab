@@ -1,0 +1,437 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="microscope" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Project 4: Single-Cell RNA-Seq — Mapping Human Blood Cells</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~3 hours</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Intermediate</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> scRNA-Seq, Seurat, Scanpy, UMAP, Cell Types, PBMC</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Project</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>The Biological Question</h2>
+      <p>A blood sample contains dozens of different cell types — T cells, B cells, NK cells, monocytes, dendritic cells. Traditional bulk RNA-Seq averages expression across all of them, masking the differences. <strong>Single-cell RNA-Seq lets you measure gene expression in each individual cell and figure out what type it is.</strong></p>
+      <p>In this project you'll take raw 10x Genomics data from 2,700 human peripheral blood mononuclear cells (PBMCs), process it from scratch, cluster the cells, and annotate each cluster with a cell type — all using real published data.</p>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Why PBMC 3k?</strong>
+        <p>The PBMC 3k dataset from 10x Genomics is the "Hello World" of single-cell analysis. It's small enough to run on a laptop, well-characterized so you can verify your results, and used in virtually every scRNA-Seq tutorial worldwide. If you can do this, you can do any scRNA-Seq project.</p>
+      </div>
+
+      <h2>The Dataset</h2>
+      <pre><code>Dataset:     PBMC 3k (Peripheral Blood Mononuclear Cells)
+Source:      10x Genomics (publicly available)
+Cells:       ~2,700 cells
+Genes:       ~32,000 genes
+Platform:    10x Chromium v2
+Download:    https://cf.10xgenomics.com/samples/cell/pbmc3k/pbmc3k_filtered_gene_bc_matrices.tar.gz
+Size:        ~6 MB compressed</code></pre>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Requirements</strong>
+        <p>This project requires Python 3.8+ with Scanpy (Python path) or R with Seurat (R path). Both are covered below. You need ~2 GB RAM and ~500 MB disk space. Complete <a href="#" onclick="navigate('ch6');return false;">Chapter 6 (Python)</a> or <a href="#" onclick="navigate('ch7');return false;">Chapter 7 (R)</a> first.</p>
+      </div>
+
+      <h2>Step 0: Set Up Your Environment</h2>
+
+      <h3>Python path (Scanpy)</h3>
+      <pre><code># Create conda environment
+conda create -n scrna python=3.10 -y
+conda activate scrna
+
+# Install Scanpy and dependencies
+pip install scanpy matplotlib seaborn pandas numpy leidenalg
+
+# Verify
+python -c "import scanpy; print(scanpy.__version__)"</code></pre>
+
+      <h3>R path (Seurat)</h3>
+      <pre><code># In R:
+install.packages("Seurat")
+install.packages(c("ggplot2", "dplyr", "patchwork"))
+
+# Verify
+library(Seurat)
+packageVersion("Seurat")</code></pre>
+
+      <h2>Step 1: Download and Load the Data</h2>
+      <p>The 10x Genomics output is a matrix of cells × genes stored in three files: a barcode list, a gene list, and a sparse count matrix.</p>
+
+      <h3>Python (Scanpy)</h3>
+      <pre><code>import scanpy as sc
+import pandas as pd
+import matplotlib.pyplot as plt
+
+sc.settings.verbosity = 3
+sc.settings.figdir = './figures/'
+
+# Download data
+import urllib.request, tarfile, os
+url = 'https://cf.10xgenomics.com/samples/cell/pbmc3k/pbmc3k_filtered_gene_bc_matrices.tar.gz'
+urllib.request.urlretrieve(url, 'pbmc3k.tar.gz')
+with tarfile.open('pbmc3k.tar.gz') as tar:
+    tar.extractall('.')
+
+# Load into AnnData object
+adata = sc.read_10x_mtx(
+    'filtered_gene_bc_matrices/hg19/',
+    var_names='gene_symbols',
+    cache=True
+)
+adata.var_names_make_unique()
+
+print(adata)
+# AnnData object with n_obs x n_vars = 2700 x 32738</code></pre>
+
+      <h3>R (Seurat)</h3>
+      <pre><code>library(Seurat)
+library(ggplot2)
+library(dplyr)
+
+# Download and extract
+url <- 'https://cf.10xgenomics.com/samples/cell/pbmc3k/pbmc3k_filtered_gene_bc_matrices.tar.gz'
+download.file(url, 'pbmc3k.tar.gz')
+untar('pbmc3k.tar.gz')
+
+# Load data
+pbmc.data <- Read10X(data.dir = 'filtered_gene_bc_matrices/hg19/')
+
+# Create Seurat object (keep genes in ≥3 cells, cells with ≥200 genes)
+pbmc <- CreateSeuratObject(counts = pbmc.data,
+                           project = 'PBMC3k',
+                           min.cells = 3,
+                           min.features = 200)
+pbmc
+# 2700 samples x 13714 features</code></pre>
+
+      <h2>Step 2: Quality Control</h2>
+      <p>Not all cells are good. Dead cells leak cytoplasmic RNA, leaving mostly mitochondrial transcripts. Doublets (two cells captured together) have unusually high gene counts. You need to filter these out.</p>
+
+      <h3>Python (Scanpy)</h3>
+      <pre><code># Calculate QC metrics
+# Mitochondrial genes start with "MT-"
+adata.var['mt'] = adata.var_names.str.startswith('MT-')
+sc.pp.calculate_qc_metrics(adata, qc_vars=['mt'], percent_top=None,
+                            log1p=False, inplace=True)
+
+# Visualize QC metrics
+sc.pl.violin(adata,
+             ['n_genes_by_counts', 'total_counts', 'pct_counts_mt'],
+             jitter=0.4, multi_panel=True)
+
+# Filter cells:
+# - At least 200 genes detected
+# - No more than 2500 genes (doublet filter)
+# - Less than 5% mitochondrial reads (dead cell filter)
+sc.pp.filter_cells(adata, min_genes=200)
+sc.pp.filter_genes(adata, min_cells=3)
+adata = adata[adata.obs.n_genes_by_counts < 2500, :]
+adata = adata[adata.obs.pct_counts_mt < 5, :]
+
+print(f"Cells after QC: {adata.n_obs}")
+print(f"Genes after QC: {adata.n_vars}")</code></pre>
+
+      <h3>R (Seurat)</h3>
+      <pre><code># Calculate % mitochondrial reads
+pbmc[['percent.mt']] <- PercentageFeatureSet(pbmc, pattern = '^MT-')
+
+# Visualize QC metrics
+VlnPlot(pbmc, features = c('nFeature_RNA', 'nCount_RNA', 'percent.mt'),
+        ncol = 3)
+
+# Scatter plots to spot outliers
+plot1 <- FeatureScatter(pbmc, feature1='nCount_RNA', feature2='percent.mt')
+plot2 <- FeatureScatter(pbmc, feature1='nCount_RNA', feature2='nFeature_RNA')
+plot1 + plot2
+
+# Filter: 200-2500 genes, <5% mitochondrial
+pbmc <- subset(pbmc,
+               subset = nFeature_RNA > 200 &
+                        nFeature_RNA < 2500 &
+                        percent.mt < 5)
+pbmc
+# Should have ~2638 cells remaining</code></pre>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> QC thresholds are dataset-specific</strong>
+        <p>The 5% mitochondrial cutoff and 2500 gene maximum are reasonable for PBMCs but will differ for other tissues. Always look at the distribution first, then set thresholds based on what you see — not arbitrary numbers from a tutorial.</p>
+      </div>
+
+      <h2>Step 3: Normalization and Feature Selection</h2>
+      <p>Each cell is sequenced to a different depth. Normalization makes cells comparable. Then you select the most variable genes — these carry the most information about cell type differences.</p>
+
+      <h3>Python (Scanpy)</h3>
+      <pre><code># Normalize: scale each cell to 10,000 total counts, then log-transform
+sc.pp.normalize_total(adata, target_sum=1e4)
+sc.pp.log1p(adata)
+
+# Save raw normalized counts for later (needed for DE analysis)
+adata.raw = adata
+
+# Find highly variable genes (top 2000)
+sc.pp.highly_variable_genes(adata, min_mean=0.0125, max_mean=3,
+                             min_disp=0.5)
+print(f"Highly variable genes: {adata.var.highly_variable.sum()}")
+
+# Plot variable genes
+sc.pl.highly_variable_genes(adata)
+
+# Keep only highly variable genes for downstream analysis
+adata = adata[:, adata.var.highly_variable]
+
+# Scale data (zero mean, unit variance) — needed for PCA
+sc.pp.scale(adata, max_value=10)</code></pre>
+
+      <h3>R (Seurat)</h3>
+      <pre><code># Normalize: log-normalize to 10,000 counts per cell
+pbmc <- NormalizeData(pbmc, normalization.method='LogNormalize',
+                      scale.factor=10000)
+
+# Find top 2000 variable features
+pbmc <- FindVariableFeatures(pbmc, selection.method='vst',
+                              nfeatures=2000)
+
+# Plot top variable genes
+top10 <- head(VariableFeatures(pbmc), 10)
+plot1 <- VariableFeaturePlot(pbmc)
+plot2 <- LabelPoints(plot=plot1, points=top10, repel=TRUE)
+plot2
+
+# Scale data
+all.genes <- rownames(pbmc)
+pbmc <- ScaleData(pbmc, features=all.genes)</code></pre>
+
+      <h2>Step 4: Dimensionality Reduction — PCA</h2>
+      <p>You have ~2000 genes per cell. That's 2000 dimensions. PCA compresses this into ~50 meaningful dimensions by finding the directions of maximum variance. This makes clustering much faster and more reliable.</p>
+
+      <h3>Python (Scanpy)</h3>
+      <pre><code># Run PCA
+sc.tl.pca(adata, svd_solver='arpack')
+
+# Plot variance explained by each PC
+sc.pl.pca_variance_ratio(adata, log=True, n_pcs=50)
+# Look for the "elbow" — where adding more PCs stops helping
+
+# Visualize cells in PCA space
+sc.pl.pca(adata, color='CST3')  # CST3 = monocyte marker</code></pre>
+
+      <h3>R (Seurat)</h3>
+      <pre><code># Run PCA
+pbmc <- RunPCA(pbmc, features=VariableFeatures(object=pbmc))
+
+# Visualize top genes driving each PC
+VizDimLoadings(pbmc, dims=1:2, reduction='pca')
+
+# Elbow plot to choose number of PCs
+ElbowPlot(pbmc)
+# The elbow is usually around PC 10-15 for PBMCs</code></pre>
+
+      <h2>Step 5: Clustering</h2>
+      <p>Now group similar cells together. The algorithm builds a graph where cells are connected to their nearest neighbors, then finds communities in that graph. Each community is a cluster — likely a distinct cell type.</p>
+
+      <h3>Python (Scanpy)</h3>
+      <pre><code># Build neighborhood graph using top 10 PCs
+sc.pp.neighbors(adata, n_neighbors=10, n_pcs=40)
+
+# Cluster using Leiden algorithm (better than Louvain)
+sc.tl.leiden(adata, resolution=0.5)
+print(f"Number of clusters: {adata.obs['leiden'].nunique()}")
+
+# Run UMAP for visualization
+sc.tl.umap(adata)
+
+# Plot UMAP colored by cluster
+sc.pl.umap(adata, color=['leiden'], legend_loc='on data',
+           title='PBMC clusters', frameon=False)</code></pre>
+
+      <h3>R (Seurat)</h3>
+      <pre><code># Build KNN graph using top 10 PCs
+pbmc <- FindNeighbors(pbmc, dims=1:10)
+
+# Cluster (resolution controls granularity: higher = more clusters)
+pbmc <- FindClusters(pbmc, resolution=0.5)
+print(paste("Number of clusters:", length(levels(pbmc))))
+
+# Run UMAP
+pbmc <- RunUMAP(pbmc, dims=1:10)
+
+# Plot
+DimPlot(pbmc, reduction='umap', label=TRUE) + NoLegend()</code></pre>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> How many clusters?</strong>
+        <p>For PBMC 3k at resolution 0.5, you should get around 8-9 clusters. If you get too many, lower the resolution. Too few, raise it. There's no single "correct" number — it depends on the biology you care about.</p>
+      </div>
+
+      <h2>Step 6: Find Marker Genes</h2>
+      <p>Each cluster should have genes that are uniquely highly expressed compared to all other clusters. These marker genes tell you what cell type each cluster is.</p>
+
+      <h3>Python (Scanpy)</h3>
+      <pre><code># Find marker genes for each cluster
+sc.tl.rank_genes_groups(adata, 'leiden', method='wilcoxon')
+sc.pl.rank_genes_groups(adata, n_genes=25, sharey=False)
+
+# Get top markers as a dataframe
+markers = sc.get.rank_genes_groups_df(adata, group=None)
+print(markers.head(20))
+
+# Dot plot of top markers per cluster
+sc.pl.rank_genes_groups_dotplot(adata, n_genes=5)</code></pre>
+
+      <h3>R (Seurat)</h3>
+      <pre><code># Find markers for every cluster vs all others
+pbmc.markers <- FindAllMarkers(pbmc,
+                                only.pos=TRUE,
+                                min.pct=0.25,
+                                logfc.threshold=0.25)
+
+# Top 2 markers per cluster
+pbmc.markers %>%
+  group_by(cluster) %>%
+  slice_max(n=2, order_by=avg_log2FC)
+
+# Heatmap of top 10 markers per cluster
+top10 <- pbmc.markers %>%
+  group_by(cluster) %>%
+  slice_max(n=10, order_by=avg_log2FC)
+DoHeatmap(pbmc, features=top10$gene) + NoLegend()</code></pre>
+
+      <h2>Step 7: Cell Type Annotation</h2>
+      <p>Match your marker genes to known cell type markers. This is where biology knowledge matters.</p>
+
+      <pre><code># Known PBMC marker genes:
+# CD3D, CD3E, CD3G  → T cells (all T cells)
+# CD4               → CD4+ T cells (helper T cells)
+# CD8A, CD8B        → CD8+ T cells (cytotoxic T cells)
+# MS4A1, CD79A      → B cells
+# GNLY, NKG7        → NK cells
+# CD14, LYZ         → CD14+ Monocytes
+# FCGR3A, MS4A7     → CD16+ Monocytes
+# FCER1A, CST3      → Dendritic cells
+# PPBP              → Megakaryocytes (platelets)</code></pre>
+
+      <h3>Python (Scanpy)</h3>
+      <pre><code># Visualize known markers on UMAP
+marker_genes = ['CD3D', 'CD4', 'CD8A', 'MS4A1', 'GNLY',
+                'CD14', 'LYZ', 'FCGR3A', 'FCER1A', 'PPBP']
+sc.pl.umap(adata, color=marker_genes, ncols=5)
+
+# Assign cell type labels to clusters
+# (adjust based on YOUR cluster numbers)
+cell_type_map = {
+    '0': 'CD4+ T cells',
+    '1': 'CD14+ Monocytes',
+    '2': 'CD4+ T cells',
+    '3': 'B cells',
+    '4': 'CD8+ T cells',
+    '5': 'NK cells',
+    '6': 'CD14+ Monocytes',
+    '7': 'Dendritic cells',
+    '8': 'CD16+ Monocytes',
+}
+adata.obs['cell_type'] = adata.obs['leiden'].map(cell_type_map)
+
+# Final annotated UMAP
+sc.pl.umap(adata, color='cell_type', legend_loc='on data',
+           title='PBMC Cell Types', frameon=False,
+           palette='tab10')</code></pre>
+
+      <h3>R (Seurat)</h3>
+      <pre><code># Visualize known markers
+FeaturePlot(pbmc,
+            features=c('CD3D','CD4','CD8A','MS4A1',
+                       'GNLY','CD14','LYZ','FCGR3A'),
+            ncol=4)
+
+# Assign cell type labels (adjust cluster numbers to match yours)
+new.cluster.ids <- c('Naive CD4 T', 'CD14+ Mono', 'Memory CD4 T',
+                     'B', 'CD8 T', 'FCGR3A+ Mono', 'NK',
+                     'DC', 'Platelet')
+names(new.cluster.ids) <- levels(pbmc)
+pbmc <- RenameIdents(pbmc, new.cluster.ids)
+
+# Final annotated UMAP
+DimPlot(pbmc, reduction='umap', label=TRUE, pt.size=0.5) + NoLegend()</code></pre>
+
+      <h2>Step 8: Differential Expression Between Cell Types</h2>
+      <pre><code"># Python: Compare CD4 T cells vs CD8 T cells
+sc.tl.rank_genes_groups(adata, 'cell_type', groups=['CD4+ T cells'],
+                         reference='CD8+ T cells', method='wilcoxon')
+sc.pl.rank_genes_groups(adata, groups=['CD4+ T cells'], n_genes=20)
+
+# R: Compare CD14 Monocytes vs CD16 Monocytes
+mono.markers <- FindMarkers(pbmc,
+                             ident.1='CD14+ Mono',
+                             ident.2='FCGR3A+ Mono',
+                             min.pct=0.25)
+head(mono.markers, 10)</code></pre>
+
+      <h2>Step 9: Save Your Results</h2>
+      <pre><code># Python
+adata.write('pbmc3k_analyzed.h5ad')
+# Load later: adata = sc.read_h5ad('pbmc3k_analyzed.h5ad')
+
+# Export cell type assignments
+adata.obs[['cell_type']].to_csv('cell_type_assignments.csv')
+
+# R
+saveRDS(pbmc, file='pbmc3k_analyzed.rds')
+# Load later: pbmc <- readRDS('pbmc3k_analyzed.rds')
+
+# Export
+write.csv(Idents(pbmc), file='cell_type_assignments.csv')</code></pre>
+
+      <h2>What You Learned</h2>
+      <ul>
+        <li>The difference between bulk and single-cell RNA-Seq</li>
+        <li>The 10x Genomics data format (barcodes, features, matrix)</li>
+        <li>QC filtering for dead cells and doublets using mitochondrial %</li>
+        <li>Normalization and highly variable gene selection</li>
+        <li>PCA for dimensionality reduction</li>
+        <li>Graph-based clustering (Leiden/Louvain)</li>
+        <li>UMAP visualization</li>
+        <li>Marker gene identification and cell type annotation</li>
+        <li>Differential expression between cell types</li>
+      </ul>
+
+      <h2>Challenge Extensions</h2>
+      <ol>
+        <li><strong>Try different resolutions</strong> — Run clustering at 0.3, 0.5, 0.8 and compare the UMAPs. How does resolution affect cell type granularity?</li>
+        <li><strong>Automated annotation</strong> — Use <code>celltypist</code> (Python) or <code>SingleR</code> (R) to automatically annotate cell types without manual marker lookup</li>
+        <li><strong>Trajectory analysis</strong> — Use <code>scVelo</code> (Python) to infer RNA velocity and see which cells are differentiating into which</li>
+        <li><strong>Integrate two datasets</strong> — Download a second PBMC dataset and integrate them using Harmony or Seurat's integration workflow to remove batch effects</li>
+        <li><strong>Doublet detection</strong> — Run <code>scrublet</code> (Python) or <code>DoubletFinder</code> (R) to computationally identify doublets before filtering</li>
+      </ol>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Reproducibility Checklist</strong>
+        <ul>
+          <li>&#9744; Dataset source documented (10x Genomics PBMC 3k)</li>
+          <li>&#9744; QC thresholds recorded and justified</li>
+          <li>&#9744; Number of PCs used for clustering noted</li>
+          <li>&#9744; Clustering resolution recorded</li>
+          <li>&#9744; Cell type assignments saved to file</li>
+          <li>&#9744; Tool versions recorded (Scanpy/Seurat version)</li>
+          <li>&#9744; Figures saved with descriptive filenames</li>
+        </ul>
+      </div>
+
+      <div class="module-nav">
+        <button class="nav-btn" onclick="navigate('project3')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Project 3</button>
+        <button class="nav-btn" onclick="navigate('exam')">Final Exam <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container"></div>
+  </div>
+</div>

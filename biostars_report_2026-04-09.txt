@@ -1,0 +1,20 @@
+BioSkills Lab Trend Report — 2026-04-09
+Stack Overflow posts: 300, GitHub repos: 100
+
+COMBINED TOOL RANKING:
+  minimap2: 50.0 (SO: 0 votes, GH: 3880 stars)
+  nextflow: 43.0 (SO: 0 votes, GH: 3339 stars)
+  bwa: 32.9 (SO: 0 votes, GH: 2552 stars)
+  scanpy: 31.0 (SO: 0 votes, GH: 2406 stars)
+  fastp: 29.9 (SO: 0 votes, GH: 2323 stars)
+  star: 25.3 (SO: 0 votes, GH: 1962 stars)
+  gatk: 24.9 (SO: 0 votes, GH: 1933 stars)
+  conda: 23.2 (SO: 0 votes, GH: 1798 stars)
+  multiqc: 18.5 (SO: 0 votes, GH: 1437 stars)
+  samtools: 11.4 (SO: 0 votes, GH: 886 stars)
+  bcftools: 11.4 (SO: 0 votes, GH: 886 stars)
+  salmon: 11.3 (SO: 0 votes, GH: 876 stars)
+  bowtie2: 10.1 (SO: 0 votes, GH: 785 stars)
+  deseq2: 9.6 (SO: 0 votes, GH: 747 stars)
+
+TOP BEGINNER QUESTIONS:
