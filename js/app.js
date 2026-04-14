@@ -1374,3 +1374,31 @@ function checkAndInitExam(el, course) {
       }
     });
 }
+
+// Replace Formspree with own subscribe endpoint
+function captureEmail() {
+  const input = document.getElementById('emailCapture');
+  const msg   = document.getElementById('emailMsg');
+  if (!input || !msg) return;
+  const email = input.value.trim();
+  if (!email || !email.includes('@')) {
+    msg.innerHTML = '<span style="color:var(--red)">Please enter a valid email.</span>';
+    return;
+  }
+  msg.innerHTML = '<span style="color:var(--text-muted)">Subscribing...</span>';
+  fetch('/api/subscribe.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email })
+  }).then(r => r.json()).then(res => {
+    if (res.success) {
+      msg.innerHTML = '<span style="color:var(--green)">✓ Subscribed! We\'ll keep you posted.</span>';
+      input.value = '';
+    } else {
+      msg.innerHTML = '<span style="color:var(--red)">' + (res.error || 'Something went wrong.') + '</span>';
+    }
+  }).catch(() => {
+    msg.innerHTML = '<span style="color:var(--red)">Network error. Try again.</span>';
+  });
+}
+window.captureEmail = captureEmail;
