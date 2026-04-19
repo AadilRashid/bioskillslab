@@ -17,21 +17,22 @@
     <div class="lesson">
 
       <h2>The Biological Question</h2>
-      <p>A clinical microbiology lab receives a patient sample with a suspected bacterial infection. They sequence the isolate on an Illumina MiSeq, producing a FASTQ file. Nobody knows what species it is. <strong>Your job: figure it out from the raw reads.</strong></p>
+      <p>A bacterial strain has been evolving in a lab flask for 15,000 generations — roughly 7 years of continuous growth. A sample is pulled, sequenced, and the raw reads land in your inbox. The researcher wants to confirm the organism's identity before publishing. <strong>Your job: figure out what species it is from the raw reads alone.</strong></p>
 
       <div class="callout tip">
         <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Why does this matter?</strong>
-        <p>Species identification from sequencing data is bread and butter in clinical microbiology. Hospitals need it to pick the right antibiotic. Public health labs need it to trace outbreaks. Food safety labs need it to catch contamination. If bioinformatics has a "Hello World," this is it.</p>
+        <p>Species identification from sequencing data is bread and butter in microbiology. Hospitals need it to pick the right antibiotic. Evolutionary biologists need it to confirm their strains. Food safety labs need it to catch contamination. If bioinformatics has a "Hello World," this is it.</p>
       </div>
 
       <h2>The Dataset</h2>
       <p>We're using a real whole-genome sequencing run from NCBI's Sequence Read Archive:</p>
-      <pre><code>Accession:   SRR24043640
+      <pre><code>Accession:   SRR2584863
 Organism:    Unknown (you'll figure this out!)
-Platform:    Illumina MiSeq
-Layout:      Paired-end, 2 × 250 bp
-Size:        ~200 MB compressed
-Study:       Clinical isolate sequencing for pathogen identification
+Platform:    Illumina HiSeq 2500
+Layout:      Paired-end, 2 × 150 bp
+Reads:       ~1.6M read pairs
+Size:        ~288 MB
+Study:       Long-term evolution experiment
 Source:      NCBI SRA</code></pre>
 
       <div class="callout warning">
@@ -61,30 +62,30 @@ blastn -version</code></pre>
       <p>First, grab the raw sequencing reads from NCBI. Think of SRA as a giant library of sequencing experiments anyone can access.</p>
       <pre><code># Download from SRA
 cd data
-fasterq-dump SRR24043640 --split-files --threads 4
+fasterq-dump SRR2584863 --split-files --threads 4
 
 # Check what we got
 ls -lh
-# Expected: SRR24043640_1.fastq  SRR24043640_2.fastq
+# Expected: SRR2584863_1.fastq  SRR2584863_2.fastq
 
 # Quick look at the first read
-head -4 SRR24043640_1.fastq</code></pre>
+head -4 SRR2584863_1.fastq</code></pre>
       <p>You should see 4 lines: a header starting with @, a DNA sequence, a + separator, and quality scores. That's one read. The entire file is millions of these stacked together.</p>
 
       <pre><code># How many reads do we have?
-echo "Forward reads: $(( $(wc -l < SRR24043640_1.fastq) / 4 ))"
-echo "Reverse reads: $(( $(wc -l < SRR24043640_2.fastq) / 4 ))"</code></pre>
+echo "Forward reads: $(( $(wc -l < SRR2584863_1.fastq) / 4 ))"
+echo "Reverse reads: $(( $(wc -l < SRR2584863_2.fastq) / 4 ))"</code></pre>
 
       <div class="callout tip">
         <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Expected output</strong>
-        <p>You should see roughly 500K to 1M read pairs. That's typical for a bacterial WGS run on MiSeq.</p>
+        <p>You should see roughly 1.5M to 1.6M read pairs. Read length is 150 bp. GC content will be around 50% — keep that in mind as a clue.</p>
       </div>
 
       <h2>Step 2: Quality Control</h2>
       <p>Before doing anything with the data, check if it's any good. FastQC generates a visual report showing quality scores, adapter contamination, GC bias, and other red flags. This takes about a minute.</p>
       <pre><code># Run FastQC on both files
 cd ../results/qc
-fastqc ../../data/SRR24043640_1.fastq ../../data/SRR24043640_2.fastq -o . -t 2
+fastqc ../../data/SRR2584863_1.fastq ../../data/SRR2584863_2.fastq -o . -t 2
 
 # List the reports
 ls *.html</code></pre>
@@ -94,15 +95,15 @@ ls *.html</code></pre>
         <li><strong>Per base sequence quality</strong> should be mostly green (>Q20). Quality usually drops toward the 3' end</li>
         <li><strong>Adapter content</strong> should be low. If it's high, trimming takes care of it</li>
         <li><strong>GC content</strong> is a clue about the organism. E. coli sits around 50%, Mycobacterium around 65%, Staphylococcus around 33%</li>
-        <li><strong>Sequence length distribution</strong> should be around 250 bp for MiSeq 2x250</li>
+        <li><strong>Sequence length distribution</strong> should be 150 bp — this is HiSeq 2x150</li>
       </ul>
 
       <h2>Step 3: Trim and Filter</h2>
       <p>Sequencing isn't perfect. Reads often have low-quality bases at the ends and leftover adapter sequences. fastp cleans all of this up in one pass. After this step, you'll have smaller but much higher quality files.</p>
       <pre><code>cd ../trimmed
 fastp \
-    -i ../../data/SRR24043640_1.fastq \
-    -I ../../data/SRR24043640_2.fastq \
+    -i ../../data/SRR2584863_1.fastq \
+    -I ../../data/SRR2584863_2.fastq \
     -o trimmed_R1.fastq \
     -O trimmed_R2.fastq \
     --qualified_quality_phred 20 \
@@ -113,7 +114,7 @@ fastp \
     --json fastp_report.json
 
 # Check how many reads survived
-echo "Before: $(( $(wc -l < ../../data/SRR24043640_1.fastq) / 4 )) read pairs"
+echo "Before: $(( $(wc -l < ../../data/SRR2584863_1.fastq) / 4 )) read pairs"
 echo "After:  $(( $(wc -l < trimmed_R1.fastq) / 4 )) read pairs"</code></pre>
 
       <div class="callout tip">
@@ -208,8 +209,8 @@ cat > ../report.md << 'EOF'
 # Mystery Microbe Identification Report
 
 ## Dataset
-- **Accession**: SRR24043640
-- **Platform**: Illumina MiSeq 2×250 bp
+- **Accession**: SRR2584863
+- **Platform**: Illumina HiSeq 2500 2×150 bp
 - **Total read pairs**: [fill in]
 
 ## QC Summary
@@ -263,7 +264,7 @@ echo "Report template created at results/report.md"</code></pre>
         <ul>
           <li>☐ All commands documented</li>
           <li>☐ Tool versions recorded</li>
-          <li>☐ Raw data accession noted (SRR24043640)</li>
+          <li>☐ Raw data accession noted (SRR2584863)</li>
           <li>☐ Parameters explained</li>
           <li>☐ Results match expected output</li>
         </ul>
