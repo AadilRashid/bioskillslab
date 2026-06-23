@@ -1,0 +1,336 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="infinity" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 10: Variational Autoencoders</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~60 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Intermediate</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> VAE, Latent Space, KL Divergence, Generative Models, Patient Stratification</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>The Problem With Ordinary Autoencoders</h2>
+      <p>The autoencoder from Chapter 9 learned to compress 20,000 gene expression values into a 64-dimensional latent vector. When you visualised that latent space, cancer types clustered together. That is useful. But the latent space has a fundamental limitation: it is not continuous or structured.</p>
+      <p>Points in the latent space that correspond to training samples are meaningful — they represent real gene expression profiles. But the space between those points is largely empty and unpredictable. If you pick a point halfway between a breast cancer sample and a lung cancer sample in latent space and decode it, the reconstruction may be biologically nonsensical rather than an interpolation between the two tumour types.</p>
+      <p>This matters for three biological applications: patient stratification (discovering a continuous spectrum of disease states), data generation (simulating new biological samples for analysis), and understanding the structure of biological variation. All three require a latent space that is smooth, continuous, and structured. Variational autoencoders provide exactly that.</p>
+
+      <h2>From Points to Distributions</h2>
+      <p>The key insight of a variational autoencoder (VAE) is simple but profound. Instead of encoding each sample as a single point in latent space, encode it as a probability distribution — specifically, a Gaussian distribution defined by a mean and a variance.</p>
+
+      <pre><code>Standard autoencoder:
+  Input → Encoder → Point z → Decoder → Reconstruction
+
+Variational autoencoder:
+  Input → Encoder → Mean (mu) + Variance (log_var) → Sample z ~ N(mu, var) → Decoder → Reconstruction</code></pre>
+
+      <p>During training, instead of always using the exact encoded point, you sample from the distribution. This forces the decoder to learn to reconstruct from a region of latent space, not just a single point. The result is a latent space where nearby points decode to similar outputs — the smoothness you need for meaningful interpolation.</p>
+
+      <h2>The VAE Loss Function</h2>
+      <p>The VAE is trained with two objectives simultaneously, which is what makes it different from a standard autoencoder.</p>
+      <p>The first objective is reconstruction: the decoded output should resemble the input, just as in a regular autoencoder. This is measured by reconstruction loss, typically mean squared error for continuous data.</p>
+      <p>The second objective is regularisation of the latent space: the learned distributions should stay close to a standard normal distribution (mean 0, variance 1). This prevents the encoder from spreading different samples arbitrarily far apart in latent space and ensures the space is dense and continuous. This regularisation is measured by KL divergence.</p>
+
+      <pre><code>VAE loss = Reconstruction loss + Beta * KL divergence
+
+Reconstruction loss:  how well the decoder reproduces the input
+KL divergence:        how close the encoded distributions are to N(0,1)
+Beta:                 a hyperparameter controlling the balance</code></pre>
+
+      <p>The KL divergence term is what gives the VAE its structure. It acts like a pressure forcing all the encoded distributions toward the centre of latent space while the reconstruction loss pulls them apart to distinguish different samples. The equilibrium between these two forces produces a smooth, organised latent space.</p>
+
+      <h2>The Reparameterisation Trick</h2>
+      <p>There is a technical challenge in training VAEs: sampling from a distribution is not differentiable, which means you cannot backpropagate gradients through the sampling step. The solution is the reparameterisation trick — rather than sampling z directly from the distribution, express z as a deterministic function of the parameters plus a random noise term:</p>
+
+      <pre><code>z = mu + epsilon * std      where epsilon ~ N(0, 1)
+
+Instead of:   z ~ N(mu, sigma^2)     [not differentiable]
+We use:       z = mu + sigma * eps   [differentiable with respect to mu and sigma]</code></pre>
+
+      <p>This moves the randomness into a separate noise variable that the network does not need to differentiate through. Gradients flow through mu and sigma, allowing the encoder parameters to be optimised normally.</p>
+
+      <h2>Building a VAE in PyTorch</h2>
+
+      <pre><code>import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class VAE(nn.Module):
+    def __init__(self, input_dim, hidden_dim, latent_dim):
+        super().__init__()
+
+        # Encoder: input -> hidden -> (mu, log_var)
+        self.encoder = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim // 2),
+            nn.ReLU()
+        )
+        self.fc_mu      = nn.Linear(hidden_dim // 2, latent_dim)
+        self.fc_log_var = nn.Linear(hidden_dim // 2, latent_dim)
+
+        # Decoder: latent -> hidden -> output
+        self.decoder = nn.Sequential(
+            nn.Linear(latent_dim, hidden_dim // 2),
+            nn.ReLU(),
+            nn.Linear(hidden_dim // 2, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, input_dim)
+        )
+
+    def encode(self, x):
+        h       = self.encoder(x)
+        mu      = self.fc_mu(h)
+        log_var = self.fc_log_var(h)
+        return mu, log_var
+
+    def reparameterise(self, mu, log_var):
+        std     = torch.exp(0.5 * log_var)   # convert log_var to std
+        epsilon = torch.randn_like(std)        # sample noise
+        return mu + epsilon * std             # reparameterisation trick
+
+    def decode(self, z):
+        return self.decoder(z)
+
+    def forward(self, x):
+        mu, log_var = self.encode(x)
+        z           = self.reparameterise(mu, log_var)
+        x_recon     = self.decode(z)
+        return x_recon, mu, log_var
+
+def vae_loss(x_recon, x, mu, log_var, beta=1.0):
+    recon_loss = F.mse_loss(x_recon, x, reduction='sum')
+    # KL divergence: -0.5 * sum(1 + log_var - mu^2 - exp(log_var))
+    kl_loss    = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
+    return recon_loss + beta * kl_loss</code></pre>
+
+      <h3>Training the VAE</h3>
+      <pre><code>vae = VAE(input_dim=X_train_scaled.shape[1],
+          hidden_dim=512,
+          latent_dim=32)
+vae_opt = torch.optim.Adam(vae.parameters(), lr=1e-3)
+
+X_train_t = torch.FloatTensor(X_train_scaled)
+X_test_t  = torch.FloatTensor(X_test_scaled)
+loader    = DataLoader(TensorDataset(X_train_t),
+                       batch_size=256, shuffle=True)
+
+for epoch in range(100):
+    vae.train()
+    total_loss = 0
+    for (x_batch,) in loader:
+        vae_opt.zero_grad()
+        x_recon, mu, log_var = vae(x_batch)
+        loss = vae_loss(x_recon, x_batch, mu, log_var, beta=1.0)
+        loss.backward()
+        vae_opt.step()
+        total_loss += loss.item()
+    if (epoch + 1) % 20 == 0:
+        print(f"Epoch {epoch+1}: loss = {total_loss/len(loader):.1f}")</code></pre>
+
+      <h2>Exploring the Latent Space</h2>
+      <p>Once trained, the VAE latent space has properties that the standard autoencoder lacks. You can explore it in several biologically interesting ways.</p>
+
+      <h3>Visualising the Structured Latent Space</h3>
+      <pre><code>vae.eval()
+with torch.no_grad():
+    mu_train, _ = vae.encode(X_train_t)
+    mu_test,  _ = vae.encode(X_test_t)
+    Z_train_vae = mu_train.numpy()
+    Z_test_vae  = mu_test.numpy()
+
+# 2D projection of the 32-dim latent space
+from sklearn.decomposition import PCA as PCA2D
+pca_vis = PCA2D(n_components=2)
+Z_2d = pca_vis.fit_transform(Z_test_vae)
+
+plt.figure(figsize=(10, 8))
+for i, ct in enumerate(le.classes_):
+    mask = y_test == i
+    plt.scatter(Z_2d[mask, 0], Z_2d[mask, 1],
+                label=ct, alpha=0.6, s=15)
+plt.title('VAE Latent Space — TCGA Cancer Types')
+plt.xlabel('Latent PC1')
+plt.ylabel('Latent PC2')
+plt.legend(bbox_to_anchor=(1.05, 1), fontsize=6)
+plt.tight_layout()
+plt.show()</code></pre>
+
+      <p>The VAE latent space is typically smoother and more continuous than a standard autoencoder. Cancer types still cluster together, but the transitions between clusters are gradual rather than abrupt. This reflects the biological reality that cancer is not a set of perfectly discrete categories but a continuous spectrum of molecular states.</p>
+
+      <h3>Patient Stratification — This Is Where Your Research Lives</h3>
+      <p>Within a single cancer type, the VAE latent space reveals further structure. Breast cancer, for example, is not one disease — it has at least four molecular subtypes (Luminal A, Luminal B, HER2-enriched, Basal-like) with different prognoses and treatment responses. The VAE can discover this substructure without being told it exists.</p>
+
+      <pre><code># Focus on breast cancer samples only
+brca_mask  = y_test == le.transform(['BRCA'])[0]
+Z_brca     = Z_test_vae[brca_mask]
+labels_brca = metadata.loc[X_test.index[brca_mask], 'PAM50_subtype']
+
+pca_brca = PCA2D(n_components=2)
+Z_brca_2d = pca_brca.fit_transform(Z_brca)
+
+plt.figure(figsize=(8, 6))
+for subtype in labels_brca.unique():
+    mask = labels_brca == subtype
+    plt.scatter(Z_brca_2d[mask, 0], Z_brca_2d[mask, 1],
+                label=subtype, alpha=0.7, s=20)
+plt.title('VAE Latent Space — Breast Cancer Subtypes')
+plt.xlabel('Latent PC1')
+plt.ylabel('Latent PC2')
+plt.legend()
+plt.show()</code></pre>
+
+      <p>If the VAE learned meaningful representations, the four PAM50 subtypes should separate in the BRCA latent subspace. This is unsupervised discovery of clinically meaningful disease subgroups — the model was never told about PAM50, yet its latent space recovers it. This is the kind of finding that makes VAEs valuable in cancer biology.</p>
+
+      <h2>The Beta-VAE and Disentanglement</h2>
+      <p>The beta hyperparameter in the VAE loss controls the balance between reconstruction quality and latent space regularity. Setting beta greater than 1 increases the pressure toward N(0,1), producing a more structured but less detailed latent space. This is called a Beta-VAE.</p>
+      <p>Higher beta values encourage <strong>disentanglement</strong> — a property where different dimensions of the latent space independently control different aspects of the data. In genomics, a fully disentangled VAE might have one dimension controlling overall tumour grade, another controlling tissue of origin, and another controlling immune infiltration — completely independently. Disentanglement is an active research area, and scVI (the next chapter) is partly motivated by applying these ideas to single-cell data.</p>
+
+      <pre><code># Try different beta values and compare
+for beta in [0.1, 1.0, 4.0, 10.0]:
+    vae_beta = VAE(input_dim=X_train_scaled.shape[1],
+                   hidden_dim=512, latent_dim=32)
+    # train with this beta...
+    # compare reconstruction quality vs latent space structure</code></pre>
+
+      <h2>VAE vs Standard Autoencoder vs PCA</h2>
+
+      <table style="width:100%;border-collapse:collapse;margin:1rem 0;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border);">
+            <th style="text-align:left;padding:.75rem;">Property</th>
+            <th style="text-align:left;padding:.75rem;">PCA</th>
+            <th style="text-align:left;padding:.75rem;">Autoencoder</th>
+            <th style="text-align:left;padding:.75rem;">VAE</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">Non-linear</td>
+            <td style="padding:.75rem;">No</td>
+            <td style="padding:.75rem;">Yes</td>
+            <td style="padding:.75rem;">Yes</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">Continuous latent space</td>
+            <td style="padding:.75rem;">Yes</td>
+            <td style="padding:.75rem;">No</td>
+            <td style="padding:.75rem;">Yes</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">Generative</td>
+            <td style="padding:.75rem;">No</td>
+            <td style="padding:.75rem;">No</td>
+            <td style="padding:.75rem;">Yes</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">Interpretable</td>
+            <td style="padding:.75rem;">Yes (loadings)</td>
+            <td style="padding:.75rem;">Partially</td>
+            <td style="padding:.75rem;">Partially</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">Requires labels</td>
+            <td style="padding:.75rem;">No</td>
+            <td style="padding:.75rem;">No</td>
+            <td style="padding:.75rem;">No</td>
+          </tr>
+          <tr>
+            <td style="padding:.75rem;">Training complexity</td>
+            <td style="padding:.75rem;">Low</td>
+            <td style="padding:.75rem;">Medium</td>
+            <td style="padding:.75rem;">Medium-High</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>This chapter connects directly to your published research. The hierarchical autoencoder framework for multi-omics cancer subtyping you developed during your PhD is a direct application of these ideas — using deep encoders to compress heterogeneous biological data into a latent space where clinically meaningful subgroups can be discovered. The VAE extends this with a probabilistic framework that produces more structured and interpretable representations.</p>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Reality Check</strong>
+        <ul>
+          <li>Does the VAE latent space show more structure than the standard autoencoder? If not, the additional complexity may not be warranted.</li>
+          <li>Does the reconstruction loss converge? A VAE that does not reconstruct well has not learned useful representations.</li>
+          <li>Do clinically meaningful subgroups emerge in the latent space without supervision? If yes, the VAE found real biology.</li>
+          <li>Is the beta hyperparameter tuned appropriately? Too high and reconstruction fails; too low and the latent space loses its structure.</li>
+        </ul>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(56,189,248,.08),rgba(167,139,250,.08));border:1px solid var(--accent);border-radius:12px;padding:1.25rem;margin:1.5rem 0;">
+        <p style="font-weight:600;margin:0;"><i data-lucide="target" style="width:16px;height:16px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Running Question Progress</p>
+        <p style="color:var(--text-muted);font-size:.9rem;margin:.5rem 0 0;">The VAE latent space reveals cancer subtype structure without labels. It also discovers sub-structure within cancer types that matches known clinical subtypes. This is a genuinely different capability from classification. The question for the capstone remains: does the complexity of a VAE add value over PCA plus logistic regression for the primary classification task?</p>
+      </div>
+
+      <div class="module-nav">
+        <button class="nav-btn" onclick="navigate('aiml9')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+        <button class="nav-btn" onclick="navigate('aiml11')">Next: scVI and Single-Cell Representations <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Quiz — Chapter 10</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">1</span> What is the fundamental difference between a standard autoencoder and a variational autoencoder?</h4>
+        <button class="quiz-option" data-value="a">VAEs have more layers than standard autoencoders</button>
+        <button class="quiz-option" data-value="b">VAEs encode each sample as a probability distribution rather than a single point, producing a continuous and structured latent space</button>
+        <button class="quiz-option" data-value="c">VAEs require labelled training data while autoencoders do not</button>
+        <button class="quiz-option" data-value="d">VAEs use a different activation function</button>
+        <div class="quiz-explanation" data-text="The key difference is probabilistic encoding. A standard autoencoder maps each input to a single point. A VAE maps each input to a distribution (mean and variance), then samples from that distribution. This produces a smooth, continuous latent space where interpolation makes sense."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">2</span> What does the KL divergence term in the VAE loss function enforce?</h4>
+        <button class="quiz-option" data-value="a">Good reconstruction quality</button>
+        <button class="quiz-option" data-value="b">Fast training convergence</button>
+        <button class="quiz-option" data-value="c">The encoded distributions stay close to a standard normal distribution, keeping the latent space dense and continuous</button>
+        <button class="quiz-option" data-value="d">The latent space has exactly the right number of dimensions</button>
+        <div class="quiz-explanation" data-text="KL divergence measures how different the encoded distributions are from N(0,1). Minimising it prevents the encoder from spreading samples arbitrarily far apart and ensures the latent space is continuously populated, enabling smooth interpolation."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">3</span> Why is the reparameterisation trick necessary in VAE training?</h4>
+        <button class="quiz-option" data-value="a">Sampling from a distribution is not differentiable, so gradients cannot flow through it without this trick</button>
+        <button class="quiz-option" data-value="b">It makes the training faster by avoiding matrix computations</button>
+        <button class="quiz-option" data-value="c">It prevents the KL divergence from becoming too large</button>
+        <button class="quiz-option" data-value="d">It ensures the decoder receives the correct input dimensions</button>
+        <div class="quiz-explanation" data-text="Backpropagation requires differentiable operations. Sampling z directly from N(mu, var) is not differentiable. The trick rewrites z = mu + epsilon * std where epsilon is fixed noise, making the operation differentiable with respect to mu and std."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">4</span> A VAE trained on TCGA data shows that breast cancer (BRCA) samples in the latent space separate into four clusters matching PAM50 subtypes, without PAM50 labels being used in training. What does this demonstrate?</h4>
+        <button class="quiz-option" data-value="a">The VAE memorised the training data</button>
+        <button class="quiz-option" data-value="b">PAM50 subtypes are not biologically real</button>
+        <button class="quiz-option" data-value="c">The model needs more training</button>
+        <button class="quiz-option" data-value="d">The VAE learned representations that capture genuine biological structure — it independently discovered clinically meaningful disease subtypes</button>
+        <div class="quiz-explanation" data-text="Unsupervised discovery of known clinically meaningful subgroups validates that the model learned real biology rather than noise. This is one of the strongest validations possible for an unsupervised model."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">5</span> Increasing the beta hyperparameter in a Beta-VAE has what effect?</h4>
+        <button class="quiz-option" data-value="a">Improves reconstruction quality at the expense of latent space structure</button>
+        <button class="quiz-option" data-value="b">Increases pressure toward N(0,1), producing a more structured but less detailed latent space</button>
+        <button class="quiz-option" data-value="c">Increases the number of latent dimensions</button>
+        <button class="quiz-option" data-value="d">Speeds up training convergence</button>
+        <div class="quiz-explanation" data-text="Higher beta increases the weight of the KL divergence term, pushing the latent space strongly toward N(0,1). This produces more disentangled, structured representations but at the cost of reconstruction quality. Finding the right beta is an important hyperparameter choice."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container"></div>
+  </div>
+
+</div>
