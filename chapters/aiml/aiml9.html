@@ -1,0 +1,387 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="network" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 9: Neural Networks and Autoencoders</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~60 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Intermediate</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Neural Networks, Autoencoders, Latent Space, PyTorch, TCGA</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>Going Deeper</h2>
+      <p>In Chapter 8 you built two strong baseline classifiers. Logistic regression and random forest both achieved around 93-94% accuracy on TCGA cancer type prediction. Now you add a feedforward neural network to the comparison and ask whether the additional complexity produces a meaningful improvement.</p>
+      <p>But this chapter does something more important than just adding another classifier. It introduces the <strong>autoencoder</strong> — a neural network architecture that learns to compress high-dimensional data into a compact representation. Autoencoders are the conceptual foundation for variational autoencoders (Chapter 10), scVI (Chapter 11), and the latent space representations used in every modern biological foundation model. Understanding them deeply is essential.</p>
+
+      <h2>What is a Neural Network?</h2>
+      <p>A neural network is a function composed of layers. Each layer applies a linear transformation (a weighted sum) followed by a non-linear activation function. Stacking multiple layers allows the network to learn increasingly abstract representations of the input data.</p>
+
+      <pre><code>Input layer:   20,000 genes (or 50 PCA components)
+      ↓ (linear transform + activation)
+Hidden layer 1: 512 neurons
+      ↓ (linear transform + activation)
+Hidden layer 2: 256 neurons
+      ↓ (linear transform + activation)
+Output layer:  33 neurons (one per cancer type, softmax activation)</code></pre>
+
+      <p>The activation function introduces non-linearity. Without it, stacking linear layers would still be a linear model. The most common activation in modern networks is ReLU (Rectified Linear Unit): f(x) = max(0, x). It is simple, computationally efficient, and works remarkably well in practice.</p>
+      <p>The output layer uses softmax, which converts raw scores into probabilities that sum to 1 across all classes. The predicted class is the one with the highest probability.</p>
+
+      <h2>Building a Neural Network Classifier in PyTorch</h2>
+      <p>PyTorch is the standard deep learning framework in research. It gives you explicit control over every component of the network and training loop, which makes it easier to understand what is happening and to extend to custom architectures later in the course.</p>
+
+      <pre><code>import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader, TensorDataset
+import numpy as np
+
+# Convert numpy arrays to PyTorch tensors
+X_train_tensor = torch.FloatTensor(X_train_pca)
+y_train_tensor = torch.LongTensor(y_train)
+X_test_tensor  = torch.FloatTensor(X_test_pca)
+y_test_tensor  = torch.LongTensor(y_test)
+
+# Create DataLoaders for batched training
+train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
+train_loader  = DataLoader(train_dataset, batch_size=256, shuffle=True)
+
+# Define the network architecture
+class CancerClassifier(nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim, dropout=0.3):
+        super().__init__()
+        self.network = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, hidden_dim // 2),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim // 2, output_dim)
+        )
+
+    def forward(self, x):
+        return self.network(x)
+
+# Instantiate model
+n_pcs      = X_train_pca.shape[1]   # 50
+n_classes  = len(np.unique(y_train)) # 33
+model      = CancerClassifier(input_dim=n_pcs, hidden_dim=256,
+                               output_dim=n_classes)
+
+# Loss function and optimiser
+criterion = nn.CrossEntropyLoss()
+optimiser = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)</code></pre>
+
+      <h3>Training Loop</h3>
+      <pre><code>def train_epoch(model, loader, criterion, optimiser):
+    model.train()
+    total_loss, correct, total = 0, 0, 0
+    for X_batch, y_batch in loader:
+        optimiser.zero_grad()
+        outputs = model(X_batch)
+        loss    = criterion(outputs, y_batch)
+        loss.backward()
+        optimiser.step()
+        total_loss += loss.item()
+        correct    += (outputs.argmax(1) == y_batch).sum().item()
+        total      += y_batch.size(0)
+    return total_loss / len(loader), correct / total
+
+def evaluate(model, X, y):
+    model.eval()
+    with torch.no_grad():
+        outputs = model(X)
+        preds   = outputs.argmax(1)
+        acc     = (preds == y).float().mean().item()
+    return acc, preds.numpy()
+
+# Train for 50 epochs
+train_losses, train_accs, test_accs = [], [], []
+for epoch in range(50):
+    loss, train_acc = train_epoch(model, train_loader, criterion, optimiser)
+    test_acc, _     = evaluate(model, X_test_tensor, y_test_tensor)
+    train_losses.append(loss)
+    train_accs.append(train_acc)
+    test_accs.append(test_acc)
+    if (epoch + 1) % 10 == 0:
+        print(f"Epoch {epoch+1}: loss={loss:.4f}, "
+              f"train={train_acc:.3f}, test={test_acc:.3f}")</code></pre>
+
+      <h3>Learning Curves</h3>
+      <p>Plotting training and test accuracy over epochs is one of the most useful diagnostics in deep learning. If training accuracy keeps rising while test accuracy plateaus or declines, the model is overfitting. If both plateau early at a low value, the model is underfitting.</p>
+
+      <pre><code>import matplotlib.pyplot as plt
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+
+ax1.plot(train_losses, label='Training loss')
+ax1.set_xlabel('Epoch')
+ax1.set_ylabel('Cross-entropy loss')
+ax1.set_title('Training Loss')
+ax1.legend()
+
+ax2.plot(train_accs, label='Training accuracy')
+ax2.plot(test_accs,  label='Test accuracy')
+ax2.set_xlabel('Epoch')
+ax2.set_ylabel('Accuracy')
+ax2.set_title('Learning Curves')
+ax2.legend()
+
+plt.tight_layout()
+plt.show()
+
+# Final evaluation
+final_test_acc, y_pred_nn = evaluate(model, X_test_tensor, y_test_tensor)
+print(f"\nFinal test accuracy: {final_test_acc:.3f}")
+print(classification_report(y_test, y_pred_nn, target_names=le.classes_))</code></pre>
+
+      <p>On TCGA with 50 PCA inputs, a two-layer neural network typically achieves around 94-95% accuracy. This is marginally better than logistic regression but requires substantially more code, more hyperparameter tuning, and more training time. The improvement is real but modest. We are not yet in the regime where neural network complexity is clearly justified over linear methods.</p>
+
+      <h2>Autoencoders — Learning to Compress</h2>
+      <p>An autoencoder is a neural network trained to reconstruct its own input. It has two parts: an encoder that compresses the input to a low-dimensional representation, and a decoder that reconstructs the original input from that compressed representation.</p>
+
+      <pre><code>Input (20,000 genes)
+       ↓  Encoder
+Latent space (50-100 dimensions)
+       ↓  Decoder
+Reconstruction (20,000 genes)
+
+Training objective: minimise reconstruction error
+               (output should look like input)</code></pre>
+
+      <p>The bottleneck forces the network to learn a compact representation that captures the most important structure in the data. Everything that cannot be reconstructed from the bottleneck must be discarded — so the network learns to keep what matters and discard what does not.</p>
+      <p>This is fundamentally different from PCA. PCA finds linear combinations of features. An autoencoder can find non-linear combinations. If the important structure in gene expression data is non-linear — and in many cases it is — autoencoders can capture it where PCA cannot.</p>
+
+      <h2>Building an Autoencoder in PyTorch</h2>
+
+      <pre><code>class Autoencoder(nn.Module):
+    def __init__(self, input_dim, latent_dim):
+        super().__init__()
+
+        # Encoder: compress input to latent space
+        self.encoder = nn.Sequential(
+            nn.Linear(input_dim, 512),
+            nn.ReLU(),
+            nn.Linear(512, 256),
+            nn.ReLU(),
+            nn.Linear(256, latent_dim)
+        )
+
+        # Decoder: reconstruct input from latent space
+        self.decoder = nn.Sequential(
+            nn.Linear(latent_dim, 256),
+            nn.ReLU(),
+            nn.Linear(256, 512),
+            nn.ReLU(),
+            nn.Linear(512, input_dim)
+        )
+
+    def forward(self, x):
+        z = self.encoder(x)        # compress
+        x_recon = self.decoder(z)  # reconstruct
+        return x_recon, z          # return both reconstruction and latent code
+
+    def encode(self, x):
+        return self.encoder(x)
+
+# Use raw scaled expression (not PCA) as input to the autoencoder
+# The autoencoder will learn its own compression
+X_train_raw = torch.FloatTensor(X_train_scaled)
+X_test_raw  = torch.FloatTensor(X_test_scaled)
+
+ae = Autoencoder(input_dim=X_train_scaled.shape[1], latent_dim=64)
+ae_optimiser = optim.Adam(ae.parameters(), lr=1e-3)
+recon_criterion = nn.MSELoss()  # minimise reconstruction error
+
+# Training loop for autoencoder
+train_dataset_ae = TensorDataset(X_train_raw)
+train_loader_ae  = DataLoader(train_dataset_ae, batch_size=256, shuffle=True)
+
+for epoch in range(100):
+    ae.train()
+    total_loss = 0
+    for (X_batch,) in train_loader_ae:
+        ae_optimiser.zero_grad()
+        x_recon, _ = ae(X_batch)
+        loss = recon_criterion(x_recon, X_batch)
+        loss.backward()
+        ae_optimiser.step()
+        total_loss += loss.item()
+    if (epoch + 1) % 20 == 0:
+        print(f"Epoch {epoch+1}: recon loss = {total_loss/len(train_loader_ae):.4f}")</code></pre>
+
+      <h3>Using Autoencoder Representations for Classification</h3>
+      <p>Once trained, the encoder produces a 64-dimensional latent representation for each sample. You can use these representations as features for downstream classification — just like you used PCA components in Chapters 7 and 8.</p>
+
+      <pre><code># Extract latent representations
+ae.eval()
+with torch.no_grad():
+    Z_train = ae.encode(X_train_raw).numpy()
+    Z_test  = ae.encode(X_test_raw).numpy()
+
+print(f"Latent representation shape: {Z_train.shape}")
+# (n_train_samples, 64)
+
+# Train logistic regression on autoencoder representations
+lr_ae = LogisticRegression(C=1.0, max_iter=1000,
+                            multi_class='multinomial', solver='lbfgs')
+lr_ae.fit(Z_train, y_train)
+y_pred_ae = lr_ae.predict(Z_test)
+
+print(f"Autoencoder + LR accuracy: {accuracy_score(y_test, y_pred_ae):.3f}")
+print(f"PCA + LR accuracy:         {accuracy_score(y_test, y_pred_lr):.3f}")</code></pre>
+
+      <h3>Visualising the Latent Space</h3>
+      <p>The latent space is 64-dimensional, but you can visualise it in 2D using PCA or UMAP applied to the latent vectors. If the autoencoder learned meaningful representations, cancer types should cluster in latent space.</p>
+
+      <pre><code>from sklearn.decomposition import PCA as PCA2D
+
+# Project 64-dim latent space to 2D for visualisation
+pca_vis = PCA2D(n_components=2)
+Z_2d = pca_vis.fit_transform(Z_test)
+
+plt.figure(figsize=(10, 8))
+for i, ct in enumerate(le.classes_):
+    mask = y_test == i
+    plt.scatter(Z_2d[mask, 0], Z_2d[mask, 1],
+                label=ct, alpha=0.6, s=15)
+plt.xlabel('Latent PC1')
+plt.ylabel('Latent PC2')
+plt.title('Autoencoder Latent Space — TCGA Cancer Types')
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=6)
+plt.tight_layout()
+plt.show()</code></pre>
+
+      <h2>The Full Comparison So Far</h2>
+      <p>You now have four methods to compare on the same TCGA task:</p>
+
+      <table style="width:100%;border-collapse:collapse;margin:1rem 0;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border);">
+            <th style="text-align:left;padding:.75rem;">Method</th>
+            <th style="text-align:left;padding:.75rem;">Approx. accuracy</th>
+            <th style="text-align:left;padding:.75rem;">Training time</th>
+            <th style="text-align:left;padding:.75rem;">Interpretable?</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">PCA + Logistic Regression</td>
+            <td style="padding:.75rem;">~93%</td>
+            <td style="padding:.75rem;">Seconds</td>
+            <td style="padding:.75rem;">Yes</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">PCA + Random Forest</td>
+            <td style="padding:.75rem;">~94%</td>
+            <td style="padding:.75rem;">2 minutes</td>
+            <td style="padding:.75rem;">Partially</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">PCA + Neural Network</td>
+            <td style="padding:.75rem;">~94-95%</td>
+            <td style="padding:.75rem;">5 minutes</td>
+            <td style="padding:.75rem;">No</td>
+          </tr>
+          <tr>
+            <td style="padding:.75rem;">Autoencoder + Logistic Regression</td>
+            <td style="padding:.75rem;">~93-95%</td>
+            <td style="padding:.75rem;">10 minutes</td>
+            <td style="padding:.75rem;">No</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>The pattern emerging is clear. Adding complexity brings diminishing returns on this task. The performance difference between the simplest method and the most complex is a few percent. Whether that matters depends on the biological and clinical context. For some applications it does. For most research applications, the simple method wins.</p>
+      <p>The autoencoder's value is not primarily in classification accuracy. It is in what the latent space reveals — structure in the data that PCA might miss because it is non-linear. In Chapter 10, variational autoencoders take this further by learning a structured, continuous latent space that enables interpolation between samples and generative capabilities.</p>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Reality Check</strong>
+        <ul>
+          <li>Does the neural network significantly outperform logistic regression on your specific task?</li>
+          <li>Did you check learning curves for overfitting? Training accuracy much higher than test accuracy is a red flag.</li>
+          <li>Does the autoencoder latent space show cancer type separation? If not, the representations are not biologically meaningful.</li>
+          <li>Is the complexity justified by the performance gain?</li>
+        </ul>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(56,189,248,.08),rgba(167,139,250,.08));border:1px solid var(--accent);border-radius:12px;padding:1.25rem;margin:1.5rem 0;">
+        <p style="font-weight:600;margin:0;"><i data-lucide="target" style="width:16px;height:16px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Running Question Progress</p>
+        <p style="color:var(--text-muted);font-size:.9rem;margin:.5rem 0 0;">Neural networks add marginal accuracy over logistic regression on TCGA. The autoencoder learns a latent space that separates cancer types. Both findings matter for the capstone question: was any of this complexity actually necessary?</p>
+      </div>
+
+      <div class="module-nav">
+        <button class="nav-btn" onclick="navigate('aiml8')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+        <button class="nav-btn" onclick="navigate('aiml10')">Next: Variational Autoencoders <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Quiz — Chapter 9</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">1</span> Why does a neural network need non-linear activation functions between layers?</h4>
+        <button class="quiz-option" data-value="a">To speed up training</button>
+        <button class="quiz-option" data-value="b">Without non-linearity, stacking linear layers is still just a linear model regardless of depth</button>
+        <button class="quiz-option" data-value="c">To prevent overfitting</button>
+        <button class="quiz-option" data-value="d">To normalise the output at each layer</button>
+        <div class="quiz-explanation" data-text="A linear transformation of a linear transformation is still linear. Non-linear activations like ReLU allow the network to learn non-linear decision boundaries and complex feature interactions that linear models cannot capture."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">2</span> In an autoencoder, what forces the network to learn a meaningful compressed representation?</h4>
+        <button class="quiz-option" data-value="a">The softmax output layer</button>
+        <button class="quiz-option" data-value="b">The dropout regularisation</button>
+        <button class="quiz-option" data-value="c">The bottleneck — the latent space is much smaller than the input, so the network must compress the most important information</button>
+        <button class="quiz-option" data-value="d">The learning rate schedule</button>
+        <div class="quiz-explanation" data-text="The bottleneck forces information compression. If the latent space had the same dimension as the input, the network could just copy the input through. The smaller latent space forces it to find a compact representation that preserves the most important structure."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">3</span> What is the training objective of an autoencoder?</h4>
+        <button class="quiz-option" data-value="a">Minimise the reconstruction error between input and output</button>
+        <button class="quiz-option" data-value="b">Maximise classification accuracy on labelled data</button>
+        <button class="quiz-option" data-value="c">Minimise the size of the latent space</button>
+        <button class="quiz-option" data-value="d">Maximise the variance explained by each latent dimension</button>
+        <div class="quiz-explanation" data-text="An autoencoder is trained to reconstruct its own input. The loss function measures how different the reconstruction is from the original (typically mean squared error). No labels are required — autoencoders are unsupervised."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">4</span> Learning curves show training accuracy = 98% and test accuracy = 72% after 50 epochs. What does this indicate?</h4>
+        <button class="quiz-option" data-value="a">The model needs more training epochs</button>
+        <button class="quiz-option" data-value="b">The learning rate is too low</button>
+        <button class="quiz-option" data-value="c">The dataset is too small for neural networks</button>
+        <button class="quiz-option" data-value="d">Severe overfitting — the model memorised training data and fails to generalise</button>
+        <div class="quiz-explanation" data-text="A large gap between training and test accuracy is the signature of overfitting. Solutions include dropout, weight decay (L2 regularisation), early stopping, reducing model complexity, or getting more training data."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">5</span> What is the key advantage of an autoencoder's latent representation over PCA components for downstream tasks?</h4>
+        <button class="quiz-option" data-value="a">Autoencoder representations are always more accurate for classification</button>
+        <button class="quiz-option" data-value="b">Autoencoders can capture non-linear structure that PCA, being a linear method, cannot</button>
+        <button class="quiz-option" data-value="c">Autoencoder training is faster than PCA computation</button>
+        <button class="quiz-option" data-value="d">Autoencoders require no hyperparameter tuning</button>
+        <div class="quiz-explanation" data-text="PCA finds the best linear compression. Autoencoders can find non-linear compressions through their activation functions. If the meaningful structure in gene expression data involves non-linear relationships between genes, autoencoders can capture it where PCA cannot."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container"></div>
+  </div>
+
+</div>
