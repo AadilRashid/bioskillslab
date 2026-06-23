@@ -1,0 +1,257 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="trees" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 8: Logistic Regression and Random Forests</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~55 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Intermediate</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Logistic Regression, Random Forest, Feature Importance, TCGA, Baseline</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>The First Real Models</h2>
+      <p>In Chapter 7 you prepared the TCGA data and confirmed through PCA that cancer types separate in expression space. Now you train your first classifiers. This chapter builds the two models that should always come before anything more complex: logistic regression and random forest.</p>
+      <p>These are not "simple" models in a dismissive sense. They are the gold standard baselines that any more complex model must beat to justify its additional complexity. In many genomics tasks, they win outright. You need to know what they are, how to train them properly, and how to interpret what they tell you about the biology.</p>
+
+      <h2>Logistic Regression — The Interpretable Baseline</h2>
+      <p>Despite its name, logistic regression is a classification algorithm. It finds a linear decision boundary in feature space by learning a weight for each feature — in our case, a weight for each principal component from Chapter 7.</p>
+      <p>The model calculates a weighted sum of the features, passes it through a sigmoid function to produce a probability between 0 and 1, and classifies based on that probability. For multi-class problems like TCGA with 33 cancer types, it extends to one-vs-rest or softmax classification.</p>
+      <p>The key advantage of logistic regression is interpretability. The learned weights tell you which features (principal components, or genes if you skip PCA) drive the predictions. A positive weight means higher values push toward the positive class. A negative weight means higher values push toward the negative class. You can look at the model and understand what it learned.</p>
+
+      <pre><code>from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report, accuracy_score
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
+
+# Train logistic regression on PCA-reduced TCGA data
+# C is the inverse of regularisation strength — smaller C = more regularisation
+lr = LogisticRegression(
+    C=1.0,
+    max_iter=1000,
+    multi_class='multinomial',
+    solver='lbfgs',
+    random_state=42
+)
+lr.fit(X_train_pca, y_train)
+
+# Evaluate on test set
+y_pred_lr = lr.predict(X_test_pca)
+print(f"Accuracy: {accuracy_score(y_test, y_pred_lr):.3f}")
+print("\nPer-class performance:")
+print(classification_report(y_test, y_pred_lr,
+                             target_names=le.classes_))</code></pre>
+
+      <p>On TCGA Pan-Cancer data with 50 PCA components, logistic regression typically achieves around 90-95% accuracy across 33 cancer types. That number alone should make you pause before reaching for a neural network. A linear model, on compressed features, in under a minute of training time, correctly classifies 9 out of 10 cancer samples from gene expression alone.</p>
+
+      <h3>Confusion Matrix</h3>
+      <p>The accuracy number summarises everything into one figure. The confusion matrix shows you exactly where the model succeeds and fails — which cancer types are being confused with each other. This is where the biology lives.</p>
+
+      <pre><code># Confusion matrix
+cm = confusion_matrix(y_test, y_pred_lr)
+fig, ax = plt.subplots(figsize=(14, 12))
+disp = ConfusionMatrixDisplay(confusion_matrix=cm,
+                               display_labels=le.classes_)
+disp.plot(ax=ax, xticks_rotation=90, colorbar=False)
+plt.title('Logistic Regression — TCGA Cancer Type Confusion Matrix')
+plt.tight_layout()
+plt.show()</code></pre>
+
+      <p>When you examine the confusion matrix, you will find that most errors are biologically sensible. Kidney renal clear cell carcinoma (KIRC) and kidney renal papillary carcinoma (KIRP) are confused with each other — they are both kidney cancers with overlapping expression profiles. Stomach adenocarcinoma (STAD) and esophageal carcinoma (ESCA) overlap — they are anatomically adjacent and share molecular features. The model's mistakes are not random; they reflect genuine biological similarity between cancer types.</p>
+
+      <h2>Random Forests — Robust Non-Linear Classification</h2>
+      <p>Random forests build a large number of decision trees, each trained on a random subset of the training samples and a random subset of the features. Each tree votes on the class, and the forest predicts the majority vote. The randomness is the key — it prevents any single tree from overfitting and makes the ensemble far more robust than any individual tree.</p>
+      <p>Random forests handle several challenges that are common in genomics. They work well when the number of features is large relative to the number of samples. They are robust to outlier samples. They do not require feature scaling. And crucially, they provide feature importance scores that tell you which genes (or PCA components) were most useful for classification.</p>
+
+      <pre><code>from sklearn.ensemble import RandomForestClassifier
+import numpy as np
+
+# Train random forest
+rf = RandomForestClassifier(
+    n_estimators=500,     # number of trees
+    max_features='sqrt',  # features per split (sqrt of total)
+    min_samples_leaf=2,   # minimum samples per leaf node
+    n_jobs=-1,            # use all CPU cores
+    random_state=42
+)
+rf.fit(X_train_pca, y_train)
+
+# Evaluate
+y_pred_rf = rf.predict(X_test_pca)
+print(f"Accuracy: {accuracy_score(y_test, y_pred_rf):.3f}")
+print("\nPer-class performance:")
+print(classification_report(y_test, y_pred_rf,
+                             target_names=le.classes_))
+
+# Feature importance
+importances = rf.feature_importances_
+plt.figure(figsize=(10, 4))
+plt.bar(range(50), importances)
+plt.xlabel('Principal Component')
+plt.ylabel('Feature Importance')
+plt.title('Random Forest Feature Importances — Top 50 PCs')
+plt.show()</code></pre>
+
+      <p>Random forests on TCGA typically achieve similar or slightly higher accuracy than logistic regression — around 92-96%. The performance difference between the two is often smaller than the variation between runs, which itself is a meaningful finding: for this particular task, model complexity beyond logistic regression adds marginal value.</p>
+
+      <h3>Feature Importance — What Drives the Classification?</h3>
+      <p>The feature importances from random forest tell you which principal components carry the most information for distinguishing cancer types. But PCA components are linear combinations of all genes, which makes them hard to interpret biologically. To get back to genes, you can examine the PCA loadings:</p>
+
+      <pre><code># Which genes contribute most to the top PCs?
+# pca.components_ has shape (n_components, n_genes)
+# Each row is a PC, each column is a gene's contribution
+
+top_pc = 0  # look at PC1
+gene_loadings = pd.Series(
+    pca.components_[top_pc],
+    index=gene_names  # your list of gene names
+).abs().sort_values(ascending=False)
+
+print(f"Top 20 genes driving PC{top_pc+1}:")
+print(gene_loadings.head(20))
+
+# Combine with RF importance:
+# Which genes drive the PCs that the forest finds most important?
+top_pcs = np.argsort(importances)[::-1][:5]  # top 5 important PCs
+key_genes = set()
+for pc in top_pcs:
+    top_genes = pd.Series(
+        np.abs(pca.components_[pc]),
+        index=gene_names
+    ).nlargest(10).index
+    key_genes.update(top_genes)
+
+print(f"\nKey genes driving classification:")
+for g in sorted(key_genes): print(f"  {g}")</code></pre>
+
+      <p>When you run this on TCGA, the genes that emerge are biologically coherent. Tissue-specific markers dominate: EPCAM for epithelial cancers, PTPRC (CD45) for haematopoietic tumours, KRT genes for squamous cell carcinomas. The model has independently rediscovered the molecular signatures that pathologists and cancer biologists have known about for decades. This is good validation — the model is learning real biology, not technical artifacts.</p>
+
+      <h2>Cross-Validation — Getting Robust Estimates</h2>
+      <p>A single train/test split gives you one performance estimate. Cross-validation gives you a distribution of estimates across multiple splits, which tells you not just how well the model performs but how stable that performance is.</p>
+
+      <pre><code>from sklearn.model_selection import cross_val_score, StratifiedKFold
+
+# 5-fold stratified cross-validation
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+
+# Logistic regression CV
+lr_scores = cross_val_score(lr, X_train_pca, y_train,
+                             cv=cv, scoring='accuracy', n_jobs=-1)
+print(f"LR CV accuracy: {lr_scores.mean():.3f} +/- {lr_scores.std():.3f}")
+
+# Random forest CV
+rf_scores = cross_val_score(rf, X_train_pca, y_train,
+                             cv=cv, scoring='accuracy', n_jobs=-1)
+print(f"RF CV accuracy: {rf_scores.mean():.3f} +/- {rf_scores.std():.3f}")
+
+# Per-class F1 via cross-validation
+from sklearn.model_selection import cross_val_predict
+y_pred_cv = cross_val_predict(rf, X_train_pca, y_train, cv=cv)
+print("\nCross-validated classification report:")
+print(classification_report(y_train, y_pred_cv, target_names=le.classes_))</code></pre>
+
+      <h2>Comparing the Two Models</h2>
+      <p>After running both models, you should have something like this:</p>
+
+      <pre><code>Model                    Accuracy   Training time   Interpretable?
+─────                    ────────   ─────────────   ──────────────
+Logistic Regression       ~93%      ~10 seconds     Yes (weights)
+Random Forest             ~94%      ~2 minutes      Partially (importances)
+Difference                ~1%       12x slower      Less interpretable</code></pre>
+
+      <p>The random forest is marginally better. But is a 1% accuracy improvement worth 12x longer training time and less interpretability? For a research baseline, probably not. For a clinical tool where every percentage point matters, possibly yes.</p>
+      <p>This comparison also previews the question that runs through the entire course. In Chapter 9 we add a neural network. In Chapter 10 we add an autoencoder. In Chapter 12 we use Geneformer. At each step we ask the same question: does the additional complexity justify the additional cost?</p>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> The baseline you just built is not trivial</strong>
+        <p>93% accuracy on 33-class cancer type prediction from gene expression alone, using a model that trains in seconds, is genuinely impressive. Many papers that report superior deep learning performance compare against much weaker baselines. Keep these numbers in mind when you read claims that foundation models are necessary for cancer classification tasks.</p>
+      </div>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Reality Check</strong>
+        <ul>
+          <li>Did logistic regression and random forest achieve similar performance? If so, the simpler model wins.</li>
+          <li>Do the confusion matrix errors make biological sense? Confused cancer types should be biologically similar.</li>
+          <li>Do the important genes match known cancer biology? If the model found random genes, something may be wrong.</li>
+          <li>Would you trust either model on samples from a different institution or a different sequencing platform?</li>
+        </ul>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(56,189,248,.08),rgba(167,139,250,.08));border:1px solid var(--accent);border-radius:12px;padding:1.25rem;margin:1.5rem 0;">
+        <p style="font-weight:600;margin:0;"><i data-lucide="target" style="width:16px;height:16px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Running Question Progress</p>
+        <p style="color:var(--text-muted);font-size:.9rem;margin:.5rem 0 0;">First answer: yes, we can predict cancer subtype from gene expression with ~93% accuracy using logistic regression and ~94% with random forest. The baseline is established. In Chapter 9 we ask whether neural networks do better.</p>
+      </div>
+
+      <div class="module-nav">
+        <button class="nav-btn" onclick="navigate('aiml7')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+        <button class="nav-btn" onclick="navigate('aiml9')">Next: Neural Networks and Autoencoders <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Quiz — Chapter 8</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">1</span> Logistic regression achieves 93% accuracy on TCGA cancer classification. A neural network achieves 94.2%. Which should you use in a research context?</h4>
+        <button class="quiz-option" data-value="a">The neural network — it is always better to use the most accurate model</button>
+        <button class="quiz-option" data-value="b">Logistic regression — the 1.2% difference is unlikely to be clinically meaningful and the simpler model is more interpretable and faster</button>
+        <button class="quiz-option" data-value="c">Neither — both are too inaccurate for cancer research</button>
+        <button class="quiz-option" data-value="d">The neural network — logistic regression cannot handle multi-class problems</button>
+        <div class="quiz-explanation" data-text="A 1.2% accuracy improvement rarely justifies the additional complexity, training time, and loss of interpretability. Logistic regression gives you interpretable weights, trains in seconds, and achieves comparable performance. In research, simpler models that can be explained are usually preferable to marginally better black boxes."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">2</span> In a confusion matrix for TCGA cancer types, kidney renal clear cell carcinoma (KIRC) and kidney renal papillary carcinoma (KIRP) are frequently confused. What does this likely indicate?</h4>
+        <button class="quiz-option" data-value="a">A bug in the code</button>
+        <button class="quiz-option" data-value="b">Data leakage between the two cancer types</button>
+        <button class="quiz-option" data-value="c">The two cancer types have overlapping gene expression profiles because they arise from the same organ</button>
+        <button class="quiz-option" data-value="d">The model needs more training data</button>
+        <div class="quiz-explanation" data-text="Both KIRC and KIRP are kidney cancers with overlapping molecular features. Their confusion in the model reflects genuine biological similarity, not a modelling error. Biologically sensible errors validate that the model is learning real biology rather than technical artifacts."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">3</span> What does the max_features='sqrt' parameter do in a random forest?</h4>
+        <button class="quiz-option" data-value="a">At each split, considers only the square root of total features — introducing randomness that prevents overfitting</button>
+        <button class="quiz-option" data-value="b">Limits the maximum number of trees to the square root of the dataset size</button>
+        <button class="quiz-option" data-value="c">Scales all features by their square root before training</button>
+        <button class="quiz-option" data-value="d">Sets the maximum tree depth to the square root of the number of samples</button>
+        <div class="quiz-explanation" data-text="At each node split, the random forest randomly selects sqrt(n_features) features to consider. This randomness decorrelates the trees and is the key mechanism that prevents overfitting. Without it, all trees would be very similar and the ensemble would not generalise well."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">4</span> Why is StratifiedKFold preferred over regular KFold for TCGA cross-validation?</h4>
+        <button class="quiz-option" data-value="a">It runs faster on large datasets</button>
+        <button class="quiz-option" data-value="b">It prevents data leakage between folds</button>
+        <button class="quiz-option" data-value="c">It automatically handles missing values</button>
+        <button class="quiz-option" data-value="d">It preserves the class distribution in each fold, ensuring rare cancer types appear in every training and test fold</button>
+        <div class="quiz-explanation" data-text="TCGA has 33 cancer types with very unequal sample counts. Regular KFold might put all samples of a rare cancer type in one fold. StratifiedKFold ensures every fold has a proportional representation of all classes, giving reliable per-class performance estimates."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">5</span> The random forest feature importances show that tissue-specific marker genes (EPCAM, PTPRC, KRT genes) drive the classification. What does this validate?</h4>
+        <button class="quiz-option" data-value="a">The model is overfitted to training data</button>
+        <button class="quiz-option" data-value="b">The model is learning real biology — these are known cancer markers that pathologists use for diagnosis</button>
+        <button class="quiz-option" data-value="c">The preprocessing was incorrect and should be redone</button>
+        <button class="quiz-option" data-value="d">The PCA step should be removed</button>
+        <div class="quiz-explanation" data-text="When a model independently discovers the same biological markers that domain experts use for diagnosis, it validates that the model is learning genuine biology rather than technical artifacts or spurious correlations. This is an important sanity check before trusting model predictions."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container"></div>
+  </div>
+
+</div>
