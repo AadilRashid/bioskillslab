@@ -2,9 +2,9 @@
   <div class="module-header">
     <h1><i data-lucide="box" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 2: What is a Model?</h1>
     <div class="meta">
-      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~30 min</span>
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~20 min</span>
       <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Beginner</span>
-      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Model, Features, Labels, Parameters, Training, Prediction</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Model, Features, Labels, Parameters, Training, Overfitting</span>
     </div>
   </div>
 
@@ -18,95 +18,52 @@
     <div class="lesson">
 
       <h2>The Biological Question</h2>
-      <p>You have gene expression measurements from 500 tumour samples. Each sample is either lung cancer or breast cancer. Can a computer learn to tell them apart — and then correctly classify a new sample it has never seen before?</p>
-      <p>This is the core task of machine learning in biology. Before writing a single line of code, you need to understand what a model actually is and how learning happens.</p>
+      <p>You have gene expression measurements from 500 tumour samples — some lung cancer, some breast cancer. Can a computer learn to tell them apart, and correctly classify a new sample it has never seen?</p>
+      <p>This is the core task of machine learning in biology. Before writing a single line of code, you need to understand what a model is.</p>
 
       <h2>A Model is a Function</h2>
-      <p>At its most fundamental level, a model is a function that maps inputs to outputs:</p>
+      <p>A model takes inputs and produces outputs. In genomics:</p>
 
-      <pre><code>Input → Model → Output
+      <div style="text-align:center;margin:1.5rem 0;">
+        <img src="/img/model_function.png" alt="Model as a function: Gene Expression goes in, Cancer Subtype comes out" style="max-width:100%;border-radius:12px;border:1px solid var(--border);">
+      </div>
 
-Gene expression values → Model → Cancer subtype
-DNA sequence          → Model → Regulatory element (yes/no)
-Protein sequence      → Model → 3D structure
-Cell gene expression  → Model → Cell type</code></pre>
-
-      <p>The model is not magic. It is a mathematical function — a set of equations with adjustable numbers called <strong>parameters</strong> or <strong>weights</strong>. Learning means finding the right values for those parameters so the function produces correct outputs.</p>
+      <p>The model is not magic. It is a mathematical function with adjustable numbers called <strong>parameters</strong> or <strong>weights</strong>. Learning means finding the right values for those parameters so the function produces correct outputs.</p>
 
       <h2>Three Things Every Model Needs</h2>
 
-      <h3>1. Features — The Input</h3>
-      <p>Features are the measurements you feed into the model. In genomics, features are almost always numerical:</p>
-      <ul>
-        <li>Gene expression values (e.g. TPM or raw counts for 20,000 genes)</li>
-        <li>Presence or absence of a mutation at each genomic position</li>
-        <li>Chromatin accessibility scores across the genome</li>
-        <li>Protein abundance measurements from proteomics</li>
-      </ul>
-      <p>Choosing the right features matters enormously. A model can only learn from what you give it. If the signal you care about is not in your features, no amount of model complexity will find it.</p>
-
-      <h3>2. Labels — The Answer You're Teaching</h3>
-      <p>In supervised learning, every training example has a label — the correct answer the model is trying to learn to predict:</p>
-      <ul>
-        <li>Cancer subtype (lung, breast, colon...)</li>
-        <li>Tumour vs normal</li>
-        <li>Patient survival: alive or deceased at 5 years</li>
-        <li>Regulatory element: active enhancer or not</li>
-      </ul>
-      <p>Labels come from you — from clinical records, experimental assays, expert annotation. The quality of your labels determines the ceiling of what the model can learn. Garbage labels produce garbage models, no matter how sophisticated the algorithm.</p>
-
-      <h3>3. A Learning Algorithm — How Parameters Are Updated</h3>
-      <p>The learning algorithm adjusts the model's parameters to make predictions that match the labels. The process works like this:</p>
-
-      <pre><code>1. Start with random parameter values
-2. Make a prediction on a training example
-3. Compare prediction to the true label
-4. Calculate the error (the "loss")
-5. Adjust parameters slightly to reduce the error
-6. Repeat for thousands of examples
-7. Keep adjusting until predictions are consistently good</code></pre>
-
-      <p>This process is called <strong>training</strong>. Step 5 — adjusting parameters based on error — is called <strong>gradient descent</strong>. You do not need to understand the calculus behind it. You need to understand that learning = repeatedly adjusting parameters to reduce prediction error.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem;margin:1.5rem 0;">
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:1.25rem;">
+          <h4 style="color:var(--accent);margin-bottom:.5rem;"><i data-lucide="layers" style="width:16px;height:16px;display:inline;vertical-align:middle;margin-right:.3rem;"></i> Features</h4>
+          <p style="font-size:.9rem;color:var(--text-muted);margin:0;">The measurements you feed in. Gene expression values, mutation presence/absence, chromatin accessibility. A model can only learn from what you give it.</p>
+        </div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:1.25rem;">
+          <h4 style="color:var(--purple);margin-bottom:.5rem;"><i data-lucide="tag" style="width:16px;height:16px;display:inline;vertical-align:middle;margin-right:.3rem;"></i> Labels</h4>
+          <p style="font-size:.9rem;color:var(--text-muted);margin:0;">The correct answers for each training example. Cancer subtype, tumour vs normal, patient outcome. Labels come from clinical records, experimental assays, or expert annotation.</p>
+        </div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:1.25rem;">
+          <h4 style="color:var(--green);margin-bottom:.5rem;"><i data-lucide="refresh-cw" style="width:16px;height:16px;display:inline;vertical-align:middle;margin-right:.3rem;"></i> Learning Algorithm</h4>
+          <p style="font-size:.9rem;color:var(--text-muted);margin:0;">The process that adjusts parameters to reduce prediction error. Make prediction, calculate error, adjust weights slightly, repeat thousands of times. This is training.</p>
+        </div>
+      </div>
 
       <div class="callout tip">
         <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> The weights analogy</strong>
-        <p>Think of a model's parameters as dials on a mixing board. At the start, every dial is set randomly. Training turns each dial very slightly, millions of times, until the output sounds right. A deep neural network might have billions of dials. AlphaFold 2 has around 93 million parameters. GPT-4 has hundreds of billions.</p>
+        <p>Think of parameters as dials on a mixing board. Training turns each dial very slightly, millions of times, until the output is right. AlphaFold 2 has 93 million dials. GPT-4 has hundreds of billions.</p>
       </div>
 
-      <h2>What Does "Learning" Actually Mean?</h2>
-      <p>Learning does not mean the model understands biology. It means the model has found a mathematical function that maps your features to your labels accurately on the training data.</p>
-      <p>Consider a simple example. You want to predict tumour vs normal from two gene expression values — Gene A and Gene B.</p>
-
-      <pre><code>Sample   Gene_A   Gene_B   Label
-──────   ──────   ──────   ─────
-S1       8.2      1.1      Tumour
-S2       1.3      7.8      Normal
-S3       7.9      1.4      Tumour
-S4       1.1      8.2      Normal
-S5       8.5      0.9      Tumour</code></pre>
-
-      <p>A model looks at hundreds of such examples and learns: "when Gene A is high and Gene B is low, it's probably a tumour." That pattern is captured as parameter values — numbers inside the model that encode the relationship between features and labels.</p>
-      <p>It has not "understood" the biology of why Gene A is elevated in tumours. It has learned a statistical association. This distinction matters when interpreting results.</p>
-
-      <h2>Training vs Testing — The Most Important Distinction</h2>
-      <p>A model that performs perfectly on the data it was trained on is not necessarily useful. It may have simply memorised the training examples rather than learning a generalisable pattern.</p>
-      <p>This is called <strong>overfitting</strong> — and it is the single most common failure mode in biological AI. (We dedicate a full chapter to it.)</p>
-      <p>To detect overfitting, you always split your data:</p>
+      <h2>Training vs Testing</h2>
+      <p>A model that performs perfectly on training data may have simply memorised it rather than learned anything generalisable. This is <strong>overfitting</strong> — the most common failure mode in biological AI.</p>
+      <p>You always split your data before training:</p>
 
       <pre><code>All data
-├── Training set  (~70-80%)  ← Model learns from this
-├── Validation set (~10-15%) ← Tune hyperparameters
-└── Test set       (~10-15%) ← Final honest evaluation</code></pre>
+├── Training set   (~70-80%)  Model learns from this
+├── Validation set (~10-15%)  Tune settings
+└── Test set       (~10-15%)  Final honest evaluation</code></pre>
 
-      <p>The test set is held out completely until the very end. Its performance tells you how well the model will perform on genuinely new, unseen data — which is what actually matters in biology.</p>
-
-      <div class="callout warning">
-        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Data leakage</strong>
-        <p>If test data accidentally influences training — through preprocessing, feature selection, or normalisation done on the full dataset before splitting — your evaluation is optimistic and your model is not as good as it looks. This happens more often than most papers admit. We return to this in Chapter 6.</p>
-      </div>
+      <p>The test set is held out completely until the end. Its performance is the only number that honestly tells you whether the model will work on new data.</p>
 
       <h2>Parameters vs Hyperparameters</h2>
-      <p>Two terms that confuse almost every beginner:</p>
 
       <table style="width:100%;border-collapse:collapse;margin:1rem 0;">
         <thead>
@@ -119,43 +76,33 @@ S5       8.5      0.9      Tumour</code></pre>
         <tbody>
           <tr style="border-bottom:1px solid var(--border);">
             <td style="padding:.75rem;"><strong>Parameters</strong></td>
-            <td style="padding:.75rem;">The weights inside the model — the numbers that get adjusted during training</td>
-            <td style="padding:.75rem;">Learned automatically from data</td>
+            <td style="padding:.75rem;">The weights inside the model — numbers adjusted during training</td>
+            <td style="padding:.75rem;">Learned from data</td>
           </tr>
           <tr>
             <td style="padding:.75rem;"><strong>Hyperparameters</strong></td>
-            <td style="padding:.75rem;">Settings that control how training works — learning rate, number of layers, tree depth</td>
+            <td style="padding:.75rem;">Settings that control how training works — learning rate, number of layers</td>
             <td style="padding:.75rem;">Set by you before training</td>
           </tr>
         </tbody>
       </table>
 
-      <p>You choose hyperparameters. The model learns parameters. Choosing good hyperparameters is part of the art of machine learning — and part of why simply downloading a model and running it without understanding the settings produces unreliable results.</p>
-
       <h2>A Model is Not the Truth</h2>
-      <p>George Box, a statistician, wrote: <em>"All models are wrong, but some are useful."</em> This is especially true in biology.</p>
-      <p>A model that predicts cancer subtype with 94% accuracy is not a biological truth. It is a useful approximation learned from a specific dataset, a specific feature set, a specific patient population, at a specific point in time. Change any of those and the accuracy may drop dramatically.</p>
-      <p>Every time you see a model applied to biological data, ask:</p>
-      <ul>
-        <li>What data was it trained on?</li>
-        <li>Does my data come from the same distribution?</li>
-        <li>What could it have learned that is not biology — batch effects, cohort biases, technical artifacts?</li>
-      </ul>
-
-      <div class="callout tip">
-        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Running Question progress</strong>
-        <p>Our running question: <em>Can we predict cancer subtype from gene expression?</em></p>
-        <p>After this chapter you now know what that question actually involves: features (gene expression values), labels (cancer subtypes), parameters (numbers learned from the data), and a test set (to honestly evaluate whether it works). In Chapter 7 we start building it.</p>
-      </div>
+      <p>George Box wrote: <em>"All models are wrong, but some are useful."</em> A model predicting cancer subtype with 94% accuracy is not biological truth. It is an approximation learned from a specific dataset at a specific time. Change the dataset and the accuracy may drop dramatically.</p>
 
       <div class="callout warning">
         <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Reality Check</strong>
         <ul>
-          <li>A model with high training accuracy may have simply memorised the data</li>
-          <li>The test set performance is the only number that matters</li>
-          <li>A model is only as good as the labels it was trained on</li>
-          <li>Could you answer the same question with a simpler statistical test?</li>
+          <li>High training accuracy may mean memorisation, not learning</li>
+          <li>Test set performance is the only number that matters</li>
+          <li>A model is only as good as its labels</li>
+          <li>Could a simpler statistical test answer the same question?</li>
         </ul>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(56,189,248,.08),rgba(167,139,250,.08));border:1px solid var(--accent);border-radius:12px;padding:1.25rem;margin:1.5rem 0;">
+        <p style="font-weight:600;margin:0;"><i data-lucide="target" style="width:16px;height:16px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Running Question</p>
+        <p style="color:var(--text-muted);font-size:.9rem;margin:.5rem 0 0;">Can we predict cancer subtype from gene expression? You now know what that involves: features (expression values), labels (subtypes), parameters (learned numbers), and a test set. In Chapter 7 we start building it.</p>
       </div>
 
       <div class="module-nav">
@@ -176,43 +123,43 @@ S5       8.5      0.9      Tumour</code></pre>
         <button class="quiz-option" data-value="b">The correct answers used for training</button>
         <button class="quiz-option" data-value="c">The numerical values inside the model that are adjusted during training to reduce prediction error</button>
         <button class="quiz-option" data-value="d">The hyperparameters you set before training</button>
-        <div class="quiz-explanation" data-text="Parameters are the internal numbers of the model — the 'dials' that get adjusted during training. Learning means finding parameter values that map inputs to correct outputs. Hyperparameters are different — those are settings you choose before training begins."></div>
+        <div class="quiz-explanation" data-text="Parameters are the internal numbers of the model — the dials adjusted during training. Learning means finding parameter values that map inputs to correct outputs. Hyperparameters are settings you choose before training begins."></div>
       </div>
 
       <div class="quiz-question" data-type="choice" data-answer="b">
-        <h4><span class="q-num">2</span> You train a model to classify tumour vs normal samples. It achieves 99% accuracy. What is the most important next step?</h4>
-        <button class="quiz-option" data-value="a">Increase the model complexity to reach 100%</button>
-        <button class="quiz-option" data-value="b">Evaluate it on a held-out test set that was not used during training</button>
+        <h4><span class="q-num">2</span> You train a model that achieves 99% accuracy. What is the most important next step?</h4>
+        <button class="quiz-option" data-value="a">Increase model complexity to reach 100%</button>
+        <button class="quiz-option" data-value="b">Evaluate it on a held-out test set not used during training</button>
         <button class="quiz-option" data-value="c">Submit the paper immediately</button>
         <button class="quiz-option" data-value="d">Reduce the number of features</button>
-        <div class="quiz-explanation" data-text="Training accuracy tells you nothing about generalisation. A model can memorise training examples and fail completely on new data. The test set — held out before training begins — is the only honest measure of real-world performance."></div>
+        <div class="quiz-explanation" data-text="Training accuracy tells you nothing about generalisation. The test set — held out before training — is the only honest measure of real-world performance."></div>
       </div>
 
       <div class="quiz-question" data-type="choice" data-answer="d">
         <h4><span class="q-num">3</span> What is the difference between parameters and hyperparameters?</h4>
         <button class="quiz-option" data-value="a">Parameters are set by the user; hyperparameters are learned from data</button>
-        <button class="quiz-option" data-value="b">They are the same thing with different names</button>
+        <button class="quiz-option" data-value="b">They are the same thing</button>
         <button class="quiz-option" data-value="c">Parameters control the learning rate; hyperparameters control the weights</button>
-        <button class="quiz-option" data-value="d">Parameters are learned automatically from data; hyperparameters are settings you choose before training</button>
-        <div class="quiz-explanation" data-text="Parameters (weights) are what the model learns from data — you don't set them manually. Hyperparameters are the settings that control how training works — learning rate, number of layers, regularisation strength — and you set these before training begins."></div>
+        <button class="quiz-option" data-value="d">Parameters are learned from data; hyperparameters are settings you choose before training</button>
+        <div class="quiz-explanation" data-text="Parameters are what the model learns. Hyperparameters — learning rate, number of layers, regularisation strength — are what you set before training begins."></div>
       </div>
 
       <div class="quiz-question" data-type="choice" data-answer="a">
-        <h4><span class="q-num">4</span> A model perfectly classifies every sample in the training set but performs poorly on new samples. This is called:</h4>
+        <h4><span class="q-num">4</span> A model perfectly classifies every training sample but performs poorly on new samples. This is called:</h4>
         <button class="quiz-option" data-value="a">Overfitting</button>
         <button class="quiz-option" data-value="b">Underfitting</button>
         <button class="quiz-option" data-value="c">Data leakage</button>
         <button class="quiz-option" data-value="d">Batch effect</button>
-        <div class="quiz-explanation" data-text="Overfitting means the model memorised the training data — including its noise — rather than learning a generalisable pattern. It performs well on training data but fails on new data. It is the most common failure mode in biological AI."></div>
+        <div class="quiz-explanation" data-text="Overfitting means the model memorised training data including its noise, rather than learning a generalisable pattern. The most common failure mode in biological AI."></div>
       </div>
 
       <div class="quiz-question" data-type="choice" data-answer="c">
-        <h4><span class="q-num">5</span> In a supervised learning task to predict cancer subtype from gene expression, what are the "labels"?</h4>
+        <h4><span class="q-num">5</span> In a supervised task to predict cancer subtype from gene expression, what are the labels?</h4>
         <button class="quiz-option" data-value="a">The gene expression values for each sample</button>
         <button class="quiz-option" data-value="b">The model's internal weights</button>
         <button class="quiz-option" data-value="c">The known cancer subtypes assigned to each training sample</button>
         <button class="quiz-option" data-value="d">The hyperparameters chosen before training</button>
-        <div class="quiz-explanation" data-text="Labels are the correct answers the model is trained to predict. In this case, the cancer subtype for each patient sample — lung, breast, colon, etc. — assigned from clinical or pathological records. The model learns the mapping from gene expression (features) to subtype (label)."></div>
+        <div class="quiz-explanation" data-text="Labels are the correct answers the model is trained to predict — in this case the cancer subtype from clinical records. The model learns the mapping from gene expression (features) to subtype (label)."></div>
       </div>
 
       <div class="quiz-score" style="display:none;"></div>

@@ -2,7 +2,7 @@
   <div class="module-header">
     <h1><i data-lucide="git-branch" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 3: Classification, Regression and Clustering</h1>
     <div class="meta">
-      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~35 min</span>
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~20 min</span>
       <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Beginner</span>
       <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Classification, Regression, Clustering, Supervised, Unsupervised</span>
     </div>
@@ -18,85 +18,102 @@
     <div class="lesson">
 
       <h2>The Biological Question</h2>
-      <p>Before choosing any algorithm, you need to answer one question: <strong>what kind of output do you want?</strong></p>
+      <p>Before choosing any algorithm, answer one question: <strong>what kind of output do you want?</strong></p>
       <p>Three scenarios from real biology:</p>
       <ul>
-        <li>A patient's tumour is either lung cancer, breast cancer, or colon cancer — which one? <em>(a category)</em></li>
-        <li>What is the predicted survival time of this patient in months? <em>(a number)</em></li>
-        <li>These 10,000 cells — do they naturally group into distinct populations? <em>(unknown groups)</em></li>
+        <li>Which cancer subtype is this tumour? <em>A category</em></li>
+        <li>How long will this patient survive in months? <em>A number</em></li>
+        <li>Do these 10,000 cells form distinct natural groups? <em>Unknown groups</em></li>
       </ul>
-      <p>These three scenarios correspond to the three fundamental tasks in machine learning: <strong>classification</strong>, <strong>regression</strong>, and <strong>clustering</strong>. Understanding which task you are solving determines every subsequent decision — which algorithm to use, which metrics to evaluate, and how to interpret results.</p>
+      <p>These map to the three fundamental ML tasks: classification, regression, and clustering.</p>
 
-      <h2>Classification — Predicting a Category</h2>
-      <p>Classification is the task of assigning an input to one of a fixed set of categories.</p>
-
-      <pre><code>Input                          Output (category)
-─────                          ─────────────────
-Gene expression profile   →    Cancer subtype (lung / breast / colon)
-Cell gene expression      →    Cell type (T cell / B cell / monocyte)
-DNA sequence              →    Regulatory element (yes / no)
-Patient genomic profile   →    Treatment responder (yes / no)
-Variant                   →    Pathogenic / Benign / Uncertain</code></pre>
-
-      <p>When the output has exactly two categories (tumour vs normal, pathogenic vs benign) it is called <strong>binary classification</strong>. When there are three or more categories (cancer subtype) it is called <strong>multi-class classification</strong>.</p>
-
-      <h3>How classification works intuitively</h3>
-      <p>Imagine plotting each tumour sample in a space where each axis is a gene's expression. Samples of the same cancer type tend to cluster together. Classification draws a <strong>decision boundary</strong> — a line or curve that separates the groups. New samples that land on one side are classified as type A; the other side, type B.</p>
-      <p>In practice you have 20,000 genes — 20,000 dimensions — not 2. The decision boundary exists in a space you cannot visualise. But the concept is identical.</p>
-
-      <div class="callout tip">
-        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Classification algorithms you will use in this course</strong>
-        <ul>
-          <li><strong>Logistic Regression</strong> — simple, interpretable, often surprisingly competitive (Chapter 8)</li>
-          <li><strong>Random Forest</strong> — robust, handles many features well, provides feature importance (Chapter 8)</li>
-          <li><strong>Neural Networks</strong> — powerful for complex patterns, needs more data (Chapter 9)</li>
-          <li><strong>Geneformer / scGPT</strong> — foundation models pretrained on millions of cells (Chapter 12)</li>
-        </ul>
+      <div style="text-align:center;margin:1.5rem 0;">
+        <img src="/img/three_tasks.png" alt="Three ML tasks: Classification predicts categories, Regression predicts numbers, Clustering discovers groups" style="max-width:100%;border-radius:12px;border:1px solid var(--border);">
       </div>
 
+      <h2>Classification — Predicting a Category</h2>
+      <p>Classification assigns an input to one of a fixed set of categories.</p>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.75rem;margin:1rem 0;">
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:1rem;font-size:.85rem;">
+          <strong style="color:var(--accent);">Gene expression</strong><br>
+          <span style="color:var(--text-muted);">→ Cancer subtype</span>
+        </div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:1rem;font-size:.85rem;">
+          <strong style="color:var(--accent);">Cell gene expression</strong><br>
+          <span style="color:var(--text-muted);">→ Cell type (T cell / B cell)</span>
+        </div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:1rem;font-size:.85rem;">
+          <strong style="color:var(--accent);">DNA sequence</strong><br>
+          <span style="color:var(--text-muted);">→ Regulatory element (yes / no)</span>
+        </div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:1rem;font-size:.85rem;">
+          <strong style="color:var(--accent);">Variant</strong><br>
+          <span style="color:var(--text-muted);">→ Pathogenic / Benign</span>
+        </div>
+      </div>
+
+      <p>Two categories = <strong>binary classification</strong>. Three or more = <strong>multi-class classification</strong>.</p>
+
       <h2>Regression — Predicting a Number</h2>
-      <p>Regression is the task of predicting a continuous numerical value rather than a category.</p>
+      <p>Regression predicts a continuous numerical value rather than a category.</p>
 
-      <pre><code>Input                          Output (number)
-─────                          ───────────────
-Gene expression profile   →    Survival time (months)
-DNA sequence features     →    Gene expression level
-Genomic variants          →    Protein abundance
-Cell state features       →    Pseudotime (developmental stage)
-Multi-omics profile       →    Drug response score (IC50)</code></pre>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.75rem;margin:1rem 0;">
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:1rem;font-size:.85rem;">
+          <strong style="color:var(--purple);">Gene expression profile</strong><br>
+          <span style="color:var(--text-muted);">→ Survival time (months)</span>
+        </div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:1rem;font-size:.85rem;">
+          <strong style="color:var(--purple);">Multi-omics profile</strong><br>
+          <span style="color:var(--text-muted);">→ Drug response score (IC50)</span>
+        </div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:1rem;font-size:.85rem;">
+          <strong style="color:var(--purple);">DNA sequence</strong><br>
+          <span style="color:var(--text-muted);">→ Gene expression level</span>
+        </div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:1rem;font-size:.85rem;">
+          <strong style="color:var(--purple);">Cell state features</strong><br>
+          <span style="color:var(--text-muted);">→ Pseudotime value</span>
+        </div>
+      </div>
 
-      <p>The difference from classification is the nature of the output. Survival time is not a category — it is a continuous value that can be 3.2 months, 47.8 months, or any number in between. Predicting it requires regression.</p>
-
-      <h3>When does it matter which you use?</h3>
-      <p>Using the wrong task type is a common mistake. If you bin a continuous outcome into categories — "low survival" vs "high survival" — you discard information and reduce statistical power. If you treat a category as a number — assigning 1 to lung, 2 to breast, 3 to colon — you introduce a false ordering that confuses the model.</p>
-      <p>Match the algorithm to the output type.</p>
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Common mistake</strong>
+        <p>Binning survival time into "short" vs "long" survival makes it classification — but discards information and reduces statistical power. Use regression when your outcome is continuous.</p>
+      </div>
 
       <h2>Clustering — Discovering Groups Without Labels</h2>
-      <p>Classification and regression both require labels — you need to know the correct answer for your training examples. Clustering does not. It finds natural groupings in data without being told what the groups are.</p>
+      <p>Clustering finds natural groupings in data without being told what the groups are. No labels needed.</p>
 
-      <pre><code>Input                          Output (discovered groups)
-─────                          ──────────────────────────
-10,000 single cells       →    8 cell type clusters
-500 tumour samples        →    4 molecular subtypes
-1,000 patients            →    3 patient stratification groups
-Protein interaction data  →    Functional modules</code></pre>
-
-      <p>Clustering is <strong>unsupervised</strong> — there are no labels. The algorithm finds structure based on similarity in the feature space. This is what happens when you run UMAP on single-cell data and see distinct blobs — those blobs are clusters discovered by the algorithm.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.75rem;margin:1rem 0;">
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:1rem;font-size:.85rem;">
+          <strong style="color:var(--green);">10,000 single cells</strong><br>
+          <span style="color:var(--text-muted);">→ 8 cell type clusters</span>
+        </div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:1rem;font-size:.85rem;">
+          <strong style="color:var(--green);">500 tumour samples</strong><br>
+          <span style="color:var(--text-muted);">→ 4 molecular subtypes</span>
+        </div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:1rem;font-size:.85rem;">
+          <strong style="color:var(--green);">1,000 patients</strong><br>
+          <span style="color:var(--text-muted);">→ 3 stratification groups</span>
+        </div>
+      </div>
 
       <div class="callout warning">
         <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Clusters are not guaranteed to be biology</strong>
-        <p>Clustering finds groups that are mathematically distinct in your feature space. Those groups may correspond to real biological cell types — or they may reflect technical variation, sequencing depth differences, or batch effects. Always validate clusters against known markers before claiming biological discovery.</p>
+        <p>The groups could reflect batch effects, sequencing depth, or technical variation. Always validate clusters against known markers before making biological claims.</p>
       </div>
 
-      <h2>The Three Tasks Side by Side</h2>
+      <h2>The Three Tasks at a Glance</h2>
 
       <table style="width:100%;border-collapse:collapse;margin:1rem 0;">
         <thead>
           <tr style="border-bottom:2px solid var(--border);">
             <th style="text-align:left;padding:.75rem;">Task</th>
-            <th style="text-align:left;padding:.75rem;">Output type</th>
-            <th style="text-align:left;padding:.75rem;">Labels needed?</th>
-            <th style="text-align:left;padding:.75rem;">Biological example</th>
+            <th style="text-align:left;padding:.75rem;">Output</th>
+            <th style="text-align:left;padding:.75rem;">Labels?</th>
+            <th style="text-align:left;padding:.75rem;">Example</th>
           </tr>
         </thead>
         <tbody>
@@ -104,59 +121,42 @@ Protein interaction data  →    Functional modules</code></pre>
             <td style="padding:.75rem;"><strong>Classification</strong></td>
             <td style="padding:.75rem;">Category</td>
             <td style="padding:.75rem;">Yes</td>
-            <td style="padding:.75rem;">Cancer subtype, cell type, pathogenic variant</td>
+            <td style="padding:.75rem;">Cancer subtype, cell type</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border);">
             <td style="padding:.75rem;"><strong>Regression</strong></td>
-            <td style="padding:.75rem;">Continuous number</td>
+            <td style="padding:.75rem;">Number</td>
             <td style="padding:.75rem;">Yes</td>
-            <td style="padding:.75rem;">Survival time, gene expression level, drug IC50</td>
+            <td style="padding:.75rem;">Survival time, expression level</td>
           </tr>
           <tr>
             <td style="padding:.75rem;"><strong>Clustering</strong></td>
-            <td style="padding:.75rem;">Group assignments</td>
+            <td style="padding:.75rem;">Groups</td>
             <td style="padding:.75rem;">No</td>
-            <td style="padding:.75rem;">Cell populations, tumour subtypes, patient groups</td>
+            <td style="padding:.75rem;">Cell populations, patient groups</td>
           </tr>
         </tbody>
       </table>
 
-      <h2>Where Does PCA Fit?</h2>
-      <p>You encountered PCA in the Statistics for Biology course. PCA is not classification, regression, or clustering — it is <strong>dimensionality reduction</strong>. It compresses high-dimensional data into fewer dimensions while preserving as much variation as possible.</p>
-      <p>PCA is typically used as a preprocessing step before clustering or classification:</p>
-
-      <pre><code>Raw data (20,000 genes)
-        ↓
-PCA (reduce to 50 principal components)
-        ↓
-Clustering (find cell type groups)
-        ↓
-Classification (train a model on the clusters)</code></pre>
-
-      <p>In single-cell analysis this exact pipeline — PCA then clustering then UMAP visualisation — is run millions of times every week in labs worldwide. Chapter 7 applies it to TCGA data and Chapter 11 applies it to single-cell data.</p>
-
-      <h2>Choosing the Right Task</h2>
-      <p>Before building any model, ask:</p>
+      <h2>Before Building Any Model — Ask These First</h2>
       <ol>
-        <li><strong>What is my output?</strong> A category → classification. A number → regression. Unknown groups → clustering.</li>
-        <li><strong>Do I have labels?</strong> Yes → supervised (classification or regression). No → unsupervised (clustering).</li>
-        <li><strong>How many output categories?</strong> Two → binary classification. More → multi-class.</li>
-        <li><strong>Is a simpler method sufficient?</strong> A t-test, PCA, or differential expression analysis might answer your question without any model at all.</li>
+        <li><strong>What is my output?</strong> Category = classification. Number = regression. Unknown groups = clustering.</li>
+        <li><strong>Do I have labels?</strong> Yes = supervised. No = unsupervised.</li>
+        <li><strong>Is a simpler method sufficient?</strong> A t-test, PCA, or differential expression analysis might answer your question without a model at all.</li>
       </ol>
-
-      <div class="callout tip">
-        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Running Question progress</strong>
-        <p><em>Can we predict cancer subtype from gene expression?</em></p>
-        <p>This is a <strong>multi-class classification</strong> problem. The output is a category (one of several cancer subtypes). We have labels (from clinical records). In Chapter 8 we will train our first classification model on TCGA data using logistic regression and random forests.</p>
-      </div>
 
       <div class="callout warning">
         <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Reality Check</strong>
         <ul>
-          <li>Does your biological question actually require machine learning, or would a simpler statistical test suffice?</li>
-          <li>If you found clusters — have you validated them against known biology or just assumed they are real?</li>
-          <li>If you are doing classification — where did your labels come from, and could they be wrong?</li>
+          <li>Does your question actually require machine learning?</li>
+          <li>If you found clusters, have you validated them against known biology?</li>
+          <li>If you are classifying, where did your labels come from?</li>
         </ul>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(56,189,248,.08),rgba(167,139,250,.08));border:1px solid var(--accent);border-radius:12px;padding:1.25rem;margin:1.5rem 0;">
+        <p style="font-weight:600;margin:0;"><i data-lucide="target" style="width:16px;height:16px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Running Question</p>
+        <p style="color:var(--text-muted);font-size:.9rem;margin:.5rem 0 0;">Predicting cancer subtype from gene expression is <strong>multi-class classification</strong>. The output is a category. We have labels from clinical records. Chapter 8 is where we build it.</p>
       </div>
 
       <div class="module-nav">
@@ -177,16 +177,16 @@ Classification (train a model on the clusters)</code></pre>
         <button class="quiz-option" data-value="b">Regression</button>
         <button class="quiz-option" data-value="c">Clustering</button>
         <button class="quiz-option" data-value="d">Dimensionality reduction</button>
-        <div class="quiz-explanation" data-text="Survival time is a continuous number, not a category. Predicting a continuous value is regression. If you instead predicted 'short survivor vs long survivor' it would become classification — but binning continuous data discards information."></div>
+        <div class="quiz-explanation" data-text="Survival time is a continuous number, not a category. Predicting a continuous value is regression. Binning it into short vs long survivor makes it classification, but discards information."></div>
       </div>
 
       <div class="quiz-question" data-type="choice" data-answer="c">
-        <h4><span class="q-num">2</span> You run a clustering algorithm on 50,000 single cells and find 12 clusters. What must you do before claiming these are 12 distinct cell types?</h4>
-        <button class="quiz-option" data-value="a">Nothing — clustering algorithms always find biologically meaningful groups</button>
+        <h4><span class="q-num">2</span> You run clustering on 50,000 single cells and find 12 clusters. What must you do before claiming these are 12 distinct cell types?</h4>
+        <button class="quiz-option" data-value="a">Nothing — clustering always finds biologically meaningful groups</button>
         <button class="quiz-option" data-value="b">Run the analysis again to confirm</button>
-        <button class="quiz-option" data-value="c">Validate the clusters against known cell type marker genes and check for technical confounders like batch effects</button>
-        <button class="quiz-option" data-value="d">Increase the number of clusters until each one has a known marker</button>
-        <div class="quiz-explanation" data-text="Clustering finds mathematical groups — not guaranteed biological ones. The groups could reflect batch effects, sequencing depth, or technical variation. Always validate clusters against known markers (CD3 for T cells, CD19 for B cells, etc.) before making biological claims."></div>
+        <button class="quiz-option" data-value="c">Validate against known marker genes and check for batch effects</button>
+        <button class="quiz-option" data-value="d">Increase the number of clusters</button>
+        <div class="quiz-explanation" data-text="Clustering finds mathematical groups, not guaranteed biological ones. Always validate against known markers (CD3 for T cells, CD19 for B cells) before making biological claims."></div>
       </div>
 
       <div class="quiz-question" data-type="choice" data-answer="a">
@@ -194,8 +194,8 @@ Classification (train a model on the clusters)</code></pre>
         <button class="quiz-option" data-value="a">Classification requires labelled training data; clustering does not</button>
         <button class="quiz-option" data-value="b">Clustering is more accurate than classification</button>
         <button class="quiz-option" data-value="c">Classification is unsupervised; clustering is supervised</button>
-        <button class="quiz-option" data-value="d">They are the same task with different names</button>
-        <div class="quiz-explanation" data-text="Classification is supervised — you train on labelled examples (known cancer subtypes). Clustering is unsupervised — you find groups in data without any labels. The distinction matters for which algorithms you can use and how you evaluate results."></div>
+        <button class="quiz-option" data-value="d">They are the same task</button>
+        <div class="quiz-explanation" data-text="Classification is supervised — you train on labelled examples. Clustering is unsupervised — you find groups without labels. This distinction determines which algorithms you can use."></div>
       </div>
 
       <div class="quiz-question" data-type="choice" data-answer="d">
@@ -204,16 +204,16 @@ Classification (train a model on the clusters)</code></pre>
         <button class="quiz-option" data-value="b">Clustering</button>
         <button class="quiz-option" data-value="c">Multi-class classification</button>
         <button class="quiz-option" data-value="d">Binary classification</button>
-        <div class="quiz-explanation" data-text="There are exactly two categories — pathogenic or benign. Two-category prediction is binary classification. If you added a third category (uncertain significance) it would become multi-class classification."></div>
+        <div class="quiz-explanation" data-text="Two categories — pathogenic or benign — is binary classification. Adding a third category (uncertain significance) would make it multi-class."></div>
       </div>
 
       <div class="quiz-question" data-type="choice" data-answer="b">
-        <h4><span class="q-num">5</span> In a single-cell RNA-seq analysis pipeline, what is the typical role of PCA?</h4>
+        <h4><span class="q-num">5</span> In a single-cell pipeline, what is the typical role of PCA?</h4>
         <button class="quiz-option" data-value="a">It directly identifies cell types</button>
-        <button class="quiz-option" data-value="b">It reduces the 20,000-gene space to a smaller number of components before clustering</button>
+        <button class="quiz-option" data-value="b">It reduces the 20,000-gene space to fewer components before clustering</button>
         <button class="quiz-option" data-value="c">It replaces clustering entirely</button>
         <button class="quiz-option" data-value="d">It removes batch effects</button>
-        <div class="quiz-explanation" data-text="PCA is a dimensionality reduction step — it compresses 20,000 genes into ~50 principal components that capture most of the variation. Clustering then operates on those components rather than the raw high-dimensional data. This makes clustering faster and more stable."></div>
+        <div class="quiz-explanation" data-text="PCA compresses 20,000 genes into ~50 principal components preserving most variation. Clustering then operates on those components, making it faster and more stable."></div>
       </div>
 
       <div class="quiz-score" style="display:none;"></div>
