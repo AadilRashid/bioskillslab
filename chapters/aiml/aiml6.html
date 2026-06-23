@@ -1,0 +1,243 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="alert-octagon" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 6: When NOT to Use AI</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~50 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Beginner</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Overfitting, Data Leakage, Batch Effects, Sample Size, Interpretability</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>The Most Important Chapter in This Course</h2>
+      <p>Almost every AI for biology course teaches you how to use AI. Very few teach you when not to. This chapter addresses that gap directly.</p>
+      <p>The published literature is full of papers reporting impressive AI performance on biological tasks that later failed to replicate. Not because the authors were dishonest — most were not — but because the ways that AI can silently fail in biology are subtle, numerous, and rarely discussed in methods sections.</p>
+      <p>By the end of this chapter, you will be able to read an AI for biology paper and immediately identify the most common failure modes. That skill is worth more than knowing how to run any specific algorithm.</p>
+
+      <h2>Failure Mode 1: Sample Size is Too Small</h2>
+      <p>Deep learning models have millions of parameters. A model with 1 million parameters trained on 100 samples has 10,000 parameters per sample. It will memorise the training data completely — including every noise pattern, every outlier, every technical artifact. The training accuracy will look excellent. The model has learned nothing generalisable.</p>
+      <p>As a rough heuristic, you need at least 10 to 100 samples per parameter you are trying to learn. This means:</p>
+      <ul>
+        <li>Logistic regression on 50 features: you need at least 500 samples</li>
+        <li>A small neural network with 10,000 parameters: you need at least 100,000 samples</li>
+        <li>A large transformer with 100 million parameters: you need tens of millions of samples</li>
+      </ul>
+      <p>Most clinical genomics datasets have 50 to 500 patients. This is enough for logistic regression, random forests, and shallow models. It is not enough for deep learning unless you use transfer learning from a pretrained foundation model.</p>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> When n is small, always try the simplest model first</strong>
+        <p>With 100 patients, try logistic regression. Try a random forest. Try PCA followed by k-nearest neighbours. If these do not work, a neural network will not save you — the problem is not model complexity, it is data scarcity. Get more data, use a pretrained foundation model, or reconsider the question.</p>
+      </div>
+
+      <h2>Failure Mode 2: PCA Outperforms Deep Learning</h2>
+      <p>This is the finding that surprises most beginners: on many biological tasks, PCA followed by logistic regression outperforms or matches deep learning models that took 100x more compute to train.</p>
+      <p>A 2023 evaluation of single-cell foundation models found that on many cell type annotation benchmarks, a simple nearest-neighbour classifier on PCA components performed comparably to Geneformer and scGPT models with billions of pretraining examples. More recent work in 2024 and 2025 has replicated this finding across multiple tasks.</p>
+      <p>Why? Because PCA captures the dominant axes of biological variation in the data. If those axes align with the label of interest — and for cell type annotation they often do — a linear classifier on those components works very well. The complexity of a transformer adds noise as often as it adds signal when the underlying structure is linear.</p>
+      <p>This does not mean foundation models are useless. They shine on tasks where the signal is genuinely complex and non-linear — long-range regulatory interactions in DNA, protein structure from sequence, multi-modal data integration. But for straightforward classification tasks on tabular genomics data, always establish a PCA baseline before claiming your deep learning model is superior.</p>
+
+      <h2>Failure Mode 3: Data Leakage</h2>
+      <p>Data leakage is when information from the test set accidentally influences the training process. It produces models that look excellent on held-out data but fail on truly new samples. It is the most common cause of unreproducible results in computational biology.</p>
+      <p>Data leakage takes many forms:</p>
+
+      <h3>Leakage through normalisation</h3>
+      <p>You normalise your entire dataset using the mean and standard deviation of all samples, then split into train and test. Problem: the test set's statistics influenced the normalisation of the training set. The model has indirectly seen test set information.</p>
+      <p>Correct approach: fit the normalisation parameters on training data only, then apply those parameters to the test set.</p>
+
+      <h3>Leakage through feature selection</h3>
+      <p>You select the top 1,000 most variable genes across all 1,000 samples, then split into train and test and train a classifier. Problem: the gene selection used information from the test samples. If a gene is highly variable only because it is expressed differently in the test patients, your model has been given a hint.</p>
+      <p>Correct approach: perform feature selection on training data only, inside the cross-validation loop.</p>
+
+      <h3>Leakage through patient overlap</h3>
+      <p>A patient contributes multiple samples — a primary tumour and a metastasis. You split samples randomly into train and test, so samples from the same patient appear in both sets. Your model learns patient-specific expression patterns rather than cancer biology.</p>
+      <p>Correct approach: split by patient, not by sample.</p>
+
+      <pre><code>Wrong:  Split 1000 samples randomly into train/test
+        Patient 7's tumour -> train
+        Patient 7's metastasis -> test  (leakage)
+
+Right:  Split 200 patients into train/test patients
+        All samples from Patient 7 -> either train or test (not both)</code></pre>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> The leakage checklist</strong>
+        <ul>
+          <li>Was normalisation fitted on training data only?</li>
+          <li>Was feature selection performed on training data only?</li>
+          <li>Are patients split at the patient level, not the sample level?</li>
+          <li>Is there any pathway from test data to training decisions?</li>
+        </ul>
+        <p>If you cannot answer "yes" to all of these, your performance estimate is optimistic.</p>
+      </div>
+
+      <h2>Failure Mode 4: Batch Effects Are Not Biology</h2>
+      <p>Batch effects are systematic technical differences between samples processed in different batches — different labs, different sequencing runs, different library preparation kits, different operators. In genomics data, batch effects can be larger than biological effects.</p>
+      <p>A model trained on samples from Lab A and tested on samples from Lab B will learn Lab A's technical artifacts, not the biology. When tested on Lab B data, it will fail — not because the biology changed but because the technical signal changed.</p>
+      <p>The insidious case: a model trained entirely within one batch will appear to perform perfectly in cross-validation, because the batch effect is consistent across all samples. The failure only becomes apparent when you try to deploy it on data from a different institution.</p>
+      <p>How to detect batch effects: run PCA on your data before training anything. If samples cluster by batch rather than by biological label, you have a batch effect problem. Fix it with batch correction (ComBat, Harmony, scVI) before training any model.</p>
+
+      <pre><code>PCA plot shows:
+  Cluster 1: all samples from Lab A
+  Cluster 2: all samples from Lab B
+  
+  -> Batch effect detected before wasting any model training time</code></pre>
+
+      <h2>Failure Mode 5: Overfitting</h2>
+      <p>You already encountered overfitting in Chapter 2. Here is the deeper picture.</p>
+      <p>Overfitting is not just "the model is too complex." It is the fundamental tension between bias and variance:</p>
+      <ul>
+        <li>A model that is too simple (high bias) cannot capture the real patterns in the data</li>
+        <li>A model that is too complex (high variance) captures the real patterns plus all the noise</li>
+      </ul>
+      <p>The art of machine learning is finding the right level of complexity for your dataset size. Signs of overfitting in practice:</p>
+      <ul>
+        <li>Training accuracy significantly higher than test accuracy</li>
+        <li>Model performance drops substantially on an independent validation cohort</li>
+        <li>Adding more training data improves performance significantly (the model was underpowered)</li>
+        <li>AUC on training set is near 1.0 but AUC on test set is 0.7</li>
+      </ul>
+      <p>Solutions: regularisation, dropout, data augmentation, cross-validation, simpler models, more data.</p>
+
+      <h2>Failure Mode 6: You Are Measuring the Wrong Thing</h2>
+      <p>A model achieves 98% accuracy on cell type annotation. But looking at the confusion matrix, it perfectly classifies the common cell types and completely fails on the rare ones — which happen to be the biologically interesting ones you cared about.</p>
+      <p>A survival prediction model achieves excellent RMSE on the training cohort. But the training cohort was from a single hospital with predominantly one ethnic group, and the model was never tested on patients from other populations. It has learned population-specific confounders, not biology.</p>
+      <p>Metric selection (Chapter 4) is part of this failure mode, but it goes deeper. You must be explicit about what biological question you are answering, then choose evaluation criteria that actually measure whether you answered it.</p>
+
+      <h2>Failure Mode 7: The Baseline Was Not Run</h2>
+      <p>A paper reports that their new deep learning model achieves AUC = 0.87 on cancer subtype prediction. Impressive. But they never compared it to logistic regression on PCA components, which achieves AUC = 0.85 with 100x less compute and a model you can actually interpret.</p>
+      <p>The minimum baseline for any AI paper in biology should include:</p>
+      <ul>
+        <li>Random classifier (predict most common class always)</li>
+        <li>Logistic regression on raw features</li>
+        <li>Random forest on raw features</li>
+        <li>PCA followed by logistic regression or k-NN</li>
+      </ul>
+      <p>If your deep learning model does not substantially outperform all of these, the complexity is not justified. "Substantially" means clinically meaningful, not just statistically significant. A 2% improvement in AUC on a balanced dataset is statistical. A 2% improvement in sensitivity for rare cancer detection may be clinically important.</p>
+
+      <h2>A Decision Framework for Using AI in Biology</h2>
+      <p>Before building any model, work through these questions:</p>
+
+      <pre><code>1. What is the biological question?
+   (Be specific. "Predict cancer" is not a question.)
+
+2. Do you have enough data?
+   n < 100:   logistic regression, maybe random forest
+   n < 1000:  random forest, shallow networks
+   n > 10000: deep learning becomes viable
+
+3. Have you checked for batch effects?
+   (PCA first, always)
+
+4. Are your labels trustworthy?
+   (Inconsistent labels = ceiling on performance)
+
+5. What is your baseline?
+   (PCA + logistic regression before anything else)
+
+6. What metric are you optimising?
+   (Match metric to biology, not to algorithm convenience)
+
+7. Is your evaluation honest?
+   (Independent cohort, no leakage, patient-level split)
+
+8. Does the complexity add value?
+   (AUC improvement > random variation? Clinically meaningful?)</code></pre>
+
+      <p>If you work through this framework and still conclude that a complex model is warranted, build it with confidence. If the framework reveals that a simpler approach would work — use the simpler approach. Simpler models are easier to interpret, easier to validate, easier to deploy, and more likely to replicate.</p>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> The most important sentence in this course</strong>
+        <p>The goal is to answer a biological question, not to use a particular algorithm. If PCA answers your question, use PCA. If a random forest answers your question, use a random forest. If a foundation model is genuinely necessary, use a foundation model. Always start simple.</p>
+      </div>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Reality Check — questions to ask every time you read an AI biology paper</strong>
+        <ul>
+          <li>What was the baseline? Was logistic regression on PCA components compared?</li>
+          <li>Was performance validated on an independent cohort from a different institution?</li>
+          <li>How was the train/test split done? At the patient level?</li>
+          <li>Was normalisation and feature selection performed inside the cross-validation loop?</li>
+          <li>What is the sample size? Is it sufficient for the model complexity?</li>
+          <li>Did the authors check for batch effects before training?</li>
+          <li>Is the performance improvement clinically meaningful, not just statistically significant?</li>
+        </ul>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(56,189,248,.08),rgba(167,139,250,.08));border:1px solid var(--accent);border-radius:12px;padding:1.25rem;margin:1.5rem 0;">
+        <p style="font-weight:600;margin:0;"><i data-lucide="target" style="width:16px;height:16px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Running Question</p>
+        <p style="color:var(--text-muted);font-size:.9rem;margin:.5rem 0 0;">In Chapter 7 we start building the cancer subtype classifier. We will run PCA first, check for batch effects, establish logistic regression and random forest baselines, and only then consider neural networks. The capstone asks the final question: did any of this complexity actually help?</p>
+      </div>
+
+      <div class="module-nav">
+        <button class="nav-btn" onclick="navigate('aiml5')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+        <button class="nav-btn" onclick="navigate('aiml7')">Next: Biological Data as Matrices and PCA <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Quiz — Chapter 6</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">1</span> You have 80 patient samples and want to predict treatment response. Which model is most appropriate?</h4>
+        <button class="quiz-option" data-value="a">A deep neural network with 10 million parameters</button>
+        <button class="quiz-option" data-value="b">A large transformer pretrained from scratch on your 80 samples</button>
+        <button class="quiz-option" data-value="c">Logistic regression or random forest — the dataset is too small for deep learning</button>
+        <button class="quiz-option" data-value="d">k-means clustering</button>
+        <div class="quiz-explanation" data-text="80 samples is far too few for deep learning from scratch. A model with millions of parameters will simply memorise the training data. Logistic regression or random forest are appropriate choices. If deep learning is needed, use a pretrained foundation model and fine-tune on your 80 samples."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">2</span> You normalise your entire dataset (train and test) using the global mean and standard deviation, then evaluate your model. What problem does this introduce?</h4>
+        <button class="quiz-option" data-value="a">The model will underfit the training data</button>
+        <button class="quiz-option" data-value="b">Data leakage — the test set statistics influenced the normalisation of training data</button>
+        <button class="quiz-option" data-value="c">Batch effects will be introduced</button>
+        <button class="quiz-option" data-value="d">No problem — this is standard practice</button>
+        <div class="quiz-explanation" data-text="Normalising across all data before splitting means test set statistics influenced training preprocessing. The model has indirectly seen test information. Normalisation parameters must be fitted on training data only, then applied to test data."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">3</span> In a PCA plot of your training data, samples cluster by sequencing batch rather than by cancer subtype. What should you do?</h4>
+        <button class="quiz-option" data-value="a">Proceed with model training — batch effects are not a concern</button>
+        <button class="quiz-option" data-value="b">Remove the batch variable from the metadata</button>
+        <button class="quiz-option" data-value="c">Use a more complex model that can learn past the batch effect</button>
+        <button class="quiz-option" data-value="d">Apply batch correction (ComBat, Harmony) before any model training</button>
+        <div class="quiz-explanation" data-text="A model trained on data with uncorrected batch effects will learn the batch signal, not the biology. It will fail when applied to samples from a different batch or institution. Correct batch effects before training any model."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">4</span> A new deep learning model achieves AUC = 0.88 on cancer prediction. The authors did not compare to logistic regression. What is missing?</h4>
+        <button class="quiz-option" data-value="a">A baseline comparison — without it you cannot know if the complexity was necessary</button>
+        <button class="quiz-option" data-value="b">Nothing — AUC = 0.88 speaks for itself</button>
+        <button class="quiz-option" data-value="c">A larger training dataset</button>
+        <button class="quiz-option" data-value="d">Cross-validation results</button>
+        <div class="quiz-explanation" data-text="Without a baseline, AUC = 0.88 is meaningless. If logistic regression on PCA components achieves AUC = 0.87, the deep learning model's complexity adds almost nothing. The minimum baseline for any AI paper in biology should include logistic regression and random forest."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">5</span> A dataset has samples from the same patient taken at different time points. How should you split it for model evaluation?</h4>
+        <button class="quiz-option" data-value="a">Split samples randomly 80/20 into train and test</button>
+        <button class="quiz-option" data-value="b">Use the earliest timepoint for training and latest for testing</button>
+        <button class="quiz-option" data-value="c">Split at the patient level — all samples from a patient go to either train or test, never both</button>
+        <button class="quiz-option" data-value="d">Use cross-validation on individual samples</button>
+        <div class="quiz-explanation" data-text="If samples from the same patient appear in both train and test, the model learns patient-specific expression patterns rather than generalised biology. Split at the patient level to ensure the test set contains patients the model has never seen in any form."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container"></div>
+  </div>
+
+</div>

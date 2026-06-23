@@ -1,0 +1,241 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="split" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 5: Supervised vs Unsupervised Learning</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~40 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Beginner</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Supervised, Unsupervised, Random Forest, Logistic Regression, PCA, k-means</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>The Biological Question</h2>
+      <p>Two scenarios that look similar but require completely different approaches:</p>
+      <p><strong>Scenario A:</strong> You have gene expression profiles from 500 tumour samples, each labelled with its cancer subtype from pathology reports. You want to build a model that predicts cancer subtype for new samples.</p>
+      <p><strong>Scenario B:</strong> You have single-cell RNA-seq data from 20,000 cells. You have no labels. You want to discover what cell types are present.</p>
+      <p>Scenario A is supervised learning. Scenario B is unsupervised learning. The distinction determines which algorithms you can use, how you evaluate results, and what biological claims you can make.</p>
+
+      <h2>Supervised Learning — Learning From Labels</h2>
+      <p>In supervised learning, every training example has a known label. The algorithm learns a mapping from features to labels — a function that can then be applied to new, unlabelled samples.</p>
+
+      <pre><code>Supervised learning workflow:
+  
+  Labelled data (features + known answers)
+          ↓
+  Train model (learn the mapping)
+          ↓
+  Evaluate on test set (honest performance estimate)
+          ↓
+  Apply to new samples (predict labels)</code></pre>
+
+      <p>The labels are your supervision — they tell the algorithm what correct looks like. Without labels, supervised learning is impossible.</p>
+
+      <h3>Where Labels Come From in Biology</h3>
+      <p>Labels come from experiments, clinical records, or expert annotation. Some examples:</p>
+      <ul>
+        <li>Cancer subtype from pathology reports or molecular profiling panels</li>
+        <li>Tumour vs normal from surgical annotation</li>
+        <li>Cell type from fluorescence-activated cell sorting (FACS) with antibody markers</li>
+        <li>Regulatory element vs non-regulatory from ChIP-seq or ATAC-seq experiments</li>
+        <li>Pathogenic variant from ClinVar or functional assays</li>
+        <li>Drug responder vs non-responder from clinical trial outcomes</li>
+      </ul>
+      <p>The quality of labels is a ceiling on model quality. If two pathologists disagree on cancer subtype for 20% of cases, a model trained on those labels cannot reliably exceed 80% accuracy — not because of algorithmic limitations, but because the labels themselves are inconsistent.</p>
+
+      <h3>Key Supervised Algorithms — A Preview</h3>
+      <p>You will build models with all of these in Chapters 7-10. Here is the conceptual introduction:</p>
+
+      <p><strong>Logistic Regression</strong> finds a linear boundary in feature space that separates classes. Despite the name, it is a classification algorithm. It is interpretable — you can look at the coefficients and understand which features drive predictions. It often performs surprisingly well even on complex genomics data, and should always be your baseline.</p>
+
+      <p><strong>Random Forest</strong> builds hundreds of decision trees, each trained on a random subset of features and samples, then averages their predictions. The randomness makes it robust to overfitting and noise. It handles thousands of features (genes) well, provides feature importance scores, and works even when features outnumber samples — a common situation in genomics.</p>
+
+      <p><strong>Neural Networks</strong> learn hierarchical representations of data through layers of weighted connections. They excel when the signal is complex and non-linear, and when you have enough data to support the parameter count. In genomics, they become necessary when the relationships between features are too complex for random forests to capture — for example, learning spatial patterns in sequence data.</p>
+
+      <h2>Unsupervised Learning — Discovering Structure Without Labels</h2>
+      <p>Unsupervised learning finds structure in data without being told what to look for. There are no labels. The algorithm discovers patterns based purely on the similarities and differences between samples.</p>
+
+      <pre><code>Unsupervised learning workflow:
+  
+  Unlabelled data (features only, no answers)
+          ↓
+  Find structure (clusters, components, embeddings)
+          ↓
+  Interpret results (what do the patterns mean biologically?)
+          ↓
+  Validate against known biology (are these real?)</code></pre>
+
+      <p>The critical difference from supervised learning is that the last step — interpretation and validation — is entirely on you. The algorithm has found mathematical structure. Whether that structure corresponds to real biology requires domain knowledge.</p>
+
+      <h3>Principal Component Analysis (PCA)</h3>
+      <p>You covered PCA in the Statistics for Biology course. Here it appears as an unsupervised learning method. PCA finds the directions of maximum variance in high-dimensional data and projects everything onto those directions.</p>
+      <p>In genomics, PCA is used to:</p>
+      <ul>
+        <li>Visualise 20,000-dimensional gene expression data in 2D</li>
+        <li>Identify batch effects (samples from different labs often cluster by batch in PCA)</li>
+        <li>Reduce dimensions before clustering or supervised classification</li>
+        <li>Find the major axes of variation in a patient cohort</li>
+      </ul>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> PCA is often the right answer</strong>
+        <p>Before reaching for a deep learning model, always run PCA. If your samples separate clearly by the label of interest in PCA space, a simple classifier will work well. If they do not separate, even a complex model will struggle. PCA tells you how easy the problem is before you invest compute time in complex methods.</p>
+      </div>
+
+      <h3>k-Means Clustering</h3>
+      <p>k-means is the simplest clustering algorithm. You specify k (the number of clusters) and the algorithm assigns each sample to the nearest cluster centre, then updates cluster centres, and repeats until stable.</p>
+
+      <pre><code>k-means algorithm:
+  1. Choose k (number of clusters)
+  2. Randomly initialise k cluster centres
+  3. Assign each sample to nearest centre
+  4. Update each centre to the mean of its assigned samples
+  5. Repeat steps 3-4 until assignments stop changing</code></pre>
+
+      <p>The main weakness of k-means is that you must specify k in advance, and the result depends on the random initialisation. Run it multiple times and take the best result. For single-cell analysis, more sophisticated algorithms like Leiden (which we use in the single-cell chapters) are preferred.</p>
+
+      <h3>UMAP — Nonlinear Dimensionality Reduction</h3>
+      <p>UMAP is not strictly a clustering algorithm but it is almost always used alongside clustering in single-cell analysis. While PCA is linear, UMAP is nonlinear — it can preserve complex neighbourhood structures that PCA flattens out.</p>
+      <p>UMAP produces the signature "blobs on a dark background" visualisation you have seen in every single-cell paper. Each blob is a cluster of cells with similar expression profiles. UMAP preserves local structure very well but distorts global distances — two blobs being far apart in UMAP does not necessarily mean they are biologically very different.</p>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> UMAP is for visualisation, not analysis</strong>
+        <p>Never perform statistical analysis on UMAP coordinates. The distances are not meaningful. UMAP is a visualisation tool. Perform your clustering on PCA components, then visualise the result with UMAP. The clusters shown in a UMAP plot should have been defined before UMAP was run.</p>
+      </div>
+
+      <h2>Semi-Supervised Learning — The Middle Ground</h2>
+      <p>In practice, many genomics problems fall between fully supervised and fully unsupervised. You have labels for some samples but not all. Semi-supervised learning uses the labelled samples to guide clustering of the unlabelled ones.</p>
+      <p>In single-cell biology, this is the standard approach: you have a few hundred cells with confirmed cell type labels from FACS sorting, and 50,000 cells without. You use the labelled cells to annotate the clusters found by unsupervised clustering. This is not fully supervised (you did not label 50,000 cells) and not fully unsupervised (you are using prior knowledge to interpret clusters).</p>
+
+      <h2>Self-Supervised Learning — The Foundation Model Paradigm</h2>
+      <p>Self-supervised learning is a third paradigm that has become central to modern biological AI. The model creates its own supervision from the data structure, without human labels.</p>
+      <p>The most common form: mask part of the input and train the model to predict what was masked. This is how BERT works for language, and how DNABERT and Geneformer work for DNA and cells respectively. Geneformer was pretrained by masking gene tokens in a cell's expression profile and training the model to predict which genes were masked — using 30 million single cells as training data, with no human labels required.</p>
+      <p>Self-supervised pretraining is why foundation models are so powerful: they learn rich biological representations from enormous unlabelled datasets, then can be fine-tuned on small labelled datasets for specific tasks.</p>
+
+      <h2>Choosing the Right Approach</h2>
+
+      <table style="width:100%;border-collapse:collapse;margin:1rem 0;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border);">
+            <th style="text-align:left;padding:.75rem;">Situation</th>
+            <th style="text-align:left;padding:.75rem;">Approach</th>
+            <th style="text-align:left;padding:.75rem;">Examples</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">You have labelled training data</td>
+            <td style="padding:.75rem;">Supervised</td>
+            <td style="padding:.75rem;">Cancer classification, variant pathogenicity</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">No labels, want to discover structure</td>
+            <td style="padding:.75rem;">Unsupervised</td>
+            <td style="padding:.75rem;">Single-cell clustering, patient stratification</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">Some labels, mostly unlabelled</td>
+            <td style="padding:.75rem;">Semi-supervised</td>
+            <td style="padding:.75rem;">Single-cell annotation with reference dataset</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">Enormous unlabelled dataset, want rich representations</td>
+            <td style="padding:.75rem;">Self-supervised</td>
+            <td style="padding:.75rem;">Geneformer, DNABERT, scGPT pretraining</td>
+          </tr>
+          <tr>
+            <td style="padding:.75rem;">Not sure which group a sample belongs to</td>
+            <td style="padding:.75rem;">Start with PCA</td>
+            <td style="padding:.75rem;">Always the first step</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Reality Check</strong>
+        <ul>
+          <li>Before any model: can PCA reveal the structure you are looking for?</li>
+          <li>Are your labels trustworthy? Inconsistent labels produce unreliable models.</li>
+          <li>If you found clusters unsupervised, have you validated them against known biology?</li>
+          <li>Is self-supervised pretraining on a foundation model actually necessary, or would a random forest on PCA components work just as well?</li>
+        </ul>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(56,189,248,.08),rgba(167,139,250,.08));border:1px solid var(--accent);border-radius:12px;padding:1.25rem;margin:1.5rem 0;">
+        <p style="font-weight:600;margin:0;"><i data-lucide="target" style="width:16px;height:16px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Running Question</p>
+        <p style="color:var(--text-muted);font-size:.9rem;margin:.5rem 0 0;">Our cancer subtype prediction task is supervised — we have labels from clinical records. But Chapter 7 will start with PCA on TCGA data, unsupervised, to see whether the subtypes separate before we train any classifier. If they do not, no classifier will reliably learn them.</p>
+      </div>
+
+      <div class="module-nav">
+        <button class="nav-btn" onclick="navigate('aiml4')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+        <button class="nav-btn" onclick="navigate('aiml6')">Next: When NOT to Use AI <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Quiz — Chapter 5</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">1</span> You have 20,000 single cells with no cell type labels and want to discover cell populations. Which approach should you use?</h4>
+        <button class="quiz-option" data-value="a">Supervised classification</button>
+        <button class="quiz-option" data-value="b">Unsupervised clustering</button>
+        <button class="quiz-option" data-value="c">Regression</button>
+        <button class="quiz-option" data-value="d">Self-supervised pretraining</button>
+        <div class="quiz-explanation" data-text="No labels means unsupervised learning. Clustering will find groups of cells with similar expression profiles. You then validate those groups against known cell type markers to determine what biology they represent."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">2</span> What is the most important reason to run PCA before clustering or classification?</h4>
+        <button class="quiz-option" data-value="a">PCA makes the analysis faster</button>
+        <button class="quiz-option" data-value="b">PCA removes batch effects</button>
+        <button class="quiz-option" data-value="c">PCA reveals whether the signal of interest is present and visible before investing in complex models</button>
+        <button class="quiz-option" data-value="d">PCA always improves classifier accuracy</button>
+        <div class="quiz-explanation" data-text="If samples separate by the label of interest in PCA space, a simple classifier will work well. If they don't separate, even a complex model will struggle. PCA tells you how hard the problem is before you invest compute time."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">3</span> Why should you never perform statistical analysis directly on UMAP coordinates?</h4>
+        <button class="quiz-option" data-value="a">UMAP coordinates are always on a different scale</button>
+        <button class="quiz-option" data-value="b">UMAP is only for 3D data</button>
+        <button class="quiz-option" data-value="c">UMAP requires normalised input</button>
+        <button class="quiz-option" data-value="d">UMAP distorts global distances — two blobs being far apart does not mean they are biologically very different</button>
+        <div class="quiz-explanation" data-text="UMAP preserves local neighbourhood structure but distorts global distances. It is a visualisation tool only. Statistical analyses should be performed on PCA components or the original normalised expression data, not UMAP coordinates."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">4</span> Geneformer was pretrained without any human-provided labels. What type of learning does this represent?</h4>
+        <button class="quiz-option" data-value="a">Self-supervised learning</button>
+        <button class="quiz-option" data-value="b">Supervised learning</button>
+        <button class="quiz-option" data-value="c">Unsupervised clustering</button>
+        <button class="quiz-option" data-value="d">Semi-supervised learning</button>
+        <div class="quiz-explanation" data-text="Geneformer creates its own supervision by masking gene tokens and training the model to predict them — no human labels required. This is self-supervised learning, the paradigm behind all modern foundation models."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">5</span> Your cancer labels came from two different pathologists who disagree on 25% of cases. What is the maximum accuracy your model can reliably achieve?</h4>
+        <button class="quiz-option" data-value="a">100% with a good enough algorithm</button>
+        <button class="quiz-option" data-value="b">50%</button>
+        <button class="quiz-option" data-value="c">Around 75% — the label quality is a ceiling on model performance</button>
+        <button class="quiz-option" data-value="d">It depends on the model architecture</button>
+        <div class="quiz-explanation" data-text="If 25% of labels are inconsistent, the model cannot reliably learn from those examples. Label quality is a hard ceiling on performance regardless of algorithm complexity. Garbage in, garbage out — this applies to labels as much as to features."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container"></div>
+  </div>
+
+</div>

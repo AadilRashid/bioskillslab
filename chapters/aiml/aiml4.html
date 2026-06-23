@@ -1,0 +1,278 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="bar-chart-2" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 4: How Do We Know a Model is Good?</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~45 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Beginner</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Accuracy, Precision, Recall, F1, AUC, ROC, RMSE, R²</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>The Biological Question</h2>
+      <p>You have trained a model to classify tumour samples as either cancer or normal. It reports 95% accuracy. Should you trust it?</p>
+      <p>The answer depends entirely on what 95% actually means — and in biology, accuracy alone is almost never the right metric. This chapter teaches you to ask the right questions about model performance and choose metrics that reflect your biological goals, not just your algorithm's optimism.</p>
+
+      <h2>Why Accuracy Is Not Enough</h2>
+      <p>Consider a dataset of 1,000 patient samples where 950 are healthy and 50 have a rare cancer. A model that predicts "healthy" for every single patient achieves 95% accuracy. It has also missed every single cancer case.</p>
+      <p>This is the fundamental problem with accuracy on imbalanced datasets — and genomics datasets are almost always imbalanced. Rare cancers, rare cell types, rare variants. A model that ignores the rare class can look excellent by accuracy while being completely useless clinically.</p>
+      <p>You need metrics that separately measure how well the model handles each class.</p>
+
+      <h2>The Confusion Matrix — The Foundation of Everything</h2>
+      <p>Before any metric, you need to understand the confusion matrix. It shows exactly what your model got right and wrong:</p>
+
+      <pre><code>                    Predicted
+                    Positive    Negative
+Actual  Positive:     TP           FN
+        Negative:     FP           TN
+
+TP = True Positive   Model said cancer,  patient has cancer    CORRECT
+TN = True Negative   Model said normal,  patient is normal     CORRECT
+FP = False Positive  Model said cancer,  patient is normal     WRONG
+FN = False Negative  Model said normal,  patient has cancer    WRONG</code></pre>
+
+      <p>Every metric you will learn derives from these four numbers. Memorise this table — it is the most important 2x2 matrix in machine learning.</p>
+
+      <h2>Classification Metrics</h2>
+
+      <h3>Accuracy</h3>
+      <p>The proportion of all predictions that were correct:</p>
+      <pre><code>Accuracy = (TP + TN) / (TP + TN + FP + FN)</code></pre>
+      <p>Useful when classes are balanced. Misleading when they are not — which is most of the time in biology.</p>
+
+      <h3>Precision — When You Call Something Positive, How Often Are You Right?</h3>
+      <p>Precision answers: of all the samples your model called positive (cancer), what fraction actually were positive?</p>
+      <pre><code>Precision = TP / (TP + FP)</code></pre>
+      <p>High precision means low false positive rate. When you call something cancer, you are usually right. This matters when a false positive is costly — for example, when a positive result triggers an aggressive treatment with serious side effects.</p>
+
+      <h3>Recall (Sensitivity) — Of All the Real Positives, How Many Did You Find?</h3>
+      <p>Recall answers: of all the samples that actually are positive (have cancer), what fraction did your model correctly identify?</p>
+      <pre><code>Recall = Sensitivity = TP / (TP + FN)</code></pre>
+      <p>High recall means low false negative rate. You missed few real cases. This matters when missing a case is costly — for example, when failing to detect cancer means delayed treatment and worse outcomes. In cancer screening, recall is usually more important than precision.</p>
+
+      <h3>The Precision-Recall Trade-off</h3>
+      <p>Precision and recall are in tension. Increasing one typically decreases the other. If you make your model more conservative — only calling something cancer when very confident — precision goes up but recall goes down. If you make it more liberal — calling anything slightly suspicious cancer — recall goes up but precision falls.</p>
+      <p>Which matters more depends entirely on the biology and the clinical context. There is no universal answer. This is a decision a bioinformatician must make with domain knowledge, not just optimise algorithmically.</p>
+
+      <h3>F1 Score — The Harmonic Mean</h3>
+      <p>The F1 score combines precision and recall into a single number:</p>
+      <pre><code>F1 = 2 × (Precision × Recall) / (Precision + Recall)</code></pre>
+      <p>F1 is high only when both precision and recall are high. It is the standard metric for imbalanced classification problems and is widely used in genomics — DESeq2 benchmarks, variant calling evaluations, and cell type annotation tools all report F1 scores.</p>
+
+      <h3>Specificity</h3>
+      <p>Specificity is the recall for the negative class — of all the true negatives, how many did you correctly identify?</p>
+      <pre><code>Specificity = TN / (TN + FP)</code></pre>
+      <p>In clinical genomics, sensitivity and specificity together describe a test's performance. A cancer screening tool might need sensitivity > 95% (catch almost every case) while maintaining specificity > 90% (not overwhelming clinics with false positives).</p>
+
+      <h2>ROC Curves and AUC — The Complete Picture</h2>
+      <p>Most classifiers do not directly output a category — they output a probability. "This sample has a 0.73 probability of being cancer." You then apply a threshold: above 0.5 = cancer, below 0.5 = normal.</p>
+      <p>But why 0.5? The choice of threshold changes your precision and recall. A ROC (Receiver Operating Characteristic) curve shows model performance across all possible thresholds simultaneously:</p>
+
+      <pre><code>ROC Curve:
+  Y-axis: Sensitivity (True Positive Rate)
+  X-axis: 1 - Specificity (False Positive Rate)
+
+  Perfect classifier: goes straight up then right (AUC = 1.0)
+  Random classifier:  diagonal line from (0,0) to (1,1) (AUC = 0.5)
+  Useless classifier: below diagonal (AUC < 0.5)</code></pre>
+
+      <p>AUC (Area Under the ROC Curve) summarises this into a single number. It represents the probability that the model ranks a random positive sample higher than a random negative sample.</p>
+
+      <pre><code>AUC Interpretation:
+  0.5   Random guessing — completely useless
+  0.7   Acceptable
+  0.8   Good
+  0.9   Excellent
+  1.0   Perfect (almost certainly overfitting)</code></pre>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> AUC in single-cell biology</strong>
+        <p>When evaluating cell type classifiers like Geneformer or scGPT, AUC is the standard metric. A paper claiming "our model achieves 99% accuracy" on cell type annotation is far less informative than one reporting per-class F1 scores and AUC values. Always ask which metric was reported and why.</p>
+      </div>
+
+      <h2>Regression Metrics</h2>
+      <p>When predicting a continuous value (survival time, gene expression level, drug response), classification metrics do not apply. You need regression metrics.</p>
+
+      <h3>Mean Absolute Error (MAE)</h3>
+      <p>The average absolute difference between predicted and actual values:</p>
+      <pre><code>MAE = mean(|predicted - actual|)</code></pre>
+      <p>Easy to interpret. If you are predicting survival time in months and MAE = 4.2, your predictions are off by 4.2 months on average. Units are the same as the prediction.</p>
+
+      <h3>Mean Squared Error (MSE) and RMSE</h3>
+      <pre><code>MSE  = mean((predicted - actual)²)
+RMSE = sqrt(MSE)</code></pre>
+      <p>MSE penalises large errors more heavily than MAE. RMSE is in the same units as the prediction, making it more interpretable than MSE. Use RMSE when large errors are particularly problematic.</p>
+
+      <h3>R² — Coefficient of Determination</h3>
+      <pre><code>R² = 1 - (sum of squared residuals / total variance)</code></pre>
+      <p>R² measures what proportion of the variance in the outcome is explained by the model. R² = 1.0 means perfect prediction. R² = 0 means the model is no better than predicting the mean. R² can be negative if the model is worse than predicting the mean.</p>
+      <p>In genomics regression tasks — predicting gene expression from chromatin accessibility, for example — R² is the most commonly reported metric.</p>
+
+      <h2>Which Metric Should You Use?</h2>
+
+      <table style="width:100%;border-collapse:collapse;margin:1rem 0;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border);">
+            <th style="text-align:left;padding:.75rem;">Situation</th>
+            <th style="text-align:left;padding:.75rem;">Recommended metric</th>
+            <th style="text-align:left;padding:.75rem;">Why</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">Balanced classes</td>
+            <td style="padding:.75rem;">Accuracy, F1</td>
+            <td style="padding:.75rem;">Classes are roughly equal in size</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">Imbalanced classes (most biology)</td>
+            <td style="padding:.75rem;">F1, AUC, Precision, Recall</td>
+            <td style="padding:.75rem;">Accuracy is misleading</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">Missing a positive case is costly (cancer screening)</td>
+            <td style="padding:.75rem;">Recall (Sensitivity)</td>
+            <td style="padding:.75rem;">Minimise false negatives</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">False alarms are costly (rare disease diagnosis)</td>
+            <td style="padding:.75rem;">Precision, Specificity</td>
+            <td style="padding:.75rem;">Minimise false positives</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">Comparing classifiers across thresholds</td>
+            <td style="padding:.75rem;">AUC-ROC</td>
+            <td style="padding:.75rem;">Threshold-independent</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">Continuous prediction</td>
+            <td style="padding:.75rem;">RMSE, R²</td>
+            <td style="padding:.75rem;">Classification metrics do not apply</td>
+          </tr>
+          <tr>
+            <td style="padding:.75rem;">Cell type annotation benchmarks</td>
+            <td style="padding:.75rem;">Per-class F1, macro-F1</td>
+            <td style="padding:.75rem;">Many classes, often imbalanced</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Cross-Validation — Getting Honest Estimates</h2>
+      <p>A single train/test split gives you one estimate of performance — and that estimate can be lucky or unlucky depending on which samples ended up in which set. Cross-validation gives you a more robust estimate by repeating the process multiple times.</p>
+
+      <pre><code>5-fold cross-validation:
+  Split data into 5 equal folds
+  
+  Round 1: Train on folds 2,3,4,5  Test on fold 1
+  Round 2: Train on folds 1,3,4,5  Test on fold 2
+  Round 3: Train on folds 1,2,4,5  Test on fold 3
+  Round 4: Train on folds 1,2,3,5  Test on fold 4
+  Round 5: Train on folds 1,2,3,4  Test on fold 5
+  
+  Final performance = mean across all 5 test sets</code></pre>
+
+      <p>Cross-validation is the standard for small to medium datasets. For very large datasets a single held-out test set is usually sufficient. In genomics, where sample sizes are often small (tens to hundreds of patients), cross-validation is almost always the right choice.</p>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> The metric you choose is the model you get</strong>
+        <p>When you optimise a model to maximise a metric, you get a model that is good at that metric — not necessarily at the biological task. If you optimise for accuracy on an imbalanced dataset, you get a model that ignores the rare class. Always choose metrics that reflect what matters biologically, then optimise for those.</p>
+      </div>
+
+      <h2>A Note on p-values vs AUC</h2>
+      <p>Many biologists are more comfortable with p-values than with AUC or F1 scores. They are measuring different things:</p>
+      <ul>
+        <li>A <strong>p-value</strong> tells you whether a difference is likely due to chance</li>
+        <li>An <strong>AUC</strong> tells you how well you can predict which class a sample belongs to</li>
+        <li>An <strong>effect size</strong> tells you how large the difference is</li>
+      </ul>
+      <p>All three are necessary. A gene can be statistically significant (low p-value), have a large effect size (high fold change), but still be a poor classifier (low AUC) if the expression distributions overlap too much. The Statistics for Biology course covered the first two. This course adds the third.</p>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Reality Check</strong>
+        <ul>
+          <li>What metric was used to evaluate this model? Is it appropriate for the class balance?</li>
+          <li>Was performance reported on a truly held-out test set or on training/validation data?</li>
+          <li>Does high AUC on the training cohort hold up on an independent validation cohort?</li>
+          <li>Could a simpler baseline — predicting the majority class — achieve similar accuracy?</li>
+        </ul>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(56,189,248,.08),rgba(167,139,250,.08));border:1px solid var(--accent);border-radius:12px;padding:1.25rem;margin:1.5rem 0;">
+        <p style="font-weight:600;margin:0;"><i data-lucide="target" style="width:16px;height:16px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Running Question</p>
+        <p style="color:var(--text-muted);font-size:.9rem;margin:.5rem 0 0;">When we build the cancer subtype classifier in Chapter 8, we will use per-class F1 scores and AUC because TCGA is multi-class and the subtypes are not equally represented. Accuracy would give an inflated impression of performance.</p>
+      </div>
+
+      <div class="module-nav">
+        <button class="nav-btn" onclick="navigate('aiml3')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+        <button class="nav-btn" onclick="navigate('aiml5')">Next: Supervised vs Unsupervised Learning <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Quiz — Chapter 4</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">1</span> A dataset has 950 healthy and 50 cancer samples. A model predicts "healthy" for every sample. What is its accuracy?</h4>
+        <button class="quiz-option" data-value="a">50%</button>
+        <button class="quiz-option" data-value="b">95%</button>
+        <button class="quiz-option" data-value="c">5%</button>
+        <button class="quiz-option" data-value="d">100%</button>
+        <div class="quiz-explanation" data-text="950/1000 = 95% accuracy. But the model has zero recall for cancer — it missed every single case. This is why accuracy is misleading on imbalanced datasets, which is almost every genomics dataset."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">2</span> In cancer screening, which metric is most important to maximise?</h4>
+        <button class="quiz-option" data-value="a">Precision</button>
+        <button class="quiz-option" data-value="b">Specificity</button>
+        <button class="quiz-option" data-value="c">Recall (Sensitivity)</button>
+        <button class="quiz-option" data-value="d">Accuracy</button>
+        <div class="quiz-explanation" data-text="In screening you want to catch every cancer case — missing one (false negative) is far worse than a false alarm. Recall = TP/(TP+FN) measures this. High recall means few missed cancers."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">3</span> What does AUC = 0.5 mean for a classifier?</h4>
+        <button class="quiz-option" data-value="a">The classifier performs no better than random guessing</button>
+        <button class="quiz-option" data-value="b">The classifier has 50% accuracy</button>
+        <button class="quiz-option" data-value="c">The classifier has 50% recall</button>
+        <button class="quiz-option" data-value="d">The model is overfitted</button>
+        <div class="quiz-explanation" data-text="AUC = 0.5 corresponds to the diagonal on the ROC curve — random guessing. A useful classifier should have AUC > 0.7. AUC = 1.0 is perfect but suspicious — may indicate overfitting or data leakage."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">4</span> You are predicting survival time in months. Which metric is most appropriate?</h4>
+        <button class="quiz-option" data-value="a">Accuracy</button>
+        <button class="quiz-option" data-value="b">F1 score</button>
+        <button class="quiz-option" data-value="c">Recall</button>
+        <button class="quiz-option" data-value="d">RMSE or R²</button>
+        <div class="quiz-explanation" data-text="Survival time is continuous — classification metrics like accuracy, F1, and recall do not apply. RMSE measures average prediction error in the same units as the outcome. R² measures what fraction of variance the model explains."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">5</span> Why is 5-fold cross-validation preferred over a single train/test split for small genomics datasets?</h4>
+        <button class="quiz-option" data-value="a">It is faster to compute</button>
+        <button class="quiz-option" data-value="b">It uses all samples for both training and testing across rounds, giving a more robust performance estimate</button>
+        <button class="quiz-option" data-value="c">It prevents overfitting entirely</button>
+        <button class="quiz-option" data-value="d">It always gives higher performance numbers</button>
+        <div class="quiz-explanation" data-text="A single split gives one estimate that may be lucky or unlucky. Cross-validation averages across 5 different splits, giving a more reliable estimate. Especially important when sample sizes are small, as in most clinical genomics studies."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container"></div>
+  </div>
+
+</div>
