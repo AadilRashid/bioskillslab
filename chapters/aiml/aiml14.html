@@ -1,0 +1,392 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="layers" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 14: AlphaGenome, Multi-Omics AI and GNNs</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~70 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Advanced</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> AlphaGenome, MOFA+, MultiVI, totalVI, GNN, PyTorch Geometric, STRING</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>Three Frontiers</h2>
+      <p>This chapter covers three areas that sit at the current frontier of biological AI: long-range regulatory genomics with AlphaGenome, integrating multiple molecular data types simultaneously, and reasoning over biological networks with graph neural networks. Each represents a genuinely different kind of biological question that requires genuinely different computational approaches.</p>
+
+      <h2>AlphaGenome — The Full Regulatory Landscape</h2>
+      <p>AlphaGenome (Google DeepMind, Nature 2026) is the successor to Enformer and represents a fundamental advance in what is possible from DNA sequence alone. Where Enformer takes ~200 kilobases of sequence and predicts a fixed set of genomic tracks, AlphaGenome takes up to 1 megabase of DNA and predicts a much broader range of regulatory outputs simultaneously from a single unified model.</p>
+      <p>The tasks AlphaGenome predicts include gene expression across tissues, chromatin accessibility, histone modifications, transcription factor binding, splicing, chromatin contacts (3D genome organisation), and variant effects. This multimodal prediction from a single model is the key architectural advance. Earlier approaches required separate models for each regulatory modality — one for expression, one for chromatin, one for splicing. AlphaGenome learns the relationships between these modalities jointly, which allows it to make more accurate predictions for each.</p>
+
+      <h3>AlphaGenome vs Enformer</h3>
+
+      <table style="width:100%;border-collapse:collapse;margin:1rem 0;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border);">
+            <th style="text-align:left;padding:.75rem;">Property</th>
+            <th style="text-align:left;padding:.75rem;">Enformer</th>
+            <th style="text-align:left;padding:.75rem;">AlphaGenome</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">Context window</td>
+            <td style="padding:.75rem;">~200 kb</td>
+            <td style="padding:.75rem;">Up to 1 Mb</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">Output modalities</td>
+            <td style="padding:.75rem;">Expression, chromatin tracks</td>
+            <td style="padding:.75rem;">Expression, chromatin, splicing, 3D contacts, variants</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">Variant benchmarks</td>
+            <td style="padding:.75rem;">Strong baseline</td>
+            <td style="padding:.75rem;">Best on 25 of 26 variant-effect benchmarks</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">Architecture</td>
+            <td style="padding:.75rem;">Conv + Transformer</td>
+            <td style="padding:.75rem;">Unified multimodal transformer</td>
+          </tr>
+          <tr>
+            <td style="padding:.75rem;">Availability</td>
+            <td style="padding:.75rem;">Open weights</td>
+            <td style="padding:.75rem;">DeepMind tooling released alongside paper</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>The performance improvement on variant-effect prediction benchmarks is the most clinically relevant advance. Predicting which non-coding variants affect gene regulation is one of the hardest problems in human genetics — most variants identified in GWAS studies are non-coding, and understanding their functional consequences requires precisely the kind of long-range regulatory modelling that AlphaGenome was designed for.</p>
+
+      <pre><code># AlphaGenome usage (DeepMind Python API)
+# Installation and weights from DeepMind's release
+
+from alphagenome import AlphaGenome, one_hot_encode
+import numpy as np
+
+# Load pretrained model
+model = AlphaGenome.from_pretrained()
+
+# Predict regulatory outputs from a 1 Mb sequence
+sequence = "ATCG..."  # 1,000,000 characters
+x = one_hot_encode(sequence)
+
+predictions = model.predict(x)
+# Returns dict with keys:
+# 'gene_expression': tissue-specific expression
+# 'chromatin': accessibility tracks
+# 'splicing': splice site usage
+# 'contacts': 3D chromatin contacts
+# 'variant_effects': ISM scores
+
+# Variant effect prediction (in silico mutagenesis)
+variant_effects = model.predict_variant_effect(
+    sequence=sequence,
+    position=500000,  # variant position within the sequence
+    ref='A',
+    alt='G'
+)
+print("Predicted regulatory effect:")
+print(variant_effects)</code></pre>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> When to use AlphaGenome vs Enformer</strong>
+        <p>For most research tasks today, Enformer remains practical and well-documented with an established community. AlphaGenome is the right choice when you need the most accurate variant effect predictions, when you need to predict splicing alongside expression, or when your regulatory element is beyond Enformer's 200 kb window. For learning and exploration, start with Enformer — the concepts transfer directly to AlphaGenome.</p>
+      </div>
+
+      <h2>Multi-Omics AI — Integrating Multiple Data Types</h2>
+      <p>Gene expression is one view of a cell's state. Chromatin accessibility shows which regions of the genome are accessible to transcription factors. Protein abundance reflects post-transcriptional regulation. Methylation captures epigenetic memory. Each modality provides a different, partially overlapping picture of what is happening biologically.</p>
+      <p>Multi-omics AI methods learn joint representations that capture the information from all modalities simultaneously. The key insight is that the correlations between modalities — how chromatin accessibility predicts transcription, how transcription predicts protein levels — contain biological information that no single modality can provide alone. The three frameworks you should know are MOFA+, totalVI, and MultiVI, in order of conceptual progression.</p>
+
+      <h3>MOFA+ — Multi-Omics Factor Analysis</h3>
+      <p>MOFA+ (Multi-Omics Factor Analysis, Argelaguet et al., 2020) is the conceptual starting point for multi-omics integration. Think of it as PCA extended to multiple data types simultaneously. It learns a set of latent factors, each of which explains correlated variation across all measured modalities.</p>
+      <p>A factor might capture variation that is visible in both RNA-seq and ATAC-seq data — regulatory activity at a set of loci that drives transcription of a set of genes. Another factor might capture variation visible only in RNA-seq — perhaps post-transcriptional regulation that does not leave an ATAC-seq signature. MOFA+ can distinguish these.</p>
+
+      <pre><code>pip install mofapy2
+
+from mofapy2.run.entry_point import entry_point
+import pandas as pd
+
+# MOFA+ expects a list of data matrices, one per modality
+# Each matrix: samples x features
+
+data = [
+    rna_matrix,    # samples x genes
+    atac_matrix,   # samples x peaks
+    protein_matrix # samples x proteins
+]
+views = ['RNA', 'ATAC', 'Protein']
+
+# Initialise and train MOFA+
+ent = entry_point()
+ent.set_data_options(scale_groups=False, scale_views=False)
+ent.set_data_df(
+    pd.concat([pd.DataFrame(d, columns=[f'{v}_{i}' for i in range(d.shape[1])])
+               for d, v in zip(data, views)], axis=1)
+)
+ent.set_model_options(factors=15)
+ent.set_train_options(iter=1000, convergence_mode='fast')
+ent.build()
+ent.run()
+
+# Extract factor scores per sample
+factors = ent.model.getExpectations()['Z']['E']
+print(f"Factor scores shape: {factors.shape}")  # (n_samples, 15)
+
+# Which features load onto each factor?
+weights = ent.model.getExpectations()['W']
+for view, w in zip(views, weights):
+    print(f"Top features for Factor 1 in {view}:")
+    top_features = pd.Series(w['E'][:, 0]).abs().nlargest(10)
+    print(top_features)</code></pre>
+
+      <p>MOFA+ is the right choice when biological interpretation matters more than predictive performance. The factors are interpretable — you can examine what they capture and make biological claims about what is driving the variation in your data. For clinical cohorts with matched multi-omics, MOFA+ factors that separate patient groups often correspond to known disease mechanisms.</p>
+
+      <h3>totalVI — RNA and Protein Together</h3>
+      <p>totalVI (Gayoso et al., Nature Methods 2021) extends the scVI framework from Chapter 11 to CITE-seq data — experiments that simultaneously measure RNA expression and surface protein levels in single cells. The two modalities have different statistical properties: RNA follows a negative binomial distribution, while protein counts from antibody-derived tags (ADT) have different noise characteristics.</p>
+      <p>totalVI learns a joint latent space that captures the shared and modality-specific variation, handles batch effects across both modalities simultaneously, and enables protein expression imputation for cells where protein data is missing.</p>
+
+      <pre><code>import scvi
+
+# Setup CITE-seq data (RNA + protein)
+scvi.model.TOTALVI.setup_anndata(
+    adata,
+    layer='counts',           # raw RNA counts
+    protein_expression_obsm_key='protein_expression',  # raw protein counts
+    batch_key='batch'
+)
+
+model = scvi.model.TOTALVI(adata, latent_distribution='ln')
+model.train(max_epochs=400)
+
+# Get joint latent representation
+adata.obsm['X_totalVI'] = model.get_latent_representation()
+
+# Impute protein expression for all cells
+# (useful when protein data is missing or noisy)
+protein_imputed = model.get_protein_foreground_probability()
+print(f"Imputed protein shape: {protein_imputed.shape}")</code></pre>
+
+      <h3>MultiVI — RNA and ATAC Together</h3>
+      <p>MultiVI (Ashuach et al., Nature Methods 2023) extends scVI to paired single-cell multi-omics data — specifically the 10x Multiome protocol that simultaneously measures gene expression and chromatin accessibility in the same cell. It is the most directly relevant multi-omics tool for students working with modern single-cell data.</p>
+      <p>MultiVI learns a joint latent representation across RNA and ATAC modalities, enables imputation of missing modalities, and can be used for batch integration across experiments that measured different combinations of modalities — some measured RNA only, some ATAC only, some both.</p>
+
+      <pre><code>import scvi
+
+# Setup 10x Multiome data
+scvi.model.MULTIVI.setup_anndata(
+    adata,
+    layer='counts',                     # RNA raw counts
+    atac_key='atac_counts',             # ATAC raw counts
+    batch_key='batch'
+)
+
+model = scvi.model.MULTIVI(
+    adata,
+    n_genes=adata.n_vars,
+    n_regions=adata.obsm['atac_counts'].shape[1]
+)
+model.train(max_epochs=500)
+
+# Joint embedding across both modalities
+adata.obsm['X_MultiVI'] = model.get_latent_representation()
+
+# Impute ATAC for RNA-only cells
+atac_imputed = model.get_accessibility_estimates()</code></pre>
+
+      <p>The progression from MOFA+ to totalVI to MultiVI mirrors the conceptual journey from classical factor analysis to deep generative models. MOFA+ is interpretable and parameter-efficient, ideal for small cohorts. totalVI and MultiVI are more powerful for large single-cell datasets but require more data and compute to train reliably.</p>
+
+      <h2>Graph Neural Networks for Biological Networks</h2>
+      <p>Everything covered so far has treated biological data as matrices — samples by features, cells by genes. But much of biology is fundamentally relational: proteins interact with other proteins, genes regulate other genes, metabolites feed into pathways that feed into other pathways. Networks are the natural representation for this kind of data, and graph neural networks (GNNs) are the natural tool for learning from them.</p>
+
+      <h3>The Biological Graphs You Will Encounter</h3>
+      <p>Two types of biological networks are most commonly used in computational biology.</p>
+      <p><strong>Protein-protein interaction (PPI) networks.</strong> The STRING database curates interactions between proteins across all sequenced organisms, integrating experimental evidence, co-expression data, and text mining. Nodes are proteins; edges represent known or predicted interactions weighted by confidence. A GNN trained on a PPI network can predict the function of an uncharacterised protein from the functions of its interaction partners — guilt by association at scale.</p>
+      <p><strong>Gene regulatory networks (GRNs).</strong> Nodes are genes; directed edges represent regulatory relationships — TP53 activates CDKN1A, MYC activates CCND1, and so on. GNNs can learn to predict which genes a transcription factor regulates from the network topology and sequence features, or to predict the downstream effects of knocking out a transcription factor.</p>
+
+      <h3>PyTorch Geometric — The Standard Framework</h3>
+      <p>PyTorch Geometric (PyG) has become the dominant framework for biological GNNs. It integrates cleanly with PyTorch and provides implementations of all major GNN architectures.</p>
+
+      <pre><code>pip install torch_geometric
+
+import torch
+import torch.nn.functional as F
+from torch_geometric.data import Data
+from torch_geometric.nn import GCNConv, GATConv, SAGEConv
+from torch_geometric.datasets import PPI
+
+# Build a graph from STRING PPI data
+import pandas as pd
+import numpy as np
+
+# Load STRING interactions (threshold confidence >= 700)
+ppi = pd.read_csv('9606.protein.links.v12.0.txt', sep=' ')
+ppi = ppi[ppi['combined_score'] >= 700]
+
+# Map protein names to integer indices
+proteins = list(set(ppi['protein1'].tolist() +
+                    ppi['protein2'].tolist()))
+idx_map  = {p: i for i, p in enumerate(proteins)}
+
+# Build edge index tensor
+edge_index = torch.tensor([
+    [idx_map[p] for p in ppi['protein1']],
+    [idx_map[p] for p in ppi['protein2']]
+], dtype=torch.long)
+
+# Node features: one-hot encoding of GO terms, or sequence embeddings
+node_features = torch.FloatTensor(...)   # (n_proteins, n_features)
+labels        = torch.LongTensor(...)    # protein function classes
+
+graph = Data(x=node_features, edge_index=edge_index, y=labels)
+print(graph)</code></pre>
+
+      <h3>Graph Convolutional Network for Protein Function Prediction</h3>
+      <pre><code>class ProteinGCN(torch.nn.Module):
+    def __init__(self, in_channels, hidden_channels, out_channels):
+        super().__init__()
+        self.conv1 = GCNConv(in_channels, hidden_channels)
+        self.conv2 = GCNConv(hidden_channels, hidden_channels)
+        self.conv3 = GCNConv(hidden_channels, out_channels)
+
+    def forward(self, x, edge_index):
+        # Layer 1: aggregate information from 1-hop neighbours
+        x = self.conv1(x, edge_index)
+        x = F.relu(x)
+        x = F.dropout(x, p=0.3, training=self.training)
+
+        # Layer 2: aggregate from 2-hop neighbours
+        x = self.conv2(x, edge_index)
+        x = F.relu(x)
+        x = F.dropout(x, p=0.3, training=self.training)
+
+        # Layer 3: output layer
+        x = self.conv3(x, edge_index)
+        return x
+
+model     = ProteinGCN(in_channels=node_features.shape[1],
+                        hidden_channels=256,
+                        out_channels=n_classes)
+optimiser = torch.optim.Adam(model.parameters(), lr=0.001)
+
+# Training loop
+for epoch in range(200):
+    model.train()
+    optimiser.zero_grad()
+    out  = model(graph.x, graph.edge_index)
+    loss = F.cross_entropy(out[train_mask], graph.y[train_mask])
+    loss.backward()
+    optimiser.step()
+
+    if epoch % 20 == 0:
+        acc = evaluate(model, graph, test_mask)
+        print(f"Epoch {epoch}: loss={loss:.4f}, acc={acc:.3f}")</code></pre>
+
+      <h3>Graph Attention Networks — Learning Which Neighbours Matter</h3>
+      <p>A standard GCN treats all neighbours equally when aggregating information. Graph Attention Networks (GAT) learn attention weights — some interaction partners are more informative than others for a given prediction task, and the model learns which ones to attend to. In biological networks this is biologically sensible: a protein's strongest interaction partners are usually more informative about its function than its weak or indirect connections.</p>
+
+      <pre><code>from torch_geometric.nn import GATConv
+
+class ProteinGAT(torch.nn.Module):
+    def __init__(self, in_channels, hidden_channels, out_channels, heads=4):
+        super().__init__()
+        self.gat1 = GATConv(in_channels, hidden_channels, heads=heads)
+        self.gat2 = GATConv(hidden_channels * heads, out_channels, heads=1)
+
+    def forward(self, x, edge_index):
+        x = self.gat1(x, edge_index)
+        x = F.elu(x)
+        x = self.gat2(x, edge_index)
+        return x</code></pre>
+
+      <h2>Connecting Everything</h2>
+      <p>This chapter covers three seemingly different areas — long-range DNA regulation, multi-omics integration, and biological network analysis — but they are connected by a common theme: biology is not modular. Gene regulation (AlphaGenome) affects what gets transcribed. Transcription, chromatin, and protein levels are jointly regulated (multi-omics). Proteins interact in networks that determine cellular function (GNNs). A complete picture of a cell or a disease requires all three levels of understanding, and the AI tools covered in this chapter provide the means to analyse each level.</p>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Reality Check</strong>
+        <ul>
+          <li>For multi-omics: does your dataset actually have matched measurements across modalities? MOFA+ can handle partially overlapping data, but MultiVI and totalVI work best with paired data from the same cells.</li>
+          <li>For GNNs: is the network you are using complete and reliable? STRING confidence scores matter — low-confidence edges add noise.</li>
+          <li>For AlphaGenome: does your variant lie within the 1 Mb context window? Variants outside this window will not be modelled accurately.</li>
+          <li>Always compare GNN performance to a simple baseline that uses only node features without the graph structure. If the graph adds no value, you may have the wrong network or the wrong features.</li>
+        </ul>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(56,189,248,.08),rgba(167,139,250,.08));border:1px solid var(--accent);border-radius:12px;padding:1.25rem;margin:1.5rem 0;">
+        <p style="font-weight:600;margin:0;"><i data-lucide="target" style="width:16px;height:16px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Course Progress</p>
+        <p style="color:var(--text-muted);font-size:.9rem;margin:.5rem 0 0;">Part 4 is complete. You have covered the full spectrum of genomic AI from short-context DNABERT to megabase-scale AlphaGenome, multi-omics integration from interpretable MOFA+ to deep MultiVI, and biological network reasoning with GNNs. Chapter 15 surveys the entire foundation model ecosystem and places all of this in context.</p>
+      </div>
+
+      <div class="module-nav">
+        <button class="nav-btn" onclick="navigate('aiml13')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+        <button class="nav-btn" onclick="navigate('aiml15')">Next: Foundation Models and the Future of Computational Biology <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Quiz — Chapter 14</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">1</span> What is the key advance of AlphaGenome over Enformer?</h4>
+        <button class="quiz-option" data-value="a">It uses a larger training dataset</button>
+        <button class="quiz-option" data-value="b">It processes shorter sequences more accurately</button>
+        <button class="quiz-option" data-value="c">It predicts multiple regulatory modalities (expression, chromatin, splicing, 3D contacts, variant effects) from up to 1 Mb of sequence in a single unified model</button>
+        <button class="quiz-option" data-value="d">It is faster to run than Enformer</button>
+        <div class="quiz-explanation" data-text="AlphaGenome extends Enformer in two key ways: longer context (up to 1 Mb vs ~200 kb) and multimodal prediction (expression plus chromatin, splicing, 3D genome organisation, and variant effects all from one model). The unified multimodal prediction allows the model to learn correlations between regulatory layers."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">2</span> You have a clinical cohort with matched RNA-seq, ATAC-seq, and proteomics from 150 patients. Which multi-omics tool is most appropriate for finding interpretable disease-associated factors?</h4>
+        <button class="quiz-option" data-value="a">MOFA+ — it learns interpretable latent factors explaining shared variation across modalities and is well-suited for small-to-medium cohorts</button>
+        <button class="quiz-option" data-value="b">MultiVI — it is the most modern tool</button>
+        <button class="quiz-option" data-value="c">totalVI — it handles protein data</button>
+        <button class="quiz-option" data-value="d">scVI — it is the most widely used</button>
+        <div class="quiz-explanation" data-text="MOFA+ is the right choice when interpretability matters and cohorts are small to medium. Its factors directly show which features from which modalities co-vary together, enabling biological interpretation. MultiVI and totalVI are designed for single-cell paired data, not bulk multi-omics cohorts."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">3</span> In a GNN for protein function prediction on a PPI network, what information does each message-passing step aggregate?</h4>
+        <button class="quiz-option" data-value="a">The sequence features of all proteins in the proteome</button>
+        <button class="quiz-option" data-value="b">Information from the protein's direct interaction partners (neighbours in the network)</button>
+        <button class="quiz-option" data-value="c">The expression levels of the protein across all tissues</button>
+        <button class="quiz-option" data-value="d">The evolutionary conservation score of the protein</button>
+        <div class="quiz-explanation" data-text="Each GNN layer aggregates information from the node's direct neighbours. After k layers, each node has received information from its k-hop neighbourhood. For protein function prediction, this means each protein's representation incorporates information from its known interaction partners."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">4</span> What is the advantage of Graph Attention Networks (GAT) over standard Graph Convolutional Networks (GCN) for biological networks?</h4>
+        <button class="quiz-option" data-value="a">GATs train faster on large networks</button>
+        <button class="quiz-option" data-value="b">GATs can handle directed graphs while GCNs cannot</button>
+        <button class="quiz-option" data-value="c">GATs use less memory</button>
+        <button class="quiz-option" data-value="d">GATs learn attention weights so the model can focus on the most informative interaction partners rather than treating all neighbours equally</button>
+        <div class="quiz-explanation" data-text="In biological networks, not all interaction partners are equally informative. A protein's strongest, most experimentally validated interactions are more meaningful than weak predicted interactions. GAT learns which neighbours to attend to, which is biologically sensible and often improves performance over equal-weight aggregation."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">5</span> You have 10x Multiome data with paired RNA and ATAC measurements from 50,000 cells. Which tool is most appropriate?</h4>
+        <button class="quiz-option" data-value="a">MOFA+ — it handles multiple data types</button>
+        <button class="quiz-option" data-value="b">totalVI — it was designed for multi-omic single-cell data</button>
+        <button class="quiz-option" data-value="c">MultiVI — it was specifically designed for paired RNA + ATAC single-cell data from 10x Multiome and similar protocols</button>
+        <button class="quiz-option" data-value="d">scVI — it is the foundational model for all single-cell analysis</button>
+        <div class="quiz-explanation" data-text="MultiVI was built specifically for paired RNA + ATAC single-cell data. totalVI handles RNA + protein (CITE-seq). MOFA+ is better for bulk multi-omics cohorts. scVI handles RNA only. Choosing the tool designed for your specific data modality combination is important."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container"></div>
+  </div>
+
+</div>
