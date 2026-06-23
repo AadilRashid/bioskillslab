@@ -1,0 +1,275 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="brain" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 12: Geneformer vs scGPT vs PCA</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~65 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Advanced</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Geneformer, scGPT, Foundation Models, Cell Type Annotation, Benchmarking</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>The Foundation Model Question</h2>
+      <p>This chapter is the most important in Part 3 of the course. Not because foundation models are always the right tool — they are not — but because understanding when they help and when they do not requires you to engage critically with how they work, what they were trained on, and what the benchmarking literature actually says.</p>
+      <p>The narrative around single-cell foundation models has sometimes outpaced the evidence. Papers introducing Geneformer, scGPT, and similar models reported impressive performance numbers, and the field initially assumed that larger models trained on more cells would keep improving. Subsequent independent benchmarks told a more complicated story.</p>
+
+      <h2>Geneformer — The First Cell Foundation Model</h2>
+      <p>Geneformer (Theodoris et al., Nature 2023) was pretrained on approximately 30 million single-cell transcriptomes from a wide range of human tissues. The pretraining task was self-supervised: genes in each cell were ranked by expression level, a fraction were masked, and the model was trained to predict which genes were masked based on the context of the others.</p>
+      <p>This pretraining gives Geneformer a general understanding of gene network relationships — which genes tend to be co-expressed, which are mutually exclusive, which mark specific cell states. It can then be fine-tuned on small labelled datasets for downstream tasks like cell type annotation, disease prediction, or drug response prediction.</p>
+
+      <pre><code># Install Geneformer
+pip install geneformer
+
+from geneformer import TranscriptomeTokenizer, EmbExtractor
+import anndata
+
+# Tokenise cells for Geneformer
+# Geneformer represents each cell as a rank-ordered sequence of genes
+tk = TranscriptomeTokenizer(
+    {"cell_type": "cell_type"},
+    nproc=4
+)
+tk.tokenize_data(
+    "path/to/loom_files/",
+    "tokenized_output/",
+    "pbmc3k",
+    file_format="loom"
+)
+
+# Extract embeddings using pretrained Geneformer
+embex = EmbExtractor(
+    model_type="Pretrained",
+    num_classes=0,
+    emb_mode="cell",
+    cell_emb_style="mean_pool",
+    filter_data=None,
+    max_ncells=None,
+    emb_layer=-1,
+    emb_label=["cell_type"],
+    labels_to_plot=["cell_type"],
+    forward_batch_size=100,
+    nproc=4
+)
+
+embs = embex.extract_embs(
+    "path/to/Geneformer/pretrained_model/",
+    "tokenized_output/pbmc3k.dataset",
+    "embeddings_output/",
+    "pbmc3k"
+)</code></pre>
+
+      <h2>scGPT — GPT for Single Cells</h2>
+      <p>scGPT (Cui et al., Nature Methods 2024) takes a different approach. Inspired by GPT-style language models, it processes cells as sequences of gene-expression pairs and uses a generative pretraining objective. It was pretrained on over 33 million human cells from the CELLxGENE database.</p>
+      <p>scGPT uses a transformer with flash attention for efficiency and supports multiple tasks: cell type annotation, perturbation prediction, batch integration, and multi-omic integration. The model architecture is closer to GPT-4 than to BERT — it is generative and autoregressive in its pretraining, though it is used in a bidirectional fashion for many downstream tasks.</p>
+
+      <pre><code># Install scGPT
+pip install scgpt
+
+import scgpt
+from scgpt.tokenizer import GeneVocab
+from scgpt.model import TransformerModel
+
+# Load pretrained scGPT model
+model_dir = "path/to/scgpt_human/"
+vocab = GeneVocab.from_file(f"{model_dir}/vocab.json")
+
+# Embed cells using scGPT
+# scGPT processes normalised log-transformed counts (unlike scVI which needs raw counts)
+import scanpy as sc
+adata = sc.read_h5ad("pbmc3k_processed.h5ad")
+sc.pp.normalize_total(adata, target_sum=1e4)
+sc.pp.log1p(adata)
+
+embeddings = scgpt.tasks.embed_data(
+    adata,
+    model_dir,
+    gene_col="gene_name",
+    max_length=1200,
+    batch_size=64
+)
+adata.obsm['X_scGPT'] = embeddings</code></pre>
+
+      <h2>The Critical Benchmarks — What the Literature Actually Says</h2>
+      <p>Here is where this chapter diverges from most AI for biology courses. Rather than just showing you how to run these models, we look honestly at what independent benchmarks found.</p>
+      <p>A 2024 evaluation by Heimberg et al. systematically compared Geneformer, scGPT, and simpler baselines across multiple cell type annotation benchmarks. The findings were surprising to many in the field:</p>
+      <ul>
+        <li>On many standard cell type annotation tasks, a simple k-nearest neighbour classifier applied to PCA components performed comparably to Geneformer and scGPT</li>
+        <li>scVI embeddings frequently matched or exceeded foundation model performance with a fraction of the computational cost</li>
+        <li>The performance advantage of foundation models was most pronounced on tasks involving rare cell types, perturbation prediction, and cross-dataset generalisation</li>
+        <li>Fine-tuned models outperformed zero-shot foundation models substantially on most tasks</li>
+      </ul>
+      <p>A 2025 follow-up by Boiarsky et al. extended these findings: on cell type annotation benchmarks, the key predictor of performance was the size and diversity of the reference dataset used for label transfer, not whether you used a foundation model or PCA.</p>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> What this does not mean</strong>
+        <p>These benchmarks do not mean foundation models are useless for single-cell biology. They mean that for the specific task of cell type annotation on standard datasets, simpler methods are competitive. For more complex tasks — predicting the effect of genetic perturbations, integrating across very different tissues, discovering novel cell states — foundation models show clearer advantages. The appropriate conclusion is task-specific evaluation, not blanket rejection or blanket adoption.</p>
+      </div>
+
+      <h2>Running the Comparison Yourself</h2>
+      <p>The most important thing you can do with this chapter is run the comparison on your own data and see what you find. Here is the full evaluation pipeline:</p>
+
+      <pre><code>from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import f1_score, accuracy_score
+from sklearn.model_selection import train_test_split
+
+# Assume you have extracted embeddings from all three methods:
+# adata.obsm['X_pca']    — standard PCA (40 components)
+# adata.obsm['X_scVI']   — scVI latent space (20 dim)
+# adata.obsm['X_geneformer'] — Geneformer embeddings (512 dim)
+# adata.obsm['X_scgpt']  — scGPT embeddings (512 dim)
+
+# Cell type labels from manual annotation or reference dataset
+y = adata.obs['cell_type'].values
+
+results = {}
+for method, key in [('PCA', 'X_pca'),
+                     ('scVI', 'X_scVI'),
+                     ('Geneformer', 'X_geneformer'),
+                     ('scGPT', 'X_scgpt')]:
+
+    X = adata.obsm[key]
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+
+    # Test both kNN and logistic regression
+    for clf_name, clf in [('kNN', KNeighborsClassifier(n_neighbors=15)),
+                           ('LR',  LogisticRegression(max_iter=1000))]:
+        clf.fit(X_train, y_train)
+        y_pred = clf.predict(X_test)
+        f1  = f1_score(y_test, y_pred, average='macro')
+        acc = accuracy_score(y_test, y_pred)
+        results[f'{method}+{clf_name}'] = {'F1': f1, 'Accuracy': acc}
+        print(f"{method:12} + {clf_name}: F1={f1:.3f}, Acc={acc:.3f}")
+
+# Summary
+import pandas as pd
+results_df = pd.DataFrame(results).T.sort_values('F1', ascending=False)
+print("\nFull ranking:")
+print(results_df)</code></pre>
+
+      <h2>When Foundation Models Help Most</h2>
+      <p>Based on the benchmarking literature and the architecture of these models, here are the scenarios where foundation models provide the clearest advantage over PCA and scVI:</p>
+      <p><strong>Small labelled datasets.</strong> When you have only 50-100 labelled cells per cell type, a model pretrained on 30 million cells brings enormous prior knowledge. Fine-tuning Geneformer on 100 labelled cells often outperforms training scVI or a random forest from scratch on the same 100 cells.</p>
+      <p><strong>Novel cell types.</strong> If your dataset contains cell types not well represented in the training data of your reference-based annotators, foundation model embeddings may generalise better because they encode general gene network relationships rather than cell type-specific patterns.</p>
+      <p><strong>Cross-tissue generalisation.</strong> A model pretrained across many tissues can transfer knowledge from well-characterised tissues to poorly characterised ones. PCA-based methods trained on one tissue often fail on another.</p>
+      <p><strong>Perturbation prediction.</strong> Predicting how cells will respond to a drug or genetic knockout is a task that benefits greatly from the gene network knowledge encoded in foundation models. Geneformer's in-silico perturbation capabilities are a genuine advance over classical methods.</p>
+
+      <h2>Practical Recommendation</h2>
+      <p>Given everything above, here is a practical workflow for cell type annotation in 2026:</p>
+
+      <pre><code>Step 1: Run the standard pipeline (PCA + Leiden + marker genes)
+        Cost: minutes
+        Expected performance: good for well-characterised tissues
+
+Step 2: If Step 1 gives ambiguous or low-confidence clusters:
+        Try scVI (especially if batch effects are present)
+        Cost: 10-30 minutes
+        Expected improvement: significant if batch effects present,
+                              marginal if data is already clean
+
+Step 3: If Steps 1-2 are insufficient (rare cell types, novel tissue,
+        small labelled set):
+        Fine-tune Geneformer or scGPT on your labelled subset
+        Cost: 1-2 hours, requires GPU
+        Expected improvement: meaningful for edge cases
+
+Step 4: Always compare against your best simpler baseline
+        Never report foundation model performance without comparison</code></pre>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> The most useful thing this chapter teaches</strong>
+        <p>How to read a foundation model paper critically. When a paper says "our model achieves state of the art on cell type annotation," ask: compared to what baseline? On which datasets? With how many labelled examples? Evaluated by whom? The answers to these questions determine whether the claimed improvement is real and whether it applies to your use case.</p>
+      </div>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Reality Check</strong>
+        <ul>
+          <li>Did you run PCA and scVI before reaching for a foundation model?</li>
+          <li>Does the foundation model outperform your best simpler baseline on your specific task?</li>
+          <li>Are you using the model zero-shot or fine-tuning it on labelled data from your tissue?</li>
+          <li>Is the performance improvement worth the computational cost?</li>
+          <li>Are the benchmark datasets representative of your biological question?</li>
+        </ul>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(56,189,248,.08),rgba(167,139,250,.08));border:1px solid var(--accent);border-radius:12px;padding:1.25rem;margin:1.5rem 0;">
+        <p style="font-weight:600;margin:0;"><i data-lucide="target" style="width:16px;height:16px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Course Progress</p>
+        <p style="color:var(--text-muted);font-size:.9rem;margin:.5rem 0 0;">Part 3 is complete. You now have a full picture of single-cell AI from PCA through scVI to foundation models, including an honest assessment of when each is appropriate. Part 4 shifts from cells to DNA sequences.</p>
+      </div>
+
+      <div class="module-nav">
+        <button class="nav-btn" onclick="navigate('aiml11')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+        <button class="nav-btn" onclick="navigate('aiml13')">Next: DNA as Language — DNABERT and Enformer <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Quiz — Chapter 12</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">1</span> What was the pretraining task used to train Geneformer?</h4>
+        <button class="quiz-option" data-value="a">Predicting cancer subtype from cell expression</button>
+        <button class="quiz-option" data-value="b">Reconstructing masked gene expression values (like a standard autoencoder)</button>
+        <button class="quiz-option" data-value="c">Predicting which genes were masked from a rank-ordered sequence of gene expression values across 30 million cells</button>
+        <button class="quiz-option" data-value="d">Classifying cells into known cell types from a reference atlas</button>
+        <div class="quiz-explanation" data-text="Geneformer uses self-supervised pretraining: genes are ranked by expression, some are masked, and the model learns to predict the masked genes from context. No labels are required. This teaches the model general gene network relationships from 30 million cells."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">2</span> Independent benchmarks comparing Geneformer, scGPT, and PCA on cell type annotation found that:</h4>
+        <button class="quiz-option" data-value="a">Foundation models always outperformed PCA significantly</button>
+        <button class="quiz-option" data-value="b">Simple baselines like kNN on PCA components often matched foundation model performance on standard tasks</button>
+        <button class="quiz-option" data-value="c">scGPT was always the best method regardless of the task</button>
+        <button class="quiz-option" data-value="d">scVI performed worse than all other methods</button>
+        <div class="quiz-explanation" data-text="Multiple independent benchmarks found that simple baselines (kNN on PCA, scVI) frequently matched foundation model performance on standard cell type annotation tasks. Foundation models showed clearer advantages on rare cell types, small labelled datasets, and perturbation prediction."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">3</span> In which scenario would you most clearly benefit from using Geneformer over PCA for cell annotation?</h4>
+        <button class="quiz-option" data-value="a">You have 50,000 well-characterised cells from a single tissue with clear clusters</button>
+        <button class="quiz-option" data-value="b">Your data has significant batch effects across donors</button>
+        <button class="quiz-option" data-value="c">Your dataset contains mostly common immune cell types</button>
+        <button class="quiz-option" data-value="d">You have only 50 labelled cells per cell type and need to annotate a novel tissue type</button>
+        <div class="quiz-explanation" data-text="Foundation models provide the clearest benefit when labelled data is scarce and the tissue is novel. The pretrained model brings prior knowledge from 30 million cells, enabling good performance with far fewer labelled examples than training from scratch requires."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">4</span> A paper reports that their foundation model achieves 94% accuracy on cell type annotation. What is the most important question to ask?</h4>
+        <button class="quiz-option" data-value="a">What did the baseline (PCA, scVI, kNN) achieve on the same task and dataset?</button>
+        <button class="quiz-option" data-value="b">How many parameters does the model have?</button>
+        <button class="quiz-option" data-value="c">Which GPU was used for training?</button>
+        <button class="quiz-option" data-value="d">How long did training take?</button>
+        <div class="quiz-explanation" data-text="Without a comparison to simple baselines, 94% accuracy is uninterpretable. If PCA + kNN also achieves 93%, the foundation model's additional complexity adds almost nothing. Always ask what the baseline was before evaluating any performance claim."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">5</span> What is the recommended first step when approaching a new cell type annotation task in 2026?</h4>
+        <button class="quiz-option" data-value="a">Immediately fine-tune Geneformer for best results</button>
+        <button class="quiz-option" data-value="b">Use scGPT zero-shot embeddings</button>
+        <button class="quiz-option" data-value="c">Run the standard PCA pipeline with marker gene validation, then escalate to scVI or foundation models only if needed</button>
+        <button class="quiz-option" data-value="d">Skip PCA since it is outdated compared to foundation models</button>
+        <div class="quiz-explanation" data-text="Start simple. PCA plus Leiden clustering and marker gene validation is fast, interpretable, and works well on most standard tasks. Escalate to scVI if batch effects are present, and to foundation models only if simpler methods are insufficient. Always establish a baseline."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container"></div>
+  </div>
+
+</div>
