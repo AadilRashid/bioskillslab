@@ -114,6 +114,7 @@ async function loadPage(page) {
   try {
     let chapterPath = `chapters/${page}.html`;
     if (page.startsWith('stat')) chapterPath = `chapters/stats/${page}.html`;
+    if (page.startsWith('aiml')) chapterPath = `chapters/aiml/${page}.html`;
     const resp = await fetch(chapterPath);
     if (!resp.ok) throw new Error();
     el.innerHTML = await resp.text();
@@ -673,7 +674,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('nav-bioinfo').style.display = course === 'bioinfo' ? '' : 'none';
       document.getElementById('nav-stats').style.display = course === 'stats' ? '' : 'none';
       document.getElementById('nav-aiml').style.display = course === 'aiml' ? '' : 'none';
-      navigate('home');
+      navigate(course === 'aiml' ? 'aiml1' : 'home');
     });
   }
 });
