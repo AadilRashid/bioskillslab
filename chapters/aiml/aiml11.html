@@ -1,0 +1,292 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="circle-dot" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 11: scVI and Single-Cell Representations</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~60 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Intermediate</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> scVI, Batch Correction, PBMC, Negative Binomial, scvi-tools</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>The Shift to Single-Cell</h2>
+      <p>Everything you have built so far — PCA, logistic regression, random forests, autoencoders, VAEs — was applied to bulk RNA-seq data from TCGA, where each sample is the averaged expression of millions of cells. Now the course shifts to single-cell RNA-seq, where each measurement comes from one individual cell.</p>
+      <p>This shift changes everything. Bulk RNA-seq gives you one data point per patient. Single-cell RNA-seq gives you thousands or millions of data points per patient, each representing the transcriptional state of one cell. The challenge is no longer just classification or dimensionality reduction — it is handling data with properties that standard machine learning methods were not designed for.</p>
+      <p>scVI (single-cell Variational Inference) is the tool that solves these challenges. It is the most widely used deep learning framework for single-cell analysis, with thousands of citations and an active development ecosystem. Understanding it deeply will prepare you for the foundation models in Chapter 12.</p>
+
+      <h2>Why Standard Methods Fail on Single-Cell Data</h2>
+      <p>Single-cell RNA-seq data has three properties that make it different from bulk data and that break standard assumptions.</p>
+      <p><strong>Sparsity.</strong> Most genes are not detected in most cells. A typical single-cell dataset might be 90-95% zeros. A cell that actually expresses a gene may show zero counts simply because not enough RNA molecules were captured in the sequencing library. This is called dropout. Standard normalisation and log transformation handle this poorly — the zeros are not biologically meaningful absences, they are technical noise.</p>
+      <p><strong>Count data with overdispersion.</strong> Single-cell counts follow a negative binomial distribution, not a Gaussian. The variance is much larger than the mean (overdispersion), and this varies between genes and between cells. Models that assume Gaussian noise will misfit the data.</p>
+      <p><strong>Batch effects at scale.</strong> Single-cell experiments are enormously sensitive to technical variation. Samples processed on different days, in different labs, with different chemistries, or at different sequencing depths show systematic differences that can be larger than the biological signal. In a multi-sample study, batch effects are almost always present and must be corrected before any biological interpretation.</p>
+
+      <h2>The scVI Model</h2>
+      <p>scVI (Lopez et al., 2018) addresses all three challenges simultaneously. It is a VAE specifically designed for single-cell count data. Instead of using mean squared error as the reconstruction loss — which assumes Gaussian noise — scVI uses a negative binomial likelihood that matches the actual statistical distribution of single-cell counts.</p>
+      <p>The model architecture:</p>
+
+      <pre><code>Input: raw count matrix (cells x genes)
+       ↓
+Encoder: fully connected layers
+       ↓
+Latent space z: continuous low-dimensional representation
+       ↓
+Decoder: conditioned on z AND batch label
+       ↓
+Reconstruction: negative binomial parameters (mean, dispersion)
+
+Training objective:
+  Maximise evidence lower bound (ELBO)
+  = Reconstruction likelihood - KL divergence</code></pre>
+
+      <p>The crucial innovation is conditioning the decoder on the batch label. This allows the model to learn batch-specific technical variation separately from the biological signal in the latent space. The latent representation z captures biology; the decoder with batch conditioning reconstructs the batch-specific observation. This separation is what enables batch correction: to compare cells across batches, you use the latent space z directly, ignoring the batch-specific reconstruction.</p>
+
+      <h2>Installing scvi-tools</h2>
+      <pre><code>pip install scvi-tools
+pip install scanpy anndata
+
+# Verify installation
+import scvi
+print(scvi.__version__)  # should be 1.x in 2026</code></pre>
+
+      <h2>Loading and Preparing PBMC Data</h2>
+      <p>We use the same PBMC 3k dataset from Project 4, but now through the lens of deep learning.</p>
+
+      <pre><code>import scanpy as sc
+import scvi
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Load PBMC 3k
+adata = sc.datasets.pbmc3k()
+print(adata)
+# AnnData object with n_obs x n_vars = 2700 x 32738
+
+# Standard preprocessing (same as Project 4)
+sc.pp.filter_cells(adata, min_genes=200)
+sc.pp.filter_genes(adata, min_cells=3)
+adata.var['mt'] = adata.var_names.str.startswith('MT-')
+sc.pp.calculate_qc_metrics(adata, qc_vars=['mt'], inplace=True)
+adata = adata[adata.obs.pct_counts_mt < 5].copy()
+
+# Select highly variable genes
+sc.pp.highly_variable_genes(adata, n_top_genes=2000,
+                              subset=True, flavor='seurat_v3',
+                              batch_key=None)
+
+print(f"Cells: {adata.n_obs}, Genes: {adata.n_vars}")
+
+# scVI uses raw counts directly — do NOT normalise or log-transform
+# The model handles count statistics internally
+adata.layers['counts'] = adata.X.copy()  # store raw counts</code></pre>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Raw counts only</strong>
+        <p>scVI requires raw integer counts as input. Do not normalise or log-transform the data before passing it to scVI. The model's negative binomial likelihood is designed to work with raw counts and will produce wrong results if given normalised data. This is the opposite of what you do for PCA or logistic regression.</p>
+      </div>
+
+      <h2>Setting Up and Training scVI</h2>
+
+      <pre><code># Register the AnnData object with scVI
+# Tell it which layer contains raw counts and which column is batch
+scvi.model.SCVI.setup_anndata(
+    adata,
+    layer='counts',
+    # batch_key='batch'  # uncomment if you have batch information
+)
+
+# Create the model
+model = scvi.model.SCVI(
+    adata,
+    n_latent=20,          # latent space dimensions
+    n_layers=2,           # encoder/decoder depth
+    n_hidden=128,         # hidden layer size
+    dropout_rate=0.1
+)
+
+print(model)
+
+# Train the model
+model.train(
+    max_epochs=200,
+    batch_size=128,
+    early_stopping=True,
+    early_stopping_patience=20
+)
+
+# Plot training history
+model.history['elbo_train'].plot()
+plt.title('scVI Training ELBO')
+plt.xlabel('Epoch')
+plt.show()</code></pre>
+
+      <h2>Extracting Latent Representations</h2>
+      <p>After training, extract the latent representation for every cell. This 20-dimensional vector per cell is the batch-corrected biological representation that you use for all downstream analysis.</p>
+
+      <pre><code># Get the latent embedding for all cells
+adata.obsm['X_scVI'] = model.get_latent_representation()
+
+print(f"Latent embedding shape: {adata.obsm['X_scVI'].shape}")
+# (2638, 20)  — one 20-dim vector per cell
+
+# UMAP on the scVI latent space (not on raw expression)
+sc.pp.neighbors(adata, use_rep='X_scVI', n_neighbors=15)
+sc.tl.umap(adata)
+
+# Leiden clustering on the scVI graph
+sc.tl.leiden(adata, resolution=0.5, key_added='leiden_scvi')
+
+# Visualise
+sc.pl.umap(adata, color=['leiden_scvi'], title='scVI Latent Space')</code></pre>
+
+      <h2>Comparing scVI to Standard PCA Pipeline</h2>
+      <p>The key question from Chapter 6 applies here: does scVI actually do better than the standard PCA pipeline from Project 4? To answer this fairly, you need to compare them on a task with a known ground truth.</p>
+
+      <pre><code># Run standard pipeline for comparison
+adata_pca = adata.copy()
+sc.pp.normalize_total(adata_pca, target_sum=1e4)
+sc.pp.log1p(adata_pca)
+sc.pp.scale(adata_pca, max_value=10)
+sc.tl.pca(adata_pca, svd_solver='arpack')
+sc.pp.neighbors(adata_pca, n_pcs=40)
+sc.tl.umap(adata_pca)
+sc.tl.leiden(adata_pca, resolution=0.5, key_added='leiden_pca')
+
+# Compare UMAPs side by side
+fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+sc.pl.umap(adata,     color='leiden_scvi', ax=axes[0],
+           show=False, title='scVI clusters')
+sc.pl.umap(adata_pca, color='leiden_pca',  ax=axes[1],
+           show=False, title='PCA clusters')
+plt.tight_layout()
+plt.show()
+
+# Compare known marker gene expression
+markers = ['CD3D', 'CD14', 'MS4A1', 'GNLY', 'FCER1A', 'PPBP']
+sc.pl.umap(adata,     color=markers, ncols=3, title='scVI')
+sc.pl.umap(adata_pca, color=markers, ncols=3, title='PCA')</code></pre>
+
+      <p>For the PBMC 3k dataset without batch effects, scVI and PCA typically give very similar results. The cell type clusters are nearly identical in both UMAPs. The marker gene patterns are equally clear. This is an important validation of Chapter 6's message: when the data is clean and the task is straightforward, simpler methods work just as well as complex ones.</p>
+      <p>The scenario where scVI genuinely outperforms PCA is when batch effects are present. With multiple samples from different donors or different sequencing runs, PCA will show samples clustering by batch while scVI will show them mixing by cell type. This is the real value of scVI.</p>
+
+      <h2>Batch Correction with scVI</h2>
+      <pre><code># Simulating multi-batch data for demonstration
+# In practice, batch_key points to a column in adata.obs
+
+# Suppose we have data from two donors
+adata.obs['donor'] = ['donor1' if i < 1300 else 'donor2'
+                       for i in range(adata.n_obs)]
+
+# Retrain with batch correction
+scvi.model.SCVI.setup_anndata(adata, layer='counts',
+                               batch_key='donor')
+model_batch = scvi.model.SCVI(adata, n_latent=20)
+model_batch.train(max_epochs=200, early_stopping=True)
+
+# Extract batch-corrected latent space
+adata.obsm['X_scVI_batch'] = model_batch.get_latent_representation()
+
+# The latent space should now mix donors by cell type, not separate them
+sc.pp.neighbors(adata, use_rep='X_scVI_batch')
+sc.tl.umap(adata)
+sc.pl.umap(adata, color=['donor', 'leiden_scvi'],
+           title=['Donor (should mix)', 'Cell type (should separate)'])</code></pre>
+
+      <h2>Beyond PBMC: What scVI Enables</h2>
+      <p>scVI is not just a batch correction tool. The scvi-tools ecosystem has grown into a comprehensive framework for single-cell analysis with several extensions:</p>
+      <ul>
+        <li><strong>scANVI</strong> — extends scVI with semi-supervised cell type annotation using a small set of labelled cells</li>
+        <li><strong>totalVI</strong> — handles CITE-seq data with simultaneous RNA and protein measurements</li>
+        <li><strong>MultiVI</strong> — integrates RNA, ATAC-seq, and protein from multi-omic experiments</li>
+        <li><strong>destVI</strong> — deconvolution of spatial transcriptomics data</li>
+      </ul>
+      <p>All of these share the same core VAE architecture from scVI, extended with modality-specific likelihood functions and conditioning mechanisms. Understanding scVI gives you the foundation to use the entire ecosystem.</p>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Reality Check</strong>
+        <ul>
+          <li>Does scVI produce clearly better clusters than PCA on your data? If not, PCA is sufficient.</li>
+          <li>Do you actually have batch effects? If all samples were processed identically, scVI's batch correction adds nothing.</li>
+          <li>Did you check that you passed raw counts, not normalised data, to scVI?</li>
+          <li>Did you validate clusters against known marker genes regardless of which method you used?</li>
+        </ul>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(56,189,248,.08),rgba(167,139,250,.08));border:1px solid var(--accent);border-radius:12px;padding:1.25rem;margin:1.5rem 0;">
+        <p style="font-weight:600;margin:0;"><i data-lucide="target" style="width:16px;height:16px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Course Progress</p>
+        <p style="color:var(--text-muted);font-size:.9rem;margin:.5rem 0 0;">scVI bridges the gap between the VAE theory from Chapter 10 and the foundation models in Chapter 12. The latent representation it produces is exactly the kind of input that Geneformer and scGPT build upon. In Chapter 12 we ask whether these larger pretrained models improve on scVI for cell type annotation.</p>
+      </div>
+
+      <div class="module-nav">
+        <button class="nav-btn" onclick="navigate('aiml10')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+        <button class="nav-btn" onclick="navigate('aiml12')">Next: Geneformer vs scGPT vs PCA <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Quiz — Chapter 11</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">1</span> Why does scVI use a negative binomial likelihood instead of mean squared error?</h4>
+        <button class="quiz-option" data-value="a">It is computationally faster</button>
+        <button class="quiz-option" data-value="b">It handles missing values better</button>
+        <button class="quiz-option" data-value="c">Single-cell count data follows a negative binomial distribution with overdispersion, which MSE does not model correctly</button>
+        <button class="quiz-option" data-value="d">It produces smaller latent spaces</button>
+        <div class="quiz-explanation" data-text="Single-cell counts are overdispersed count data — the variance is much larger than the mean, and the data is extremely sparse. Negative binomial distributions model this correctly. MSE assumes Gaussian noise and fits the data poorly."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">2</span> How does scVI perform batch correction?</h4>
+        <button class="quiz-option" data-value="a">It removes batch-associated genes before training</button>
+        <button class="quiz-option" data-value="b">The decoder is conditioned on the batch label, so batch-specific technical variation is captured in the decoder rather than the latent space</button>
+        <button class="quiz-option" data-value="c">It trains a separate model for each batch and averages the results</button>
+        <button class="quiz-option" data-value="d">It applies ComBat correction before training</button>
+        <div class="quiz-explanation" data-text="scVI conditions the decoder on the batch label. This allows the model to learn that two cells from different batches are actually the same cell type — the biological signal goes into the latent space z, while batch-specific technical variation is handled by the decoder. The latent space is therefore batch-corrected by design."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">3</span> You want to run scVI on your single-cell data. Which data should you pass as input?</h4>
+        <button class="quiz-option" data-value="a">Raw integer counts before any normalisation or log transformation</button>
+        <button class="quiz-option" data-value="b">Log-normalised counts (log1p of TPM)</button>
+        <button class="quiz-option" data-value="c">Z-score standardised expression values</button>
+        <button class="quiz-option" data-value="d">PCA components from the standard Scanpy pipeline</button>
+        <div class="quiz-explanation" data-text="scVI requires raw counts. Its negative binomial likelihood is designed for integers. Normalised or log-transformed data violates the model's statistical assumptions and produces incorrect results."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">4</span> When does scVI genuinely outperform the standard PCA pipeline?</h4>
+        <button class="quiz-option" data-value="a">Always, because it is a more complex model</button>
+        <button class="quiz-option" data-value="b">When the dataset has more than 10,000 cells</button>
+        <button class="quiz-option" data-value="c">When cells are clustered at high resolution</button>
+        <button class="quiz-option" data-value="d">When significant batch effects are present across multiple samples or donors</button>
+        <div class="quiz-explanation" data-text="On clean, single-batch data like PBMC 3k, scVI and PCA give very similar results. scVI's real advantage is batch correction — when samples were processed differently, PCA clusters by batch while scVI's latent space clusters by biology. Always check whether batch effects are present before choosing between methods."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">5</span> What is the relationship between scVI and the VAE from Chapter 10?</h4>
+        <button class="quiz-option" data-value="a">They are completely different model architectures</button>
+        <button class="quiz-option" data-value="b">scVI is a VAE specifically adapted for single-cell count data, using a negative binomial likelihood and batch conditioning instead of MSE</button>
+        <button class="quiz-option" data-value="c">scVI uses a standard autoencoder without the probabilistic latent space</button>
+        <button class="quiz-option" data-value="d">scVI replaces the VAE's encoder with a transformer</button>
+        <div class="quiz-explanation" data-text="scVI is built on the VAE framework from Chapter 10. The key adaptations are: (1) negative binomial likelihood instead of MSE for count data, (2) batch conditioning in the decoder for batch correction, and (3) library size normalisation within the model. The encoder-latent-decoder structure is identical in principle."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container"></div>
+  </div>
+
+</div>
