@@ -1403,3 +1403,23 @@ function captureEmail() {
   });
 }
 window.captureEmail = captureEmail;
+
+// Inject support button at end of every AI/ML chapter lesson tab
+function injectSupportButton() {
+  if (!state.currentPage.startsWith('aiml')) return;
+  const lesson = document.querySelector('#lesson .lesson');
+  if (!lesson || lesson.querySelector('.support-block')) return;
+  const div = document.createElement('div');
+  div.className = 'support-block';
+  div.style.cssText = 'margin-top:2rem;padding:1.25rem;background:linear-gradient(135deg,rgba(249,115,22,.08),rgba(239,68,68,.08));border:1px solid rgba(249,115,22,.3);border-radius:12px;text-align:center;';
+  div.innerHTML = '<p style="font-size:.85rem;color:var(--text-muted);margin-bottom:.75rem;">BioSkills Lab is completely free. If this course is helping you, consider supporting it.</p><a href="https://razorpay.me/@bioskillslab" target="_blank" style="display:inline-flex;align-items:center;gap:.5rem;background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;padding:.65rem 1.5rem;border-radius:8px;font-weight:700;font-size:.9rem;text-decoration:none;"><i data-lucide="heart" style="width:16px;height:16px;"></i> Support this project</a>';
+  lesson.appendChild(div);
+  lucide.createIcons();
+}
+
+// Hook into navigation
+const _origLoadPage = loadPage;
+async function loadPage(page) {
+  await _origLoadPage(page);
+  setTimeout(injectSupportButton, 100);
+}
