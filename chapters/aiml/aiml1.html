@@ -2,7 +2,7 @@
   <div class="module-header">
     <h1><i data-lucide="cpu" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 1: AI, ML, Deep Learning, LLMs — The Mental Map</h1>
     <div class="meta">
-      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~20 min</span>
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~35 min</span>
       <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Beginner</span>
       <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> AI, ML, Deep Learning, LLMs, Foundation Models</span>
     </div>
@@ -18,60 +18,61 @@
     <div class="lesson">
 
       <h2>Two Things That Are Both True</h2>
-      <p>AI has predicted protein structures that would have taken years of experimental work to determine. AlphaFold2 solved a problem structural biologists had worked on for half a century, in months.</p>
+      <p>AI has predicted protein structures that would have taken years of experimental work to determine. AlphaFold2 solved a problem that structural biologists had worked on for half a century, in months.</p>
       <p>AI has also "discovered" biological patterns that later turned out to be technical artifacts, batch effects, or data leakage. Papers have been published. Some have been retracted.</p>
 
       <div class="callout tip">
         <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> The one skill this course teaches</strong>
-        <p>Understanding the difference between those two outcomes is the most important skill in modern computational biology. Everything in this course builds toward that judgement.</p>
+        <p>Understanding the difference between those two outcomes — when AI genuinely advances biology and when it produces convincing nonsense — is the most important skill in modern computational biology. Everything in this course builds toward that judgement.</p>
       </div>
 
-      <h2>Why Biology Needs AI Now</h2>
-      <p>The data is no longer the bottleneck. Making sense of it is.</p>
-      <ul>
-        <li>A single RNA-seq run: 20,000 gene measurements per sample</li>
-        <li>A single-cell experiment: millions of individual cells profiled</li>
-        <li>A whole genome: 3 billion base pairs per patient</li>
-      </ul>
-      <p>Human intuition and t-tests were not designed for this scale. AI was.</p>
+      <h2>Why Biology Suddenly Needs AI</h2>
+      <p>Biology has changed. Not gradually — suddenly.</p>
+      <p>A decade ago, a typical experiment produced hundreds of measurements. Today a single RNA-seq run produces expression values for 20,000 genes across hundreds of samples. A single-cell experiment measures millions of individual cells. A spatial transcriptomics slide captures gene expression at every position across a tissue section.</p>
+      <p>The data is no longer the bottleneck. <strong>Making sense of it is.</strong></p>
+      <p>Human intuition, spreadsheets, and t-tests were designed for a world where data was scarce. They were not designed for 20,000 genes measured simultaneously, millions of cells profiled in a single experiment, 3 billion base pairs of DNA per patient, or multi-omics datasets combining genomics, transcriptomics, proteomics, and clinical records. This is precisely the kind of problem AI was built for — finding patterns in high-dimensional data that humans cannot inspect manually.</p>
 
       <h2>The Mental Map</h2>
-      <p>Every time you hear "AI," "machine learning," "deep learning," or "LLM" — this is the relationship:</p>
+      <p>Before going further, you need one diagram. Every time someone says "AI," "machine learning," "deep learning," or "LLM," this is the relationship they are describing:</p>
 
       <div style="text-align:center;margin:1.5rem 0;">
-        <img src="/img/mentalmap.png" alt="AI Mental Map: AI contains ML, which contains Deep Learning, which contains Transformers and LLMs" style="max-width:100%;border-radius:12px;border:1px solid var(--border);">
+        <img src="/img/mentalmap.png" alt="AI Mental Map showing hierarchy from AI to ML to Deep Learning to Transformers to LLMs to Foundation Models" style="max-width:100%;border-radius:12px;border:1px solid var(--border);">
       </div>
 
-      <p>Everything in this course sits somewhere in this hierarchy. The diagram does not change. Only the methods inside it evolve.</p>
+      <p>Everything in this course — random forests, autoencoders, Geneformer, scGPT, AlphaFold, AlphaGenome — sits somewhere in this hierarchy. The diagram does not change. Only the methods inside it evolve.</p>
 
-      <h2>What Each Term Means</h2>
+      <h2>What is Artificial Intelligence?</h2>
+      <p>AI is the broader goal of making computers perform tasks that normally require human intelligence — recognising images, understanding language, making decisions, discovering patterns. In biology, AI tasks include identifying cell types from gene expression profiles, predicting whether a mutation causes disease, determining protein structure from amino acid sequence, and discovering patient subgroups from multi-omics data.</p>
+      <p>Not all AI is machine learning. Rule-based expert systems are AI. But in practice, when biologists say "AI" today, they almost always mean machine learning.</p>
 
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin:1.5rem 0;">
-        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:1.25rem;">
-          <h4 style="color:var(--accent);margin-bottom:.5rem;">Artificial Intelligence</h4>
-          <p style="font-size:.9rem;color:var(--text-muted);margin:0;">The broad goal: make computers perform tasks that normally require human intelligence — image recognition, language, decision-making, pattern discovery.</p>
-        </div>
-        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:1.25rem;">
-          <h4 style="color:var(--purple);margin-bottom:.5rem;">Machine Learning</h4>
-          <p style="font-size:.9rem;color:var(--text-muted);margin:0;">Instead of writing rules manually, show the model many examples and let it learn the relationship. Gene expression in, cancer subtype out.</p>
-        </div>
-        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:1.25rem;">
-          <h4 style="color:var(--green);margin-bottom:.5rem;">Deep Learning</h4>
-          <p style="font-size:.9rem;color:var(--text-muted);margin:0;">Neural networks that learn their own features from raw data. Instead of you selecting 100 important genes, the network learns what matters from all 20,000.</p>
-        </div>
-        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:1.25rem;">
-          <h4 style="color:var(--orange);margin-bottom:.5rem;">Transformers</h4>
-          <p style="font-size:.9rem;color:var(--text-muted);margin:0;">Neural networks designed for sequences. They can look at any part of a sequence when interpreting any other part — critical for DNA where regulatory elements can be 500,000 bp away.</p>
-        </div>
-        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:1.25rem;">
-          <h4 style="color:var(--red);margin-bottom:.5rem;">LLMs</h4>
-          <p style="font-size:.9rem;color:var(--text-muted);margin:0;">Transformers trained on enormous datasets. The same architecture trained on DNA sequences becomes a DNA language model. Trained on proteins, a protein language model.</p>
-        </div>
-        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:1.25rem;">
-          <h4 style="color:var(--accent);margin-bottom:.5rem;">Foundation Models</h4>
-          <p style="font-size:.9rem;color:var(--text-muted);margin:0;">Large models pretrained on enormous biological datasets that can be adapted to many tasks. They are the frontier of modern computational biology. We cover them in Chapters 12-15.</p>
-        </div>
-      </div>
+      <h2>What is Machine Learning?</h2>
+      <p>Machine learning is how most modern AI actually works. Instead of writing explicit rules — "if gene X is high AND gene Y is low, predict cancer subtype A" — you show the computer many examples and let it learn the rules itself.</p>
+
+      <pre><code>Traditional programming:   Rules + Data  → Output
+Machine learning:          Data + Output → Rules (learned automatically)</code></pre>
+
+      <p>A machine learning model for cancer subtyping does not need a biologist to specify which genes matter. It learns which combinations of gene expression values tend to co-occur with which cancer subtypes — from thousands of patient samples. This is powerful. It is also dangerous. The model learns whatever patterns exist in the data, including batch effects, population biases, and technical artifacts. We return to this problem in Chapter 6.</p>
+
+      <h2>What is Deep Learning?</h2>
+      <p>Standard machine learning works well when you know which features matter. For gene expression data, you might select the 100 most variable genes and feed those into a model. But what if the important signal is hidden in complex combinations of genes you did not think to include?</p>
+      <p>Deep learning solves this by learning useful representations automatically. Instead of you deciding which features to use, a neural network learns to extract its own features from raw data. This matters in genomics because 20,000 genes is too many to manually curate, and because important signals may involve complex interactions between hundreds of genes that no biologist would know to specify in advance.</p>
+
+      <pre><code>Standard ML:    You select features → Model learns from features
+Deep learning:  Raw data → Network learns features → Network learns predictions</code></pre>
+
+      <p>Deep networks can compress 20,000 gene measurements into 50 meaningful numbers — capturing the dominant patterns in the data in a compact form. This compression is what autoencoders do, and we build one in Chapter 9.</p>
+
+      <h2>What is a Transformer?</h2>
+      <p>Transformers are a type of neural network designed specifically to handle sequences and long-range relationships. They were introduced for language but turned out to be extraordinarily useful for biology because biology is full of sequences — DNA, RNA, proteins, and even sequences of cell states over developmental time.</p>
+      <p>The key innovation is <strong>attention</strong>: the ability to look at any part of a sequence when interpreting any other part. For DNA, this matters enormously. A regulatory element 500,000 base pairs away from a gene can control whether that gene is expressed. Earlier models could not capture relationships at that scale. Transformers can. This is why Enformer, AlphaGenome, and the DNA foundation models in Chapters 13 and 14 are built on transformer architectures.</p>
+
+      <h2>What is a Large Language Model?</h2>
+      <p>Large language models are transformers trained on enormous amounts of data. GPT-4 is an LLM trained on text. But the same architecture trained on DNA sequences produces a DNA language model. Trained on protein sequences, a protein language model. Trained on millions of single-cell transcriptomes, a cell foundation model.</p>
+      <p>In biology, LLMs assist with literature summarisation, protocol generation, and bioinformatics copilots. But the more important application is not ChatGPT for biology — it is using the transformer architecture to build models that understand biological sequences and cellular states at a scale and depth that was impossible before 2020.</p>
+
+      <h2>What is a Foundation Model?</h2>
+      <p>A foundation model is pretrained on enormous biological datasets and can then be adapted — fine-tuned — to many downstream tasks. Think of it as a model that has learned general biological representations from millions of examples, which you then specialise for your specific question with a smaller labelled dataset.</p>
+      <p>Foundation models are the frontier of modern computational biology. We dedicate Chapters 12 through 15 to them. For now, the key insight is that they represent a shift in how biological AI is done: instead of training models from scratch on small datasets, you start from a model that already understands biology at a deep level and adapt it to your question.</p>
 
       <h2>AI in Biology Today — A Preview</h2>
       <p>Every row in this table is a chapter in this course:</p>
@@ -97,6 +98,7 @@
       </table>
 
       <h2>The Course Roadmap</h2>
+      <p>The left column is the technology you will learn. The right column is the biological question it answers. Every chapter connects both.</p>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1.5rem 0;">
         <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:1.25rem;">
@@ -144,12 +146,15 @@
           <li>Is the dataset large enough to trust these results?</li>
           <li>Could PCA or a random forest do this just as well?</li>
         </ul>
+        <p>The answers are often surprising. Chapter 6 is dedicated entirely to this question.</p>
       </div>
 
       <div style="background:linear-gradient(135deg,rgba(56,189,248,.08),rgba(167,139,250,.08));border:1px solid var(--accent);border-radius:12px;padding:1.5rem;margin:1.5rem 0;text-align:center;">
         <p style="font-size:1.1rem;font-weight:600;margin:0;">Running Question: Can we predict cancer subtype from gene expression?</p>
         <p style="color:var(--text-muted);font-size:.9rem;margin:.5rem 0 0;">And was the complexity of AI actually necessary to do it?</p>
       </div>
+
+      <p>By the capstone you will have answered this question using tools that span from PCA to foundation models — and you will know which one genuinely helped and which added complexity without adding value.</p>
 
       <div class="module-nav">
         <div></div>
@@ -187,7 +192,7 @@
         <button class="quiz-option" data-value="b">Deep learning always outperforms standard ML</button>
         <button class="quiz-option" data-value="c">Standard ML requires more data than deep learning</button>
         <button class="quiz-option" data-value="d">Deep learning cannot be used for classification</button>
-        <div class="quiz-explanation" data-text="Deep learning learns which features matter from raw data rather than requiring a human to specify them. Powerful for genomics but needs more data and compute."></div>
+        <div class="quiz-explanation" data-text="Deep learning learns which features matter from raw data rather than requiring a human to specify them. Powerful for genomics but needs more data and compute — and is not always better than simpler approaches."></div>
       </div>
 
       <div class="quiz-question" data-type="choice" data-answer="d">
