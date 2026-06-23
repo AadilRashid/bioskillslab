@@ -1,0 +1,279 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="sparkles" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 15: Foundation Models and the Future of Computational Biology</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~60 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Advanced</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Geneformer, scGPT, Evo, ESM3, AlphaFold 3, Agents, Biological AI</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>The Right Way to Think About Foundation Models</h2>
+      <p>This course has repeatedly asked the same question: does this model actually help? In Chapters 7 through 14, the answer was sometimes yes and sometimes no, and the honest answer depended on the task, the data, and the baseline you compared against.</p>
+      <p>Foundation models are no different. They are not uniformly better. They are better in specific situations — particularly when labelled data is scarce, when the task requires prior knowledge about biology that would take enormous amounts of data to learn from scratch, and when the question involves generalisation across contexts that smaller models cannot bridge.</p>
+      <p>This chapter organises the foundation model landscape not by model name and version number — those change constantly — but by biological question. Which model do you reach for when you are trying to understand cell states? Gene regulation? Protein structure? Genomic evolution? This framing will remain useful long after specific models have been superseded.</p>
+
+      <h2>Organised by Biological Question</h2>
+
+      <table style="width:100%;border-collapse:collapse;margin:1rem 0;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border);">
+            <th style="text-align:left;padding:.75rem;">Biological Question</th>
+            <th style="text-align:left;padding:.75rem;">Foundation Model</th>
+            <th style="text-align:left;padding:.75rem;">Chapter</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">What is the state of this cell?</td>
+            <td style="padding:.75rem;">Geneformer</td>
+            <td style="padding:.75rem;">12</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">What cell type is this?</td>
+            <td style="padding:.75rem;">scGPT</td>
+            <td style="padding:.75rem;">12</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">What does this DNA sequence do?</td>
+            <td style="padding:.75rem;">AlphaGenome</td>
+            <td style="padding:.75rem;">14</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">What is the effect of this variant?</td>
+            <td style="padding:.75rem;">Evo</td>
+            <td style="padding:.75rem;">This chapter</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">What does this protein do / how to design it?</td>
+            <td style="padding:.75rem;">ESM3</td>
+            <td style="padding:.75rem;">This chapter</td>
+          </tr>
+          <tr>
+            <td style="padding:.75rem;">What is the 3D structure of this molecule?</td>
+            <td style="padding:.75rem;">AlphaFold 3</td>
+            <td style="padding:.75rem;">This chapter</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Geneformer — Understanding Cell States</h2>
+      <p>Geneformer (Theodoris et al., Nature 2023) was pretrained on approximately 30 million single-cell transcriptomes using a self-supervised masked gene prediction objective. It remains one of the most cited single-cell foundation models and is widely used for cell state representation and perturbation prediction.</p>
+      <p>Its strongest applications are not straightforward cell type annotation — as Chapter 12 showed, simpler baselines are competitive there — but tasks that require deep understanding of gene network relationships: predicting how cells respond to drug perturbations, identifying transcription factor network states in disease, and discovering novel cell states that are not represented in existing atlases.</p>
+      <p>Geneformer is available through the Hugging Face hub. Fine-tuning for a downstream task typically requires a GPU and a labelled dataset of a few hundred to a few thousand cells.</p>
+
+      <h2>scGPT — Generative Single-Cell Biology</h2>
+      <p>scGPT (Cui et al., Nature Methods 2024) uses a GPT-style architecture — generative and autoregressive in pretraining — trained on over 33 million human cells. Its generative framing makes it particularly useful for tasks that require generating new cell profiles or conditioning predictions on partial information.</p>
+      <p>Beyond annotation, scGPT supports perturbation modelling (predicting gene expression after a knockout), multi-omic integration, and drug response prediction. Its pretrained weights are available and fine-tuning pipelines are well-documented. The model processes normalised log-transformed counts, unlike scVI which requires raw counts.</p>
+      <p>Independent benchmarks have found, as with Geneformer, that on standard annotation tasks scGPT and simple baselines perform comparably. The clearest advantages appear when the task is generative — generating realistic synthetic cells for data augmentation, for instance — or when you need to model the combined effects of multiple perturbations.</p>
+
+      <h2>Evo — The Genomic Language Model</h2>
+      <p>Evo (Arc Institute, 2024) represents a different approach to genomic foundation models. Rather than focusing on regulatory function prediction from DNA sequence (AlphaGenome) or single-cell transcriptomics (Geneformer), Evo treats entire genomes as language — including bacteria, archaea, and eukaryotes — and trains a generative language model at genomic scale.</p>
+      <p>The model's strengths lie in variant effect prediction across diverse organisms, understanding the evolutionary constraints on genomic sequences, and generative tasks — designing synthetic promoters, predicting the fitness effects of mutations, or even generating functional gene sequences de novo. Recent evaluations have shown strong performance on several variant-effect benchmarks, particularly for variants in non-coding regulatory regions.</p>
+
+      <pre><code>pip install evo-model
+
+from evo import Evo
+import torch
+
+# Load pretrained Evo model
+model, tokenizer = Evo('evo-1-131k-base')
+model.eval()
+
+# Embed a genomic sequence
+sequence = "ATCGATCGATCG..."
+tokens   = tokenizer.tokenize(sequence)
+inputs   = torch.tensor(tokens).unsqueeze(0)
+
+with torch.no_grad():
+    outputs   = model(inputs, output_hidden_states=True)
+    embedding = outputs.hidden_states[-1].mean(dim=1)
+
+# Variant effect prediction: compute log-likelihood ratio
+def variant_effect(model, tokenizer, sequence, position, ref, alt):
+    seq_ref = sequence[:position] + ref + sequence[position+1:]
+    seq_alt = sequence[:position] + alt + sequence[position+1:]
+
+    tokens_ref = torch.tensor(tokenizer.tokenize(seq_ref)).unsqueeze(0)
+    tokens_alt = torch.tensor(tokenizer.tokenize(seq_alt)).unsqueeze(0)
+
+    with torch.no_grad():
+        ll_ref = model(tokens_ref).logits.sum().item()
+        ll_alt = model(tokens_alt).logits.sum().item()
+
+    return ll_alt - ll_ref  # positive = alt increases likelihood</code></pre>
+
+      <h2>ESM3 — The Multimodal Protein Foundation Model</h2>
+      <p>ESM3 (Meta AI, 2024) is the most advanced protein foundation model available. Unlike earlier protein language models that operated on sequence alone, ESM3 is multimodal: it jointly reasons over protein sequence, structure, and function simultaneously. You can provide partial information in any combination — sequence only, structure only, sequence plus partial structure — and the model reasons over the remaining modalities.</p>
+      <p>The practical capabilities of ESM3 include protein function prediction from sequence, structure prediction from sequence (competing with AlphaFold 2 on many benchmarks), inverse design (finding sequences that fold into a given structure), and protein generation for designing novel proteins with desired properties. For computational biologists, ESM3 represents the state of the art for protein-centred tasks.</p>
+
+      <pre><code>pip install esm
+
+import esm
+import torch
+
+# Load ESM3
+model = esm.pretrained.esm3_sm_open_v1()
+model.eval()
+
+# Predict structure from sequence
+sequence = "MKTIIALSYIFCLVFA..."
+output   = model.generate(
+    esm.ESMProtein(sequence=sequence),
+    esm.GenerationConfig(track="structure", num_steps=8)
+)
+# output.coordinates: (L, 3) backbone coordinates
+
+# Protein function embedding
+embedding = model.encode(
+    esm.ESMProtein(sequence=sequence)
+).embeddings.mean(dim=1)
+print(f"Protein embedding: {embedding.shape}")</code></pre>
+
+      <h2>AlphaFold 3 — Beyond Proteins</h2>
+      <p>AlphaFold 2 changed structural biology by making accurate protein structure prediction accessible to everyone. AlphaFold 3 (Google DeepMind, 2024) extends this revolution beyond proteins. It models the full chemical complexity of living systems: protein-protein complexes, protein-DNA interactions, protein-RNA interactions, and protein-small molecule (ligand) binding — all within a single unified model.</p>
+      <p>This broader scope makes AlphaFold 3 directly useful for drug discovery (predicting how a small molecule binds its protein target), gene regulation (predicting how a transcription factor recognises its DNA binding site), and RNA biology (predicting how RNA-binding proteins interact with their targets). AlphaFold 3 is available through the AlphaFold Server and through an open source implementation.</p>
+
+      <pre><code># AlphaFold 3 is available via:
+# 1. AlphaFold Server: https://alphafoldserver.com
+#    Web interface, supports protein+DNA+RNA+ligand inputs
+
+# 2. Local installation (requires significant GPU memory)
+pip install alphafold3
+
+from alphafold3 import predict_structure
+
+# Predict protein-DNA complex
+result = predict_structure(
+    sequences={
+        'protein': 'MKTIIALSYIFCLVFA...',
+        'dna':     'ATCGATCGATCG'
+    }
+)
+# result.structure: atomic coordinates
+# result.confidence: pLDDT scores per residue</code></pre>
+
+      <h2>LLMs and Agents for Biological Research</h2>
+      <p>Large language models trained on scientific text — and increasingly on biological data alongside text — are beginning to assist with tasks that previously required significant manual effort: literature summarisation, experimental protocol design, bioinformatics pipeline debugging, and hypothesis generation.</p>
+      <p>An agent extends an LLM with tools and memory. A biological research agent can search PubMed, execute analysis code, query databases, and synthesise results across multiple steps. In 2026, agents are being used to automate literature review for systematic analyses, to run standardised analysis pipelines with natural language instructions, and to generate hypotheses by cross-referencing multiple biological databases simultaneously.</p>
+      <p>The most important thing to understand about LLMs and agents for biology is their current limitations. They hallucinate — they generate plausible-sounding but incorrect biological facts. They are not reliable for precise quantitative claims. They should be used as accelerators for tasks you can verify, not as autonomous decision-makers for tasks you cannot.</p>
+
+      <pre><code># Example: using an LLM agent for bioinformatics assistance
+# Most major LLM providers offer API access
+
+from openai import OpenAI
+client = OpenAI()
+
+# Use as a bioinformatics copilot
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{
+        "role": "user",
+        "content": """I have a DESeq2 results table with columns:
+        gene, baseMean, log2FoldChange, lfcSE, stat, pvalue, padj.
+        Write Python code to create a volcano plot showing
+        significant genes (padj < 0.05, |log2FC| > 1) in red."""
+    }]
+)
+print(response.choices[0].message.content)</code></pre>
+
+      <h2>What Comes Next</h2>
+      <p>The field is moving rapidly, and any specific list of models will be outdated within months. What will not be outdated is the conceptual framework this course has taught you: every model has a biological question it addresses best, every evaluation must include a baseline, every impressive-sounding result must be interrogated for data leakage and overfitting, and the goal is always to answer a biological question rather than to use a particular algorithm.</p>
+      <p>The most important advances coming in the next few years are likely to be: multimodal models that jointly reason over sequence, structure, and cell state simultaneously; agent systems that can autonomously execute complex multi-step analyses while maintaining scientific rigour; and the accumulation of large-scale biological datasets — particularly from rare diseases and understudied organisms — that will enable genuinely new scientific discoveries rather than benchmarking improvements on existing datasets.</p>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> How to stay current</strong>
+        <p>Subscribe to bioRxiv feeds for computational biology. Follow the scverse, Hugging Face biology, and DeepMind AlphaFold channels. The field moves faster than any course can track, and the skill this course has been teaching — critical evaluation of new methods — is what will allow you to assess new models as they appear.</p>
+      </div>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Final Reality Check</strong>
+        <ul>
+          <li>Does the foundation model outperform your best simpler baseline on your specific task?</li>
+          <li>Is the biological question you are asking one where the model's pretraining is relevant?</li>
+          <li>Have you evaluated on an independent dataset from a different source than the training data?</li>
+          <li>For LLMs and agents: can you verify the outputs? If not, do not trust them for scientific claims.</li>
+          <li>Does the complexity of the approach justify the computational cost and interpretability trade-off?</li>
+        </ul>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(56,189,248,.08),rgba(167,139,250,.08));border:1px solid var(--accent);border-radius:12px;padding:1.5rem;margin:1.5rem 0;text-align:center;">
+        <p style="font-size:1.1rem;font-weight:600;margin:0;">You are ready for the Capstone</p>
+        <p style="color:var(--text-muted);font-size:.9rem;margin:.5rem 0 0;">You have covered 15 chapters from the basics of what a model is to the frontier of biological foundation models. The capstone asks the question this entire course has been building toward: did the foundation model actually help?</p>
+      </div>
+
+      <div class="module-nav">
+        <button class="nav-btn" onclick="navigate('aiml14')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+        <button class="nav-btn" onclick="navigate('aiml-project')">Capstone Project <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Quiz — Chapter 15</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">1</span> A researcher wants to predict how a cell will respond to a drug knockout. Which foundation model is most appropriate?</h4>
+        <button class="quiz-option" data-value="a">AlphaFold 3 — it models protein interactions</button>
+        <button class="quiz-option" data-value="b">ESM3 — it handles protein sequences</button>
+        <button class="quiz-option" data-value="c">Geneformer — it was specifically designed for perturbation prediction in single cells using gene network representations</button>
+        <button class="quiz-option" data-value="d">Evo — it handles genomic sequences</button>
+        <div class="quiz-explanation" data-text="Geneformer's pretraining on single-cell transcriptomes gives it rich knowledge of gene network relationships. One of its strongest applications is in silico perturbation prediction — predicting how a cell's transcriptional state changes in response to gene knockouts or drug treatments."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">2</span> What is the key advance of AlphaFold 3 over AlphaFold 2?</h4>
+        <button class="quiz-option" data-value="a">It is faster to run</button>
+        <button class="quiz-option" data-value="b">It predicts protein structures with higher accuracy</button>
+        <button class="quiz-option" data-value="c">It was trained on more protein structures</button>
+        <button class="quiz-option" data-value="d">It models protein-DNA, protein-RNA, and protein-ligand interactions, not just protein structure alone</button>
+        <div class="quiz-explanation" data-text="AlphaFold 2 revolutionised protein structure prediction. AlphaFold 3 extends this to the full chemical complexity of biology — complexes of proteins with DNA, RNA, and small molecules. This makes it directly useful for drug discovery, gene regulation, and RNA biology."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">3</span> What distinguishes ESM3 from earlier protein language models?</h4>
+        <button class="quiz-option" data-value="a">It was trained on a larger dataset of protein sequences</button>
+        <button class="quiz-option" data-value="b">It is multimodal — it jointly reasons over protein sequence, structure, and function simultaneously</button>
+        <button class="quiz-option" data-value="c">It can only be used for structure prediction</button>
+        <button class="quiz-option" data-value="d">It uses a convolutional architecture instead of transformers</button>
+        <div class="quiz-explanation" data-text="ESM3 is multimodal: you can provide sequence, structure, or function information in any combination and the model reasons over all three simultaneously. Earlier protein language models were sequence-only. This enables tasks like inverse protein design and structure-guided sequence generation."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">4</span> What is the most important limitation to be aware of when using LLMs as biological research assistants?</h4>
+        <button class="quiz-option" data-value="a">They hallucinate — they generate plausible but incorrect biological facts and should only be used for tasks whose outputs you can verify</button>
+        <button class="quiz-option" data-value="b">They are too slow for practical use</button>
+        <button class="quiz-option" data-value="c">They only work for human biology</button>
+        <button class="quiz-option" data-value="d">They require GPU hardware to run</button>
+        <div class="quiz-explanation" data-text="LLM hallucination is the critical limitation for scientific use. An LLM may confidently state an incorrect gene function, a non-existent paper, or a biologically impossible mechanism. Always verify LLM outputs against primary sources before using them in scientific work."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">5</span> You want to predict the fitness effect of a mutation in a bacterial regulatory region. Which model is most appropriate?</h4>
+        <button class="quiz-option" data-value="a">Geneformer — it handles gene expression</button>
+        <button class="quiz-option" data-value="b">AlphaFold 3 — it models molecular structures</button>
+        <button class="quiz-option" data-value="c">Evo — it was trained on genomes across thousands of species and is strong on variant effects in regulatory and coding regions</button>
+        <button class="quiz-option" data-value="d">ESM3 — it handles protein sequences</button>
+        <div class="quiz-explanation" data-text="Evo was trained on genomic sequences across bacteria, archaea, and eukaryotes with a generative objective. This multi-species training makes it particularly strong for predicting variant fitness effects from evolutionary constraints. Geneformer handles single-cell expression; AlphaFold 3 handles structure; ESM3 handles proteins."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container"></div>
+  </div>
+
+</div>
