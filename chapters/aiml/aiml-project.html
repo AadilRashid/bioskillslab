@@ -1,0 +1,418 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="trophy" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Capstone: Did the Foundation Model Actually Help?</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~4 hours</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Advanced</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> PCA, scVI, Geneformer, Benchmarking, Cell Type Annotation, PBMC</span>
+    </div>
+    <p style="color:var(--text-muted);margin-top:.5rem;font-style:italic;">Comparing PCA, scVI, and Geneformer on a real PBMC benchmark dataset</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Project</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>The Question This Entire Course Has Been Building Toward</h2>
+      <p>Since Chapter 1 you have been asked the same question at the end of every chapter: does the complexity actually help? You have seen logistic regression nearly match neural networks on TCGA. You have seen PCA compete with scVI on clean single-cell data. You have seen benchmarks showing that simple baselines outperform foundation models on many standard tasks.</p>
+      <p>Now you test it yourself. Not on toy data. Not on a pre-processed demonstration. On a real benchmark dataset used in published evaluation papers, with a fair experimental design, measuring what actually matters.</p>
+      <p>The task is cell type annotation. The representations are PCA, scVI, and Geneformer. The classifier is the same for all three. The only thing that changes is the embedding. At the end, you will have an answer — your answer, computed on your machine — to the question that defines this course.</p>
+
+      <h2>The Dataset</h2>
+      <p>We use the PBMC benchmark dataset from Luecken et al. (2022), the single-cell integration benchmarking (scIB) study published in Nature Methods. This dataset was collected specifically to benchmark representation learning and integration methods, making it ideal for evaluating foundation models.</p>
+
+      <pre><code>Dataset:    scIB PBMC Benchmarking Dataset
+Source:     Luecken et al., Nature Methods 2022
+Cells:      ~14,000 PBMCs
+Donors:     10 donors (batch variable)
+Cell types: CD4 T, CD8 T, NK, B cell, Monocyte, Dendritic, Plasma
+Platform:   10x Chromium
+Access:     figshare.com/ndownloader/files/24539842
+Format:     AnnData (.h5ad)
+Size:       ~150 MB</code></pre>
+
+      <p>This dataset has several properties that make it ideal for the capstone. It has real batch effects across 10 donors, so scVI's batch correction can actually demonstrate its value. The cell types are well-characterised with high-confidence labels. And because it was explicitly used to benchmark representation methods in a published study, you can compare your results to Table 1 of the Luecken et al. paper.</p>
+
+      <h2>Experimental Design</h2>
+      <p>The design is deliberately simple. Three representations, one classifier, one evaluation protocol. The simplicity is the point — it isolates the representation as the only variable.</p>
+
+      <pre><code>For each representation method (PCA, scVI, Geneformer):
+
+  1. Extract embeddings for all cells
+  2. Split into 80% train / 20% test (stratified by cell type)
+  3. Train a k-Nearest Neighbour classifier (k=15) on train embeddings
+  4. Predict cell types on test embeddings
+  5. Compute: Accuracy, Macro-F1, per-class F1
+  6. Measure: wall-clock runtime, memory usage
+  7. Visualise: UMAP of embeddings coloured by cell type and donor
+
+Record all results in a comparison table.
+Final question: which method would you deploy in a real analysis, and why?</code></pre>
+
+      <h2>Step 0: Setup</h2>
+      <pre><code>pip install scanpy scvi-tools geneformer anndata scikit-learn umap-learn
+pip install memory_profiler psutil
+
+import scanpy as sc
+import scvi
+import numpy as np
+import pandas as pd
+import torch
+import time
+import tracemalloc
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, f1_score, classification_report
+import matplotlib.pyplot as plt</code></pre>
+
+      <h2>Step 1: Load and Inspect the Data</h2>
+      <pre><code>import urllib.request
+
+# Download the scIB PBMC benchmark dataset
+url  = "https://figshare.com/ndownloader/files/24539842"
+path = "pbmc_scib.h5ad"
+print("Downloading dataset (~150 MB)...")
+urllib.request.urlretrieve(url, path)
+
+# Load
+adata = sc.read_h5ad(path)
+print(adata)
+print("\nCell type distribution:")
+print(adata.obs['cell_type'].value_counts())
+print("\nDonor distribution:")
+print(adata.obs['batch'].value_counts())
+print(f"\nGenes: {adata.n_vars}")
+print(f"Cells: {adata.n_obs}")</code></pre>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Before any analysis — inspect your data</strong>
+        <p>Check that cell type labels are present, that batch labels are present, that the counts look like integers (raw counts, not normalised). This dataset should be ready to use after loading, but always verify before training any model.</p>
+      </div>
+
+      <h2>Step 2: Preprocessing</h2>
+      <pre><code># Store raw counts for scVI (needs integer counts)
+adata.layers['counts'] = adata.X.copy()
+
+# Standard preprocessing for PCA
+sc.pp.highly_variable_genes(adata, n_top_genes=2000,
+                              subset=False, flavor='seurat_v3',
+                              batch_key='batch')
+sc.pp.normalize_total(adata, target_sum=1e4)
+sc.pp.log1p(adata)
+sc.pp.scale(adata, max_value=10)
+
+# Encode cell type labels
+from sklearn.preprocessing import LabelEncoder
+le = LabelEncoder()
+y  = le.fit_transform(adata.obs['cell_type'])
+
+print(f"Classes: {le.classes_}")
+print(f"Encoded: {np.unique(y)}")</code></pre>
+
+      <h2>Step 3: Representation 1 — PCA</h2>
+      <pre><code>print("=" * 50)
+print("METHOD 1: PCA")
+print("=" * 50)
+
+start_time = time.time()
+tracemalloc.start()
+
+# PCA on highly variable genes
+sc.tl.pca(adata, n_comps=50, use_highly_variable=True)
+X_pca = adata.obsm['X_pca']
+
+pca_time   = time.time() - start_time
+pca_memory = tracemalloc.get_traced_memory()[1] / 1e6  # MB
+tracemalloc.stop()
+
+print(f"PCA embedding shape: {X_pca.shape}")
+print(f"Time:   {pca_time:.1f} seconds")
+print(f"Memory: {pca_memory:.1f} MB")
+
+# Train/test split
+X_train_pca, X_test_pca, y_train, y_test = train_test_split(
+    X_pca, y, test_size=0.2, random_state=42, stratify=y
+)
+
+# Classify
+knn_pca = KNeighborsClassifier(n_neighbors=15, metric='cosine', n_jobs=-1)
+knn_pca.fit(X_train_pca, y_train)
+y_pred_pca = knn_pca.predict(X_test_pca)
+
+acc_pca = accuracy_score(y_test, y_pred_pca)
+f1_pca  = f1_score(y_test, y_pred_pca, average='macro')
+print(f"PCA + kNN  |  Accuracy: {acc_pca:.3f}  |  Macro-F1: {f1_pca:.3f}")
+print(classification_report(y_test, y_pred_pca, target_names=le.classes_))</code></pre>
+
+      <h2>Step 4: Representation 2 — scVI</h2>
+      <pre><code>print("=" * 50)
+print("METHOD 2: scVI")
+print("=" * 50)
+
+start_time = time.time()
+tracemalloc.start()
+
+# Setup scVI with batch correction
+adata_scvi = adata.copy()
+adata_scvi.X = adata_scvi.layers['counts']  # use raw counts
+
+scvi.model.SCVI.setup_anndata(
+    adata_scvi,
+    layer='counts',
+    batch_key='batch'
+)
+
+model_scvi = scvi.model.SCVI(adata_scvi, n_latent=20, n_layers=2)
+model_scvi.train(max_epochs=200, early_stopping=True,
+                  early_stopping_patience=20, batch_size=256)
+
+X_scvi = model_scvi.get_latent_representation()
+adata.obsm['X_scVI'] = X_scvi
+
+scvi_time   = time.time() - start_time
+scvi_memory = tracemalloc.get_traced_memory()[1] / 1e6
+tracemalloc.stop()
+
+print(f"scVI embedding shape: {X_scvi.shape}")
+print(f"Time:   {scvi_time:.1f} seconds")
+print(f"Memory: {scvi_memory:.1f} MB")
+
+# Classify with same split
+X_train_scvi = X_scvi[np.where(np.isin(np.arange(len(y)), train_idx))[0]]
+X_test_scvi  = X_scvi[np.where(np.isin(np.arange(len(y)), test_idx))[0]]
+
+knn_scvi = KNeighborsClassifier(n_neighbors=15, metric='cosine', n_jobs=-1)
+knn_scvi.fit(X_train_scvi, y_train)
+y_pred_scvi = knn_scvi.predict(X_test_scvi)
+
+acc_scvi = accuracy_score(y_test, y_pred_scvi)
+f1_scvi  = f1_score(y_test, y_pred_scvi, average='macro')
+print(f"scVI + kNN  |  Accuracy: {acc_scvi:.3f}  |  Macro-F1: {f1_scvi:.3f}")</code></pre>
+
+      <h2>Step 5: Representation 3 — Geneformer</h2>
+      <pre><code>print("=" * 50)
+print("METHOD 3: Geneformer")
+print("=" * 50)
+
+# Note: use the current stable Geneformer release from HuggingFace
+# Check https://huggingface.co/ctheodoris/Geneformer for the latest model ID
+# The model ID below reflects the stable release at time of writing
+
+from geneformer import TranscriptomeTokenizer, EmbExtractor
+from datasets import load_from_disk
+
+GENEFORMER_MODEL = "ctheodoris/Geneformer"  # update to latest stable release
+
+start_time = time.time()
+tracemalloc.start()
+
+# Step 1: Convert AnnData to Geneformer input format
+# Geneformer requires a specific loom or dataset format
+# Save as loom first
+import loompy
+adata_gf = adata.copy()
+adata_gf.X = adata_gf.layers['counts'].astype(int)
+
+# Tokenise for Geneformer
+tk = TranscriptomeTokenizer(
+    {"cell_type": "cell_type", "batch": "batch"},
+    nproc=4
+)
+tk.tokenize_data(
+    data_directory="./geneformer_input/",
+    output_directory="./geneformer_tokens/",
+    output_prefix="pbmc_scib",
+    file_format="loom"
+)
+
+# Step 2: Extract embeddings
+embex = EmbExtractor(
+    model_type="Pretrained",
+    num_classes=0,
+    emb_mode="cell",
+    cell_emb_style="mean_pool",
+    filter_data=None,
+    max_ncells=None,
+    emb_layer=-1,
+    emb_label=["cell_type"],
+    forward_batch_size=100,
+    nproc=4
+)
+
+embs = embex.extract_embs(
+    model_directory=GENEFORMER_MODEL,
+    input_data_file="./geneformer_tokens/pbmc_scib.dataset",
+    output_directory="./geneformer_embeddings/",
+    output_prefix="pbmc_scib"
+)
+
+X_geneformer = embs.values
+adata.obsm['X_geneformer'] = X_geneformer
+
+gf_time   = time.time() - start_time
+gf_memory = tracemalloc.get_traced_memory()[1] / 1e6
+tracemalloc.stop()
+
+print(f"Geneformer embedding shape: {X_geneformer.shape}")
+print(f"Time:   {gf_time:.1f} seconds")
+print(f"Memory: {gf_memory:.1f} MB")
+
+# Classify
+X_train_gf = X_geneformer[train_idx]
+X_test_gf  = X_geneformer[test_idx]
+
+knn_gf = KNeighborsClassifier(n_neighbors=15, metric='cosine', n_jobs=-1)
+knn_gf.fit(X_train_gf, y_train)
+y_pred_gf = knn_gf.predict(X_test_gf)
+
+acc_gf = accuracy_score(y_test, y_pred_gf)
+f1_gf  = f1_score(y_test, y_pred_gf, average='macro')
+print(f"Geneformer + kNN  |  Accuracy: {acc_gf:.3f}  |  Macro-F1: {f1_gf:.3f}")</code></pre>
+
+      <h2>Step 6: The Comparison Table</h2>
+      <pre><code>results = pd.DataFrame({
+    'Method':    ['PCA + kNN', 'scVI + kNN', 'Geneformer + kNN'],
+    'Accuracy':  [acc_pca, acc_scvi, acc_gf],
+    'Macro-F1':  [f1_pca,  f1_scvi,  f1_gf],
+    'Time (s)':  [pca_time, scvi_time, gf_time],
+    'Memory (MB)': [pca_memory, scvi_memory, gf_memory]
+})
+results = results.sort_values('Macro-F1', ascending=False)
+print("\n" + "=" * 65)
+print("FINAL RESULTS: Did the Foundation Model Actually Help?")
+print("=" * 65)
+print(results.to_string(index=False))
+
+# Visualise
+fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+axes[0].bar(results['Method'], results['Macro-F1'],
+            color=['#38bdf8', '#4ade80', '#a78bfa'])
+axes[0].set_ylabel('Macro-F1')
+axes[0].set_title('Classification Performance')
+axes[0].tick_params(axis='x', rotation=15)
+
+axes[1].bar(results['Method'], results['Time (s)'],
+            color=['#38bdf8', '#4ade80', '#a78bfa'])
+axes[1].set_ylabel('Runtime (seconds)')
+axes[1].set_title('Computational Cost')
+axes[1].tick_params(axis='x', rotation=15)
+
+plt.tight_layout()
+plt.savefig('capstone_results.png', dpi=150)
+plt.show()</code></pre>
+
+      <h2>Step 7: Visualise the Embeddings</h2>
+      <pre><code># UMAP of all three embeddings
+fig, axes = plt.subplots(2, 3, figsize=(18, 10))
+methods = [
+    ('PCA', 'X_pca'),
+    ('scVI', 'X_scVI'),
+    ('Geneformer', 'X_geneformer')
+]
+
+for col, (name, key) in enumerate(methods):
+    sc.pp.neighbors(adata, use_rep=key, n_neighbors=15, key_added=f'nn_{name}')
+    sc.tl.umap(adata, neighbors_key=f'nn_{name}', key_added=f'umap_{name}')
+
+    # Top row: colour by cell type
+    sc.pl.embedding(adata, basis=f'umap_{name}', color='cell_type',
+                    ax=axes[0, col], show=False, title=f'{name} — Cell Type')
+    # Bottom row: colour by donor (batch)
+    sc.pl.embedding(adata, basis=f'umap_{name}', color='batch',
+                    ax=axes[1, col], show=False, title=f'{name} — Donor')
+
+plt.tight_layout()
+plt.savefig('capstone_umaps.png', dpi=150)
+plt.show()</code></pre>
+
+      <h2>Step 8: Answer the Question</h2>
+      <p>After running the analysis, fill in this report template with your actual numbers:</p>
+
+      <pre><code># Capstone Report Template
+
+"""
+CAPSTONE REPORT: Did the Foundation Model Actually Help?
+Dataset: scIB PBMC benchmark (Luecken et al. 2022)
+Task: Cell type annotation (7 classes)
+
+RESULTS SUMMARY
+---------------
+Method              Accuracy   Macro-F1   Runtime   Memory
+PCA + kNN           [fill in]  [fill in]  [fill in] [fill in]
+scVI + kNN          [fill in]  [fill in]  [fill in] [fill in]
+Geneformer + kNN    [fill in]  [fill in]  [fill in] [fill in]
+
+OBSERVATIONS
+------------
+1. Performance: [Did Geneformer outperform scVI? Did scVI outperform PCA?
+                  By how much? Is the difference meaningful?]
+
+2. Cost: [How much slower was Geneformer than PCA?
+           Was the performance gain worth the extra runtime?]
+
+3. Batch effects: [Did scVI's batch correction help compared to PCA?
+                    Do the donor-coloured UMAPs show mixing in scVI
+                    but separation in PCA?]
+
+4. Failure modes: [Which cell types were hardest to classify?
+                    Were the errors biologically sensible?]
+
+CONCLUSION
+----------
+[In 3-5 sentences: which method would you use in a real analysis
+ and why? Under what circumstances would you choose Geneformer
+ over PCA? What did this capstone teach you about the relationship
+ between model complexity and performance?]
+"""</code></pre>
+
+      <h2>What the Literature Expects You to Find</h2>
+      <p>Based on the scIB benchmarking paper and subsequent foundation model evaluations, here is what you are likely to see — though your exact numbers will vary:</p>
+      <ul>
+        <li>PCA achieves reasonable but not state-of-the-art F1, especially on rare cell types</li>
+        <li>scVI improves over PCA on overall performance and shows clearer separation between donors in UMAP — the batch correction is visible</li>
+        <li>Geneformer approximately matches scVI on overall Macro-F1, sometimes better, sometimes worse by a few percent</li>
+        <li>PCA takes seconds; scVI takes minutes; Geneformer takes significantly longer and requires more memory</li>
+        <li>The UMAP coloured by donor shows the key difference: PCA separates by donor, scVI mixes donors by cell type, Geneformer varies</li>
+      </ul>
+      <p>If you find that PCA achieves 85% Macro-F1, scVI achieves 88%, and Geneformer achieves 89% — is that 4-point improvement over PCA worth 100x the compute time? There is no universal answer. It depends on whether you are doing exploratory analysis on a laptop or a production clinical tool. This is the judgement the course has been preparing you to make.</p>
+
+      <div class="callout tip">
+        <strong><i data-lucide="lightbulb" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Compare your results to the literature</strong>
+        <p>Look up Table 1 of Luecken et al., Nature Methods 2022. Your PCA and scVI numbers should be in a similar range to what they reported. If they are very different, check your preprocessing steps. Reproducibility against published results is itself an important skill.</p>
+      </div>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Final Checklist</strong>
+        <ul>
+          <li>Did you use the same train/test split for all three methods?</li>
+          <li>Did you use the same classifier (kNN, k=15) for all three?</li>
+          <li>Did you check that scVI received raw counts, not normalised data?</li>
+          <li>Did you measure runtime and memory, not just accuracy?</li>
+          <li>Did you colour UMAPs by both cell type AND donor to assess batch correction?</li>
+          <li>Did you compare your results to the published benchmark?</li>
+        </ul>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(56,189,248,.08),rgba(167,139,250,.08));border:1px solid var(--accent);border-radius:16px;padding:2rem;margin:1.5rem 0;text-align:center;">
+        <i data-lucide="award" style="width:48px;height:48px;color:var(--green);margin-bottom:1rem;"></i>
+        <h3 style="color:var(--green);margin-bottom:.5rem;">Course Complete</h3>
+        <p style="color:var(--text-muted);max-width:600px;margin:0 auto;">You have completed AI for Genomics in the Foundation Model Era. You can now evaluate AI methods critically, build classifiers from logistic regression to foundation models, and — most importantly — answer the question that separates good computational biologists from bad ones: does this complexity actually help?</p>
+      </div>
+
+      <div class="module-nav">
+        <button class="nav-btn" onclick="navigate('aiml15')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Chapter 15</button>
+        <button class="nav-btn" onclick="navigate('home')"><i data-lucide="home" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Home</button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container"></div>
+  </div>
+
+</div>
