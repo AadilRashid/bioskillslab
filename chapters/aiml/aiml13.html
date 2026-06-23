@@ -1,0 +1,321 @@
+<div class="module-page">
+  <div class="module-header">
+    <h1><i data-lucide="dna" style="width:28px;height:28px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Chapter 13: DNA as Language — DNABERT and Enformer</h1>
+    <div class="meta">
+      <span><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> ~65 min</span>
+      <span><i data-lucide="signal" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> Advanced</span>
+      <span><i data-lucide="tag" style="width:14px;height:14px;display:inline;vertical-align:middle;"></i> DNABERT, Enformer, Regulatory Genomics, k-mers, Sequence Models, ENCODE</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="lesson"><i data-lucide="book-open" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Lesson</button>
+    <button class="tab-btn" data-tab="quiz"><i data-lucide="flask-conical" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Quiz</button>
+    <button class="tab-btn" data-tab="discuss"><i data-lucide="message-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Discussion</button>
+  </div>
+
+  <div class="tab-content active" id="lesson">
+    <div class="lesson">
+
+      <h2>From Cells to Sequences</h2>
+      <p>Chapters 11 and 12 focused on gene expression — what is being transcribed in individual cells. This chapter shifts to the DNA sequence itself — what determines whether genes are transcribed at all. Regulatory genomics is the field that asks how the genome is controlled, and it is one of the areas where AI has made some of its most genuine and reproducible advances in biology.</p>
+      <p>The key insight driving this chapter is simple: DNA is a sequence of characters (A, T, C, G), and language models are very good at understanding sequences. The same transformer architecture that models the relationships between words in a sentence can model the relationships between nucleotide positions in a DNA sequence — with one critical difference. In language, words are separated by spaces and their boundaries are clear. In DNA, the relevant units (transcription factor binding motifs, splice sites, regulatory elements) are embedded in a continuous string of 3 billion characters with no delimiters. The challenge is tokenisation: how do you break DNA into meaningful units?</p>
+
+      <h2>Tokenising DNA — The k-mer Approach</h2>
+      <p>The simplest and most widely used approach is k-mer tokenisation. Rather than treating each nucleotide as a token, you use overlapping windows of k nucleotides. For k=6, the sequence ATCGATCG becomes: ATCGAT, TCGATC, CGATCG — overlapping hexamers that capture local sequence context.</p>
+
+      <pre><code>Sequence:  A T C G A T C G A T
+k=3 tokens: ATC, TCG, CGA, GAT, ATC, TCG, GAT
+k=6 tokens: ATCGAT, TCGATC, CGATCG, GATCGA, ATCGAT
+
+Vocabulary size:
+  k=3: 4^3 = 64 possible trimers
+  k=4: 4^4 = 256 possible tetramers
+  k=6: 4^6 = 4096 possible hexamers</code></pre>
+
+      <p>The choice of k involves a trade-off. Small k captures local sequence features but misses longer-range context. Large k captures more context but has an exponentially growing vocabulary and sparser representations. k=6 is the standard choice for most DNA language models, striking a balance between context and tractability.</p>
+
+      <h2>DNABERT — BERT for the Genome</h2>
+      <p>DNABERT (Ji et al., Bioinformatics 2021) applies the BERT pretraining paradigm to human DNA sequences. It tokenises the genome into overlapping k-mers and uses masked language modelling — randomly masking k-mer tokens and training the model to predict them from context — to learn general representations of DNA sequence.</p>
+      <p>The pretrained model can then be fine-tuned for specific tasks: predicting transcription factor binding sites, identifying splice sites, annotating promoters and enhancers, or predicting the regulatory impact of variants.</p>
+      <p>In 2023, DNABERT-2 significantly improved on the original by using byte-pair encoding (BPE) tokenisation — the same approach used in modern language models — instead of fixed k-mers. BPE learns a data-driven vocabulary of variable-length DNA tokens, which better captures the non-uniform information content of different genomic regions.</p>
+
+      <pre><code>pip install transformers
+
+from transformers import AutoTokenizer, AutoModel
+import torch
+
+# Load DNABERT-2 pretrained model
+tokenizer = AutoTokenizer.from_pretrained(
+    "zhihan1996/DNABERT-2-117M",
+    trust_remote_code=True
+)
+model = AutoModel.from_pretrained(
+    "zhihan1996/DNABERT-2-117M",
+    trust_remote_code=True
+)
+model.eval()
+
+# Example: embed a DNA sequence
+sequence = "ATCGATCGATCGATCGATCGATCGATCGATCG"
+inputs   = tokenizer(sequence, return_tensors='pt')
+
+with torch.no_grad():
+    outputs  = model(**inputs)
+    # outputs.last_hidden_state: (batch, seq_len, hidden_size)
+    # Pool across sequence positions to get one vector per sequence
+    embedding = outputs.last_hidden_state.mean(dim=1)  # (1, 768)
+    print(f"Sequence embedding shape: {embedding.shape}")</code></pre>
+
+      <h3>Fine-tuning DNABERT-2 for Promoter Prediction</h3>
+      <pre><code>from transformers import AutoModelForSequenceClassification
+from torch.utils.data import Dataset, DataLoader
+import torch.nn as nn
+
+# Binary classification: is this sequence a promoter?
+class SequenceDataset(Dataset):
+    def __init__(self, sequences, labels, tokenizer, max_length=512):
+        self.encodings = tokenizer(sequences, truncation=True,
+                                    padding=True, max_length=max_length,
+                                    return_tensors='pt')
+        self.labels = torch.LongTensor(labels)
+
+    def __len__(self):
+        return len(self.labels)
+
+    def __getitem__(self, idx):
+        item = {k: v[idx] for k, v in self.encodings.items()}
+        item['labels'] = self.labels[idx]
+        return item
+
+# Load sequences and labels from ENCODE data
+# positive: known promoter sequences; negative: random intergenic sequences
+sequences = [...]  # list of DNA strings
+labels    = [...]  # 0 or 1
+
+dataset = SequenceDataset(sequences, labels, tokenizer)
+loader  = DataLoader(dataset, batch_size=16, shuffle=True)
+
+# Fine-tune for classification
+clf_model = AutoModelForSequenceClassification.from_pretrained(
+    "zhihan1996/DNABERT-2-117M",
+    num_labels=2,
+    trust_remote_code=True
+)
+optimiser = torch.optim.AdamW(clf_model.parameters(), lr=2e-5)
+
+for epoch in range(5):
+    clf_model.train()
+    for batch in loader:
+        outputs = clf_model(**batch)
+        loss    = outputs.loss
+        loss.backward()
+        optimiser.step()
+        optimiser.zero_grad()
+    print(f"Epoch {epoch+1}: loss = {loss.item():.4f}")</code></pre>
+
+      <h2>Enformer — Long-Range Regulatory Prediction</h2>
+      <p>DNABERT models sequences up to a few thousand base pairs. But gene regulation operates at scales of hundreds of thousands of base pairs. Enhancers can act on genes 500,000 base pairs away. Understanding gene expression from sequence requires a model that can look across these distances.</p>
+      <p>Enformer (Avsec et al., Nature Methods 2021) was designed specifically for this challenge. It takes 196,608 base pairs of DNA sequence as input and predicts 5,313 genomic tracks — gene expression across tissues, chromatin accessibility, histone modifications, transcription factor binding, and more — from the sequence alone.</p>
+      <p>The architecture combines a convolutional stem (for local feature extraction) with a transformer tower (for long-range interactions). The attention mechanism allows the model to directly attend to distant enhancers when predicting gene expression at a given position. This long-range attention is the key capability that earlier CNN-based models like DeepSEA lacked.</p>
+
+      <pre><code>pip install enformer-pytorch
+
+import enformer_pytorch
+from enformer_pytorch import Enformer
+import torch
+
+# Load pretrained Enformer
+enformer = Enformer.from_pretrained('EleutherAI/enformer-official-rough')
+enformer.eval()
+
+# Predict from sequence (196,608 bp = 196kb window)
+# Input: one-hot encoded DNA, shape (batch, 4, 196608)
+# A=0, C=1, G=2, T=3
+
+def one_hot_encode(sequence):
+    mapping = {'A': 0, 'C': 1, 'G': 2, 'T': 3, 'N': 0}
+    encoded = torch.zeros(4, len(sequence))
+    for i, base in enumerate(sequence.upper()):
+        if base in mapping:
+            encoded[mapping[base], i] = 1
+    return encoded
+
+# Load a 196kb sequence around a gene of interest (e.g. from Ensembl)
+seq = "ATCG..."  # 196,608 characters
+x   = one_hot_encode(seq).unsqueeze(0)  # (1, 4, 196608)
+
+with torch.no_grad():
+    predictions = enformer(x)
+    # predictions['human']: shape (1, 896, 5313)
+    # 896 bins of 128bp each covering the central 114,688 bp
+    # 5313 tracks: CAGE, DNase, ChIP-seq, etc.
+
+# Extract gene expression prediction (CAGE tracks)
+cage_tracks = predictions['human'][:, :, :675]  # first 675 tracks are CAGE
+print(f"CAGE predictions shape: {cage_tracks.shape}")</code></pre>
+
+      <h3>Variant Effect Prediction with Enformer</h3>
+      <p>One of Enformer's most powerful applications is predicting the regulatory effect of variants. For a given SNP, you run Enformer on the reference sequence and the alternative sequence and compare the predicted tracks. Variants that substantially change predicted gene expression or chromatin accessibility are likely to be functionally important.</p>
+
+      <pre><code>def predict_variant_effect(ref_seq, alt_seq, enformer):
+    x_ref = one_hot_encode(ref_seq).unsqueeze(0)
+    x_alt = one_hot_encode(alt_seq).unsqueeze(0)
+
+    with torch.no_grad():
+        pred_ref = enformer(x_ref)['human']
+        pred_alt = enformer(x_alt)['human']
+
+    # Log fold change for each track at each position
+    log_fc = torch.log2(pred_alt + 1e-6) - torch.log2(pred_ref + 1e-6)
+    return log_fc
+
+# The variant with the largest absolute log_fc across CAGE tracks
+# is predicted to have the largest regulatory effect
+effect = predict_variant_effect(ref_seq, alt_seq, enformer)
+max_effect_track = effect.abs().max(dim=-1).values.max().item()
+print(f"Maximum predicted regulatory effect: {max_effect_track:.3f}")</code></pre>
+
+      <h2>The Nucleotide Transformer — Scale and Transfer</h2>
+      <p>The Nucleotide Transformer (Dalla-Torre et al., 2023) takes the DNA language model approach further, training models from 500 million to 2.5 billion parameters on genomes from 3,202 different species. The multi-species pretraining is the key innovation: evolutionary conservation across species is one of the strongest signals for functional importance, and a model trained on hundreds of species learns to recognise conserved functional elements that species-specific models miss.</p>
+      <p>The Nucleotide Transformer is available through the Hugging Face hub and can be used via the standard transformers API, making it one of the most accessible genomic foundation models for practical use.</p>
+
+      <pre><code>from transformers import AutoTokenizer, AutoModelForMaskedLM
+import torch
+
+# Load Nucleotide Transformer (500M parameter version)
+tokenizer = AutoTokenizer.from_pretrained(
+    "InstaDeepAI/nucleotide-transformer-500m-multi-species"
+)
+nt_model = AutoModelForMaskedLM.from_pretrained(
+    "InstaDeepAI/nucleotide-transformer-500m-multi-species"
+)
+
+# Embed a sequence
+tokens  = tokenizer(["ATCGATCGATCG"], return_tensors='pt')
+with torch.no_grad():
+    output = nt_model(**tokens, output_hidden_states=True)
+    # Use the last hidden state as embedding
+    embedding = output.hidden_states[-1].mean(dim=1)
+    print(f"Nucleotide Transformer embedding: {embedding.shape}")</code></pre>
+
+      <h2>Comparing the Models</h2>
+
+      <table style="width:100%;border-collapse:collapse;margin:1rem 0;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border);">
+            <th style="text-align:left;padding:.75rem;">Model</th>
+            <th style="text-align:left;padding:.75rem;">Input length</th>
+            <th style="text-align:left;padding:.75rem;">Best for</th>
+            <th style="text-align:left;padding:.75rem;">Key limitation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">DNABERT-2</td>
+            <td style="padding:.75rem;">Up to 512 tokens</td>
+            <td style="padding:.75rem;">TF binding, promoters, splicing</td>
+            <td style="padding:.75rem;">Short context only</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">Enformer</td>
+            <td style="padding:.75rem;">196,608 bp</td>
+            <td style="padding:.75rem;">Gene expression prediction, variant effects</td>
+            <td style="padding:.75rem;">Human/mouse only, complex setup</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.75rem;">Nucleotide Transformer</td>
+            <td style="padding:.75rem;">Up to 1,000 tokens</td>
+            <td style="padding:.75rem;">Multi-species, conservation</td>
+            <td style="padding:.75rem;">Medium context</td>
+          </tr>
+          <tr>
+            <td style="padding:.75rem;">AlphaGenome (Ch 14)</td>
+            <td style="padding:.75rem;">Up to 1 Mb</td>
+            <td style="padding:.75rem;">Full regulatory landscape, long-range</td>
+            <td style="padding:.75rem;">Very compute-intensive</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout warning">
+        <strong><i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Reality Check</strong>
+        <ul>
+          <li>For short sequence classification tasks (promoter vs non-promoter, splice site), a CNN baseline often matches DNABERT with far less compute.</li>
+          <li>Enformer requires a GPU and substantial memory. For variant effect prediction on a personal computer, consider using the pre-computed Enformer scores available from public databases.</li>
+          <li>All these models were primarily trained and validated on human data. Performance on non-human species varies and should be validated before trusting predictions.</li>
+          <li>Does the task require long-range context? If your regulatory element is within 1,000 bp of the gene, DNABERT is sufficient. If it is 100,000 bp away, you need Enformer or AlphaGenome.</li>
+        </ul>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(56,189,248,.08),rgba(167,139,250,.08));border:1px solid var(--accent);border-radius:12px;padding:1.25rem;margin:1.5rem 0;">
+        <p style="font-weight:600;margin:0;"><i data-lucide="target" style="width:16px;height:16px;display:inline;vertical-align:middle;margin-right:.5rem;"></i> Course Progress</p>
+        <p style="color:var(--text-muted);font-size:.9rem;margin:.5rem 0 0;">Part 4 has begun. You now understand DNA language models from DNABERT's short-context BERT approach to Enformer's long-range regulatory prediction. Chapter 14 covers AlphaGenome, which extends this to the full 1 Mb regulatory landscape, plus multi-omics AI and GNNs.</p>
+      </div>
+
+      <div class="module-nav">
+        <button class="nav-btn" onclick="navigate('aiml12')"><i data-lucide="arrow-left" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i> Previous</button>
+        <button class="nav-btn" onclick="navigate('aiml14')">Next: AlphaGenome, Multi-Omics AI and GNNs <i data-lucide="arrow-right" style="width:16px;height:16px;display:inline;vertical-align:middle;"></i></button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-content" id="quiz">
+    <div class="quiz-container">
+      <h3 style="margin-bottom:1rem;">Quiz — Chapter 13</h3>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">1</span> What is k-mer tokenisation in DNA language models?</h4>
+        <button class="quiz-option" data-value="a">Splitting DNA into individual nucleotides (A, T, C, G)</button>
+        <button class="quiz-option" data-value="b">Representing DNA as overlapping windows of k nucleotides, where each window is one token</button>
+        <button class="quiz-option" data-value="c">Encoding each codon as a single amino acid token</button>
+        <button class="quiz-option" data-value="d">Splitting DNA at gene boundaries</button>
+        <div class="quiz-explanation" data-text="k-mer tokenisation uses overlapping windows of k consecutive nucleotides as tokens. For k=6, ATCGAT is one token, TCGATC the next, etc. This captures local sequence context while keeping the vocabulary manageable (4^6 = 4,096 possible 6-mers)."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="d">
+        <h4><span class="q-num">2</span> Why was Enformer a significant advance over earlier models like DeepSEA?</h4>
+        <button class="quiz-option" data-value="a">It uses a larger training dataset</button>
+        <button class="quiz-option" data-value="b">It can handle all species rather than just humans</button>
+        <button class="quiz-option" data-value="c">It trains faster due to a convolutional architecture</button>
+        <button class="quiz-option" data-value="d">Its transformer attention mechanism can capture regulatory interactions across 196,608 bp, allowing enhancers hundreds of kilobases away to influence predictions</button>
+        <div class="quiz-explanation" data-text="Earlier models like DeepSEA used CNNs with limited receptive fields of a few hundred base pairs. Enformer's transformer attention allows it to directly attend to regulatory elements up to ~100,000 bp away from the predicted position, capturing the long-range enhancer-promoter interactions that drive gene regulation."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="a">
+        <h4><span class="q-num">3</span> What is the key innovation of the Nucleotide Transformer compared to DNABERT?</h4>
+        <button class="quiz-option" data-value="a">Pretraining on genomes from over 3,000 species, allowing the model to learn evolutionarily conserved functional elements</button>
+        <button class="quiz-option" data-value="b">Using a longer context window of 196,608 bp</button>
+        <button class="quiz-option" data-value="c">Training on single-cell data alongside DNA sequences</button>
+        <button class="quiz-option" data-value="d">Using protein sequences as input instead of DNA</button>
+        <div class="quiz-explanation" data-text="The Nucleotide Transformer was pretrained on 3,202 species' genomes. Multi-species pretraining lets the model learn that conserved sequences across species are likely functional — one of the strongest signals for biological importance."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="c">
+        <h4><span class="q-num">4</span> You want to predict whether a regulatory variant 250,000 bp from a gene affects its expression. Which model is most appropriate?</h4>
+        <button class="quiz-option" data-value="a">DNABERT-2 — it is the most widely used DNA language model</button>
+        <button class="quiz-option" data-value="b">Nucleotide Transformer — it handles multi-species data</button>
+        <button class="quiz-option" data-value="c">Enformer or AlphaGenome — the variant is far outside DNABERT's context window and requires long-range regulatory modelling</button>
+        <button class="quiz-option" data-value="d">A standard CNN — deep learning is not needed for this task</button>
+        <div class="quiz-explanation" data-text="250,000 bp is far beyond DNABERT's context window (~2,000 bp). Long-range regulatory prediction requires models designed for it: Enformer (196,608 bp) or AlphaGenome (up to 1 Mb). Choosing the wrong model for the scale of the regulatory interaction is a common mistake."></div>
+      </div>
+
+      <div class="quiz-question" data-type="choice" data-answer="b">
+        <h4><span class="q-num">5</span> How does Enformer predict the effect of a variant on gene expression?</h4>
+        <button class="quiz-option" data-value="a">It looks up the variant in a precomputed database</button>
+        <button class="quiz-option" data-value="b">It runs separately on the reference and alternative sequences, then compares the predicted genomic tracks to quantify the change</button>
+        <button class="quiz-option" data-value="c">It fine-tunes on known eQTL data</button>
+        <button class="quiz-option" data-value="d">It uses GWAS summary statistics to weight the prediction</button>
+        <div class="quiz-explanation" data-text="In silico mutagenesis: run Enformer on the reference sequence containing the reference allele, then again with the alternative allele. The difference in predicted CAGE, DNase, or ChIP-seq tracks across the 5,313 output channels quantifies the predicted regulatory effect of the variant."></div>
+      </div>
+
+      <div class="quiz-score" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="discuss">
+    <div id="forum" class="forum-container"></div>
+  </div>
+
+</div>
